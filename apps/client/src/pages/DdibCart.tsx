@@ -1,0 +1,121 @@
+import React from 'react';
+import { useCartStore } from '../store/useCartStore';
+import { Bookmark, Trash2, ArrowRight } from 'lucide-react';
+import { motion } from 'framer-motion';
+
+export const DdibCart: React.FC = () => {
+  const { cart, removeFromCart, clearCart, calculateSplitSavings } = useCartStore();
+  const { singleMartTotal, splitTotal, savings } = calculateSplitSavings();
+
+  return (
+    <div style={{ padding: '16px' }}>
+      <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+          <Bookmark size={22} color="#FF5E00" />
+          <h2 style={{ fontSize: '20px', fontWeight: 800, margin: 0 }}>🏷️ 띱! 분할 쇼핑 계산기</h2>
+        </div>
+
+        {cart.length > 0 && (
+          <button
+            onClick={clearCart}
+            style={{ border: 'none', background: 'none', color: '#9CA3AF', fontSize: '13px', cursor: 'pointer' }}
+          >
+            전체 비우기
+          </button>
+        )}
+      </header>
+
+      {/* 절약액 비교 대시보드 박스 */}
+      <div style={{
+        backgroundColor: '#111827',
+        color: '#FFF',
+        borderRadius: '16px',
+        padding: '20px',
+        marginBottom: '20px',
+        boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
+      }}>
+        <div style={{ fontSize: '13px', color: '#9CA3AF', marginBottom: '4px' }}>
+          단일 마트 몰아담기 vs 최적 분할 비교
+        </div>
+
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '12px' }}>
+          <div>
+            <div style={{ fontSize: '12px', color: '#D1D5DB' }}>단일 마트 구매시</div>
+            <div style={{ fontSize: '18px', fontWeight: 700, textDecoration: 'line-through', color: '#9CA3AF' }}>
+              {singleMartTotal.toLocaleString()}원
+            </div>
+          </div>
+
+          <ArrowRight size={20} color="#FF5E00" />
+
+          <div>
+            <div style={{ fontSize: '12px', color: '#10B981', fontWeight: 700 }}>최적 분할 구매시</div>
+            <div style={{ fontSize: '22px', fontWeight: 800, color: '#10B981' }}>
+              {splitTotal.toLocaleString()}원
+            </div>
+          </div>
+        </div>
+
+        {savings > 0 && (
+          <div style={{
+            marginTop: '16px',
+            paddingTop: '12px',
+            borderTop: '1px solid #374151',
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center'
+          }}>
+            <span style={{ fontSize: '13px', color: '#F3F4F6' }}>🎉 예상 절약액:</span>
+            <span style={{ fontSize: '16px', fontWeight: 800, color: '#FF5E00' }}>
+              총 {savings.toLocaleString()}원 절약!
+            </span>
+          </div>
+        )}
+      </div>
+
+      {/* 담은 띱 위시리스트 */}
+      <h3 style={{ fontSize: '15px', fontWeight: 700, margin: '0 0 12px 0' }}>
+        장바구니 띱 목록 ({cart.length}개)
+      </h3>
+
+      {cart.length === 0 ? (
+        <div style={{ textAlign: 'center', padding: '40px 0', color: '#9CA3AF', fontSize: '14px' }}>
+          [🎯 콕] 탭에서 원하는 최저가 상품을 띱 담아보세요!
+        </div>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+          {cart.map((item, idx) => (
+            <motion.div
+              key={idx}
+              initial={{ opacity: 0, x: -10 }}
+              animate={{ opacity: 1, x: 0 }}
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                padding: '14px',
+                backgroundColor: '#FFF',
+                borderRadius: '12px',
+                border: '1px solid #E5E7EB'
+              }}
+            >
+              <div>
+                <div style={{ fontSize: '14px', fontWeight: 700 }}>{item.product.productName}</div>
+                <div style={{ fontSize: '12px', color: '#6B7280', marginTop: '2px' }}>
+                  {item.product.salePrice.toLocaleString()}원 × {item.quantity}개 ({item.product.martName})
+                </div>
+              </div>
+
+              <button
+                onClick={() => removeFromCart(item.product.id || item.product.productName)}
+                style={{ border: 'none', background: 'none', color: '#EF4444', cursor: 'pointer' }}
+              >
+                <Trash2 size={18} />
+              </button>
+            </motion.div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};

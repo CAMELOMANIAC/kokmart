@@ -1,0 +1,23 @@
+{
+  "name": "kokmart-monorepo",
+  "private": true,
+  "version": "0.1.0",
+  "scripts": {
+    "dev": "pnpm --filter \"./apps/*\" --parallel dev",
+    "dev:client": "pnpm --filter @kokmart/client dev",
+    "dev:server": "pnpm --filter @kokmart/server dev",
+    "build": "pnpm --filter \"./packages/*\" --filter \"./apps/*\" build",
+    "build:shared": "pnpm --filter @kokmart/shared build",
+    "build:client": "pnpm --filter @kokmart/client build",
+    "build:server": "pnpm --filter @kokmart/server build",
+    "lint": "eslint \"{apps,packages}/**/*.{ts,tsx}\""
+  },
+  "devDependencies": {
+    "@typescript-eslint/eslint-plugin": "^7.10.0",
+    "@typescript-eslint/parser": "^7.10.0",
+    "eslint": "^8.57.0",
+    "eslint-plugin-react": "^7.34.1",
+    "eslint-plugin-react-hooks": "^4.6.2",
+    "typescript": "^5.4.5"
+  }
+}
