@@ -19,11 +19,11 @@ export const KokHome: React.FC<KokHomeProps> = ({ onNavigateTab }) => {
   // 내 위치로부터 거리 계산 및 정렬
   const nearbyStores = useMemo(() => {
     return mockMartStores
-      .map((store) => ({
+      .map((store: MartStore) => ({
         ...store,
         distanceKm: calculateDistanceKm(myLocation.lat, myLocation.lng, store.lat, store.lng)
       }))
-      .sort((a, b) => (a.distanceKm || 0) - (b.distanceKm || 0));
+      .sort((a, b) => ((a.distanceKm ?? 0) - (b.distanceKm ?? 0)));
   }, [myLocation.lat, myLocation.lng]);
 
   const handleSelectStore = (store: MartStore) => {

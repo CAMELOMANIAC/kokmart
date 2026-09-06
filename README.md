@@ -42,6 +42,18 @@
 
 ---
 
+## ⚠️ 필수 개발 및 코딩 컨벤션 (Strict Coding Rules)
+
+1. **`any` 타입 사용 절대 금지 (Strict TypeScript)**
+   * 코드 작성 시 `any` 타입의 사용을 엄격히 금지합니다.
+   * 타입을 명확하게 명시(Interface / Type Alias / Generics)하거나, 동적이거나 불확실한 데이터는 반드시 **`unknown` 타입을 사용**하고 타입 가드(Type Narrowing)를 거쳐 안전하게 사용해야 합니다.
+2. **인라인 스타일(`style={{ ... }}`) 절대 금지 (vanilla-extract 준수)**
+   * JSX 컴포넌트 내부의 인라인 스타일(`style={{ ... }}`) 작성을 일체 금지합니다.
+   * 모든 스타일링은 Zero-Runtime CSS-in-JS인 **vanilla-extract 전용 파일(`*.css.ts`)**에 분리하여 작성해야 합니다.
+   * 색상, 간격, 폰트 크기, 반경 등은 하드코딩하지 않고 [theme.css.ts](apps/client/src/styles/theme.css.ts)의 디자인 시스템 토큰(`vars.*`)을 반드시 활용해야 합니다.
+
+---
+
 ## 📁 프로젝트 구조 (Monorepo Architecture)
 
 ```

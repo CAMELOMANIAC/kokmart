@@ -6,7 +6,7 @@
   "main": "api/index.js",
   "scripts": {
     "dev": "tsx watch src/index.ts",
-    "build": "tsc"
+    "build": "pnpm --filter @kokmart/shared build && tsc"
   },
   "dependencies": {
     "@google/genai": "^2.21.0",
