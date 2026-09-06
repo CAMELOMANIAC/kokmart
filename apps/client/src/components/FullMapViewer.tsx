@@ -114,18 +114,22 @@ export const FullMapViewer: React.FC<FullMapViewerProps> = ({
       <div style={{ position: 'absolute', top: '16px', right: '16px', display: 'flex', flexDirection: 'column', gap: '8px', zIndex: 30 }}>
         <button
           style={{
-            width: '42px',
-            height: '42px',
+            width: '44px',
+            height: '44px',
             borderRadius: '50%',
-            backgroundColor: 'rgba(255,255,255,0.92)',
-            backdropFilter: 'blur(8px)',
-            border: '1px solid rgba(255,255,255,0.7)',
-            boxShadow: '0 4px 14px rgba(0,0,0,0.1)',
+            backgroundColor: 'rgba(255, 255, 255, 0.92)',
+            backdropFilter: 'blur(16px)',
+            WebkitBackdropFilter: 'blur(16px)',
+            border: '1px solid rgba(255, 255, 255, 0.8)',
+            boxShadow: '0 8px 24px rgba(0, 0, 0, 0.08)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            cursor: 'pointer'
+            cursor: 'pointer',
+            padding: 0,
+            boxSizing: 'border-box'
           }}
+          title="내 위치로 이동"
         >
           <Navigation size={18} color="#FF5E00" />
         </button>

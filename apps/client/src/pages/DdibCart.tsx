@@ -2,6 +2,7 @@ import React from 'react';
 import { useCartStore } from '../store/useCartStore';
 import { Bookmark, Trash2, ArrowRight } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { FloatingTopBar } from '../components/FloatingTopBar';
 
 export const DdibCart: React.FC = () => {
   const { cart, removeFromCart, clearCart, calculateSplitSavings } = useCartStore();
@@ -9,33 +10,11 @@ export const DdibCart: React.FC = () => {
 
   return (
     <div style={{ padding: '16px' }}>
-      {/* 플로팅 헤더 */}
-      <header style={{
-        margin: '0 0 16px 0',
-        padding: '14px 20px',
-        backgroundColor: 'rgba(255, 255, 255, 0.82)',
-        backdropFilter: 'blur(16px)',
-        borderRadius: '24px',
-        border: '1px solid rgba(255, 255, 255, 0.7)',
-        boxShadow: '0 8px 24px rgba(0, 0, 0, 0.04)',
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center'
-      }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-          <Bookmark size={22} color="#FF5E00" />
-          <h2 style={{ fontSize: '18px', fontWeight: 800, margin: 0, color: '#111827' }}>🏷️ 띱! 분할 쇼핑 계산기</h2>
-        </div>
-
-        {cart.length > 0 && (
-          <button
-            onClick={clearCart}
-            style={{ border: 'none', background: 'none', color: '#9CA3AF', fontSize: '13px', cursor: 'pointer', fontWeight: 600 }}
-          >
-            전체 비우기
-          </button>
-        )}
-      </header>
+      {/* 상단 공통 플로팅 바 (GNB Bookmark 아이콘 추가) */}
+      <FloatingTopBar
+        title="띱! 끼리 비교"
+        icon={<Bookmark size={18} color="#FF5E00" />}
+      />
 
       {/* 절약액 비교 플로팅 대시보드 박스 */}
       <div style={{
@@ -85,10 +64,20 @@ export const DdibCart: React.FC = () => {
         )}
       </div>
 
-      {/* 담은 띱 위시리스트 */}
-      <h3 style={{ fontSize: '15px', fontWeight: 700, margin: '0 4px 12px 4px', color: '#374151' }}>
-        장바구니 띱 목록 ({cart.length}개)
-      </h3>
+      {/* 담은 띱 위시리스트 헤더 */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', margin: '0 4px 12px 4px' }}>
+        <h3 style={{ fontSize: '15px', fontWeight: 700, margin: 0, color: '#374151' }}>
+          장바구니 띱 목록 ({cart.length}개)
+        </h3>
+        {cart.length > 0 && (
+          <button
+            onClick={clearCart}
+            style={{ border: 'none', background: 'none', color: '#9CA3AF', fontSize: '13px', cursor: 'pointer', fontWeight: 600 }}
+          >
+            전체 비우기
+          </button>
+        )}
+      </div>
 
       {cart.length === 0 ? (
         <div style={{ textAlign: 'center', padding: '40px 0', color: '#9CA3AF', fontSize: '14px' }}>

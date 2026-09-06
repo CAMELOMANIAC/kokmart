@@ -2,7 +2,7 @@ import { createGlobalTheme, globalStyle, style } from '@vanilla-extract/css';
 
 export const vars = createGlobalTheme(':root', {
   colors: {
-    primary: '#FF5E00',       // 콕마트 주황
+    primary: '#FF5E00',       // 마트콕 주황
     primaryHover: '#E05300',
     secondary: '#111827',     // 다크 차콜
     accentGreen: '#10B981',   // 최저가 뱃지

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Zap, Upload } from 'lucide-react';
+import { FloatingTopBar } from '../components/FloatingTopBar';
 
 export const DdingFlyers: React.FC = () => {
   const [isParsing, setIsParsing] = useState(false);
@@ -23,22 +24,11 @@ export const DdingFlyers: React.FC = () => {
 
   return (
     <div style={{ padding: '16px' }}>
-      {/* 플로팅 헤더 아일랜드 */}
-      <header style={{
-        margin: '0 0 16px 0',
-        padding: '14px 20px',
-        backgroundColor: 'rgba(255, 255, 255, 0.82)',
-        backdropFilter: 'blur(16px)',
-        borderRadius: '24px',
-        border: '1px solid rgba(255, 255, 255, 0.7)',
-        boxShadow: '0 8px 24px rgba(0, 0, 0, 0.04)',
-        display: 'flex',
-        alignItems: 'center',
-        gap: '6px'
-      }}>
-        <Zap size={22} color="#FF5E00" />
-        <h2 style={{ fontSize: '18px', fontWeight: 800, margin: 0, color: '#111827' }}>⚡ 띵! 전단 핫딜</h2>
-      </header>
+      {/* 상단 공통 플로팅 바 (GNB Zap 아이콘 추가) */}
+      <FloatingTopBar
+        title="띵! 한 핫딜"
+        icon={<Zap size={18} color="#FF5E00" />}
+      />
 
       {/* 플로팅 안내 카드 */}
       <div style={{
@@ -99,6 +89,126 @@ export const DdingFlyers: React.FC = () => {
             {parseMessage}
           </div>
         )}
+      </div>
+
+      {/* 실시간 전단 핫딜 상품 리스트 (자연스러운 스크롤 피드) */}
+      <h3 style={{ fontSize: '15px', fontWeight: 700, margin: '20px 4px 12px 4px', color: '#374151' }}>
+        🔥 이번 주 전단 파격 핫딜
+      </h3>
+
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+        {[
+          {
+            id: 'd1',
+            brand: '이마트',
+            martName: '이마트 역삼점',
+            productName: '국내산 1등급 삼겹살 (100g)',
+            originalPrice: 2480,
+            salePrice: 1480,
+            discountRate: '40%',
+            unitPrice: '100g당 1,480원',
+            badge: '🔥 초특가'
+          },
+          {
+            id: 'd2',
+            brand: '홈플러스',
+            martName: '홈플러스 강남점',
+            productName: '당당 두마리 옛날통닭 (1+1)',
+            originalPrice: 13990,
+            salePrice: 6990,
+            discountRate: '50%',
+            unitPrice: '1마리당 3,495원',
+            badge: '⚡ 1+1 핫딜'
+          },
+          {
+            id: 'd3',
+            brand: '롯데마트',
+            martName: '롯데마트 서초점',
+            productName: '제주 GAP 하우스 감귤 (1.5kg/박스)',
+            originalPrice: 14900,
+            salePrice: 9900,
+            discountRate: '33%',
+            unitPrice: '100g당 660원',
+            badge: '🍊 산지직송'
+          },
+          {
+            id: 'd4',
+            brand: '이마트',
+            martName: '이마트 역삼점',
+            productName: 'CJ 비비고 왕교자 (1.4kg 패밀리팩)',
+            originalPrice: 12980,
+            salePrice: 8480,
+            discountRate: '35%',
+            unitPrice: '100g당 605원',
+            badge: '🥟 냉동 1등'
+          },
+          {
+            id: 'd5',
+            brand: '홈플러스',
+            martName: '홈플러스 강남점',
+            productName: '무항생제 신선 대란 (30구)',
+            originalPrice: 8990,
+            salePrice: 5990,
+            discountRate: '33%',
+            unitPrice: '1알당 200원',
+            badge: '🍳 장바구니 필수'
+          }
+        ].map((item) => (
+          <motion.div
+            key={item.id}
+            whileHover={{ y: -2 }}
+            style={{
+              padding: '16px 18px',
+              backgroundColor: '#FFF',
+              borderRadius: '20px',
+              border: '1px solid rgba(255, 255, 255, 0.8)',
+              boxShadow: '0 4px 16px rgba(0, 0, 0, 0.03)',
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center'
+            }}
+          >
+            <div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px' }}>
+                <span
+                  style={{
+                    fontSize: '11px',
+                    fontWeight: 700,
+                    padding: '2px 6px',
+                    borderRadius: '6px',
+                    backgroundColor: item.brand === '이마트' ? '#FEF3C7' : item.brand === '홈플러스' ? '#FEE2E2' : '#FEE2E2',
+                    color: item.brand === '이마트' ? '#B45309' : '#B91C1C'
+                  }}
+                >
+                  {item.martName}
+                </span>
+                <span style={{ fontSize: '11px', fontWeight: 700, color: '#FF5E00' }}>
+                  {item.badge}
+                </span>
+              </div>
+              <div style={{ fontSize: '15px', fontWeight: 700, color: '#111827' }}>
+                {item.productName}
+              </div>
+              <div style={{ fontSize: '12px', color: '#6B7280', marginTop: '3px' }}>
+                {item.unitPrice}
+              </div>
+            </div>
+
+            <div style={{ textAlign: 'right' }}>
+              <div style={{ fontSize: '12px', color: '#9CA3AF', textDecoration: 'line-through' }}>
+                {item.originalPrice.toLocaleString()}원
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '4px', justifyContent: 'flex-end' }}>
+                <span style={{ fontSize: '14px', fontWeight: 800, color: '#EF4444' }}>
+                  {item.discountRate}
+                </span>
+                <span style={{ fontSize: '17px', fontWeight: 800, color: '#111827' }}>
+                  {item.salePrice.toLocaleString()}원
+                </span>
+              </div>
+            </div>
+          </motion.div>
+        ))}
       </div>
     </div>
   );

@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { navContainer, navItem, navItemActive, activeIndicator } from './Navigation.css';
 import { Target, Zap, Bookmark, Users } from 'lucide-react';
-import { useScrollDirection } from '../hooks/useScrollDirection';
 import { useUIStore } from '../store/useUIStore';
 
 interface NavigationProps {
@@ -19,12 +18,13 @@ const tabs = [
 ];
 
 export const Navigation: React.FC<NavigationProps> = ({ currentTab, onTabChange }) => {
-  const { isCollapsed } = useScrollDirection(18);
   const { isBottomSheetFullscreen } = useUIStore();
   const [isHovered, setIsHovered] = useState(false);
 
-  // 스크롤 다운 중이거나 바텀시트가 최대로 확장되었을 때 GNB 자동 축소!
-  const isAutoCollapsed = isCollapsed || isBottomSheetFullscreen;
+  // 1. 콕홈(지도): 바텀시트가 전체화면으로 확장되면 축소, 기본 상태에서는 펼침
+  // 2. 다른 페이지(띵/띱/뿜): 페이지 이동 시 본문 화면 가림을 방지하기 위해 기본으로 GNB 축소
+  // 3. 마우스 호버 시 자연스럽게 펼침
+  const isAutoCollapsed = currentTab === 'kok' ? isBottomSheetFullscreen : true;
   const collapsed = isAutoCollapsed && !isHovered;
 
   return (
