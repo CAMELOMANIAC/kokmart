@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { navContainer, navItem, navItemActive, activeIndicator } from './Navigation.css';
 import { Target, Zap, Bookmark, Users } from 'lucide-react';
@@ -19,23 +19,20 @@ const tabs = [
 
 export const Navigation: React.FC<NavigationProps> = ({ currentTab, onTabChange }) => {
   const { isBottomSheetFullscreen, isScrollingDown } = useUIStore();
-  const [isHovered, setIsHovered] = useState(false);
 
   /**
    * 축소 조건 (OR):
-   *   1. 스크롤 내리는 중 (모든 탭)
+   *   1. 스크롤 ↓ 방향 감지 중 (모든 탭)
    *   2. 바텀시트가 전체화면으로 확장된 경우 (콕 탭)
    *
-   * 호버 시 항상 펼침으로 오버라이드.
+   * 터치 디바이스에서 sticky hover 버그(탭 후 mouseleave 미발화로 GNB 고착)를
+   * 방지하기 위해 hover 기능을 제거했습니다.
    */
-  const isAutoCollapsed = isScrollingDown || isBottomSheetFullscreen;
-  const collapsed = isAutoCollapsed && !isHovered;
+  const collapsed = isScrollingDown || isBottomSheetFullscreen;
 
   return (
     <motion.nav
       className={navContainer}
-      onMouseEnter={() => setIsHovered(true)}
-      onMouseLeave={() => setIsHovered(false)}
       animate={{
         maxWidth: collapsed ? '220px' : '440px',
         height: collapsed ? '50px' : '64px',
