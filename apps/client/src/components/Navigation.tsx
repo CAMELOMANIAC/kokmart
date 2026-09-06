@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { navContainer, navItem, navItemActive, activeIndicator } from './Navigation.css';
 import { Target, Zap, Bookmark, Users } from 'lucide-react';
 import { useScrollDirection } from '../hooks/useScrollDirection';
+import { useUIStore } from '../store/useUIStore';
 
 interface NavigationProps {
   currentTab: string;
@@ -18,11 +19,13 @@ const tabs = [
 ];
 
 export const Navigation: React.FC<NavigationProps> = ({ currentTab, onTabChange }) => {
-  const { isCollapsed } = useScrollDirection(18); // 미세 떨림 방지 스크롤 임계치
+  const { isCollapsed } = useScrollDirection(18);
+  const { isBottomSheetFullscreen } = useUIStore();
   const [isHovered, setIsHovered] = useState(false);
 
-  // 마우스 호버 시에는 축소를 일시 해제하여 편리하게 탭 선택 가능
-  const collapsed = isCollapsed && !isHovered;
+  // 스크롤 다운 중이거나 바텀시트가 최대로 확장되었을 때 GNB 자동 축소!
+  const isAutoCollapsed = isCollapsed || isBottomSheetFullscreen;
+  const collapsed = isAutoCollapsed && !isHovered;
 
   return (
     <motion.nav
@@ -36,8 +39,8 @@ export const Navigation: React.FC<NavigationProps> = ({ currentTab, onTabChange 
       }}
       transition={{
         type: 'spring',
-        stiffness: 220, // 380 -> 220 으로 부드럽게 감속
-        damping: 26,    // 튀지 않는 안정적인 감쇠
+        stiffness: 220,
+        damping: 26,
         mass: 0.8
       }}
     >
@@ -78,7 +81,7 @@ export const Navigation: React.FC<NavigationProps> = ({ currentTab, onTabChange 
                     exit={{ opacity: 0, height: 0, marginTop: 0 }}
                     transition={{
                       duration: 0.28,
-                      ease: [0.25, 1, 0.5, 1] // 부드러운 감속 큐빅 베지어
+                      ease: [0.25, 1, 0.5, 1]
                     }}
                     style={{
                       position: 'relative',

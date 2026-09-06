@@ -35,7 +35,8 @@ globalStyle('body', {
   backgroundColor: '#E5E7EB',
   color: vars.colors.textMain,
   WebkitFontSmoothing: 'antialiased',
-  userSelect: 'none'
+  userSelect: 'none',
+  overflowX: 'hidden'
 });
 
 export const containerStyle = style({
@@ -48,4 +49,16 @@ export const containerStyle = style({
   boxShadow: '0 0 40px rgba(0, 0, 0, 0.08)',
   position: 'relative',
   paddingBottom: '100px'
+});
+
+// 지도 콕 홈 전용 (스크롤 오버플로우 100% 방지)
+export const mapContainerStyle = style({
+  maxWidth: '480px',
+  margin: '0 auto',
+  height: '100vh',
+  maxHeight: '100vh',
+  overflow: 'hidden',
+  position: 'relative',
+  paddingBottom: 0,
+  boxShadow: '0 0 40px rgba(0, 0, 0, 0.08)'
 });

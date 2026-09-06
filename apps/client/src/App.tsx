@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { containerStyle } from './styles/theme.css';
+import { containerStyle, mapContainerStyle } from './styles/theme.css';
 import { Navigation } from './components/Navigation';
 import { KokHome } from './pages/KokHome';
 import { DdingFlyers } from './pages/DdingFlyers';
@@ -19,10 +19,12 @@ const queryClient = new QueryClient({
 export const App: React.FC = () => {
   const [currentTab, setCurrentTab] = useState<string>('kok');
 
+  const isMapTab = currentTab === 'kok';
+
   const renderTabContent = () => {
     switch (currentTab) {
       case 'kok':
-        return <KokHome />;
+        return <KokHome onNavigateTab={setCurrentTab} />;
       case 'dding':
         return <DdingFlyers />;
       case 'ddib':
@@ -30,14 +32,14 @@ export const App: React.FC = () => {
       case 'bbum':
         return <BbumCommunity />;
       default:
-        return <KokHome />;
+        return <KokHome onNavigateTab={setCurrentTab} />;
     }
   };
 
   return (
     <QueryClientProvider client={queryClient}>
-      <div className={containerStyle}>
-        <main>{renderTabContent()}</main>
+      <div className={isMapTab ? mapContainerStyle : containerStyle}>
+        <main style={{ height: isMapTab ? '100%' : 'auto' }}>{renderTabContent()}</main>
         <Navigation currentTab={currentTab} onTabChange={setCurrentTab} />
       </div>
     </QueryClientProvider>
