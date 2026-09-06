@@ -3,8 +3,12 @@ import { useCartStore } from '../store/useCartStore';
 import { Bookmark, Trash2, ArrowRight } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { FloatingTopBar } from '../components/FloatingTopBar';
+import { useScrollDirection } from '../hooks/useScrollDirection';
 
 export const DdibCart: React.FC = () => {
+  // window 스크롤 감지 → useUIStore.isScrollingDown 업데이트 → GNB 자동 축소/펼침
+  useScrollDirection();
+
   const { cart, removeFromCart, clearCart, calculateSplitSavings } = useCartStore();
   const { singleMartTotal, splitTotal, savings } = calculateSplitSavings();
 

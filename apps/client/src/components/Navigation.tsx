@@ -18,13 +18,17 @@ const tabs = [
 ];
 
 export const Navigation: React.FC<NavigationProps> = ({ currentTab, onTabChange }) => {
-  const { isBottomSheetFullscreen } = useUIStore();
+  const { isBottomSheetFullscreen, isScrollingDown } = useUIStore();
   const [isHovered, setIsHovered] = useState(false);
 
-  // 1. 콕홈(지도): 바텀시트가 전체화면으로 확장되면 축소, 기본 상태에서는 펼침
-  // 2. 다른 페이지(띵/띱/뿜): 페이지 이동 시 본문 화면 가림을 방지하기 위해 기본으로 GNB 축소
-  // 3. 마우스 호버 시 자연스럽게 펼침
-  const isAutoCollapsed = currentTab === 'kok' ? isBottomSheetFullscreen : true;
+  /**
+   * 축소 조건 (OR):
+   *   1. 스크롤 내리는 중 (모든 탭)
+   *   2. 바텀시트가 전체화면으로 확장된 경우 (콕 탭)
+   *
+   * 호버 시 항상 펼침으로 오버라이드.
+   */
+  const isAutoCollapsed = isScrollingDown || isBottomSheetFullscreen;
   const collapsed = isAutoCollapsed && !isHovered;
 
   return (

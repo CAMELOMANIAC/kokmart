@@ -2,8 +2,12 @@ import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Zap, Upload } from 'lucide-react';
 import { FloatingTopBar } from '../components/FloatingTopBar';
+import { useScrollDirection } from '../hooks/useScrollDirection';
 
 export const DdingFlyers: React.FC = () => {
+  // window 스크롤 감지 → useUIStore.isScrollingDown 업데이트 → GNB 자동 축소/펼침
+  useScrollDirection();
+
   const [isParsing, setIsParsing] = useState(false);
   const [parseMessage, setParseMessage] = useState('');
 

@@ -3,6 +3,7 @@ import { motion, useMotionValue, animate, AnimatePresence } from 'framer-motion'
 import { MartStore, MartBrand } from '@kokmart/shared';
 import { useUIStore } from '../store/useUIStore';
 import { useSelectedStoreStore } from '../store/useSelectedStoreStore';
+import { useScrollDirection } from '../hooks/useScrollDirection';
 import {
   sheetContainer,
   dragHandleArea,
@@ -38,9 +39,14 @@ export const StoreBottomSheet: React.FC<StoreBottomSheetProps> = ({
   onGoToFlyerTab
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
+  // 전체화면 시 카드리스트 내부 스크롤 감지용 ref
+  const cardListRef = useRef<HTMLDivElement>(null);
   const [windowH, setWindowH] = useState<number>(window.innerHeight);
   const { setBottomSheetFullscreen } = useUIStore();
   const { toggleStoreSelection, isStoreSelected } = useSelectedStoreStore();
+
+  // 전체화면 카드리스트 스크롤 방향 감지 → isScrollingDown 업데이트
+  useScrollDirection({ ref: cardListRef });
   
   // 검색어 & 필터 상태
   const [searchQuery, setSearchQuery] = useState('');
@@ -294,6 +300,7 @@ export const StoreBottomSheet: React.FC<StoreBottomSheetProps> = ({
         ) : (
           /* 2. 확장 상태: 상세 카드 리스트 뷰 */
           <motion.div
+            ref={cardListRef}
             key="card-view"
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
