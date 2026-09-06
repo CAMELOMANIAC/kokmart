@@ -1,41 +1,43 @@
 import { style } from '@vanilla-extract/css';
 import { vars } from '../styles/theme.css';
 
-// 플로팅 바텀 아일랜드 (Floating Bottom Dock)
+// 플로팅 바텀 알약 아일랜드 (Floating Bottom Pill Dock)
 export const navContainer = style({
   position: 'fixed',
   bottom: '16px',
   left: '50%',
   transform: 'translateX(-50%)',
   width: 'calc(100% - 32px)',
-  maxWidth: '430px',
-  height: '66px',
-  backgroundColor: 'rgba(255, 255, 255, 0.85)',
+  maxWidth: '440px',
+  height: '64px',
+  backgroundColor: 'rgba(255, 255, 255, 0.90)',
   backdropFilter: 'blur(16px)',
   WebkitBackdropFilter: 'blur(16px)',
-  borderRadius: '36px',
-  border: '1px solid rgba(255, 255, 255, 0.6)',
+  borderRadius: '9999px',
+  border: '1px solid rgba(255, 255, 255, 0.8)',
   display: 'flex',
-  justifyContent: 'space-around',
+  justifyContent: 'space-between',
   alignItems: 'center',
-  padding: '0 8px',
+  padding: '6px', // 상하좌우 6px 완전 동일한 여백 (Concentric Padding)
   boxShadow: '0 12px 36px rgba(0, 0, 0, 0.12), 0 4px 12px rgba(0, 0, 0, 0.04)',
   zIndex: 100
 });
 
 export const navItem = style({
   position: 'relative',
+  flex: 1,
+  height: '100%',
   display: 'flex',
   flexDirection: 'column',
   alignItems: 'center',
   justifyContent: 'center',
   textDecoration: 'none',
-  fontSize: '11px',
+  fontSize: '12px',
   fontWeight: 600,
   color: vars.colors.textSub,
-  padding: '8px 14px',
-  borderRadius: '24px',
-  transition: 'all 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
+  padding: 0,
+  borderRadius: '9999px',
+  transition: 'color 0.2s ease',
   cursor: 'pointer',
   zIndex: 2
 });
@@ -45,11 +47,11 @@ export const navItemActive = style({
   fontWeight: 700
 });
 
-// 활성화 탭 플로팅 배경 버블 인디케이터
+// GNB 외곽과 상하좌우 6px 정교한 동심원 알약 여백을 형성하는 액티브 인디케이터
 export const activeIndicator = style({
   position: 'absolute',
   inset: 0,
   backgroundColor: 'rgba(255, 94, 0, 0.12)',
-  borderRadius: '24px',
+  borderRadius: '9999px',
   zIndex: -1
 });
