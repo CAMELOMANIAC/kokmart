@@ -7,7 +7,7 @@ export const vars = createGlobalTheme(':root', {
     secondary: '#111827',     // 다크 차콜
     accentGreen: '#10B981',   // 최저가 뱃지
     accentBlue: '#3B82F6',    // 쿠팡 대용량 팁
-    bgLight: '#F9FAFB',
+    bgLight: '#F3F4F6',       // 은은한 모던 그레이
     surface: '#FFFFFF',
     textMain: '#1F2937',
     textSub: '#6B7280',
@@ -21,9 +21,9 @@ export const vars = createGlobalTheme(':root', {
     xl: '32px'
   },
   radii: {
-    sm: '6px',
-    md: '12px',
-    lg: '20px',
+    sm: '8px',
+    md: '14px',
+    lg: '24px',
     full: '9999px'
   }
 });
@@ -32,7 +32,7 @@ globalStyle('body', {
   margin: 0,
   padding: 0,
   fontFamily: '"Pretendard", -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif',
-  backgroundColor: vars.colors.bgLight,
+  backgroundColor: '#E5E7EB',
   color: vars.colors.textMain,
   WebkitFontSmoothing: 'antialiased',
   userSelect: 'none'
@@ -42,10 +42,10 @@ export const containerStyle = style({
   maxWidth: '480px',
   margin: '0 auto',
   minHeight: '100vh',
-  backgroundColor: vars.colors.surface,
+  backgroundColor: vars.colors.bgLight,
   display: 'flex',
   flexDirection: 'column',
-  boxShadow: '0 0 20px rgba(0, 0, 0, 0.05)',
+  boxShadow: '0 0 40px rgba(0, 0, 0, 0.08)',
   position: 'relative',
-  paddingBottom: '80px'
+  paddingBottom: '100px'
 });

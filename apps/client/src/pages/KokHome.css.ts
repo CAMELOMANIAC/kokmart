@@ -1,13 +1,19 @@
 import { style } from '@vanilla-extract/css';
 import { vars } from '../styles/theme.css';
 
+// 플로팅 헤더 (Glassmorphism Floating Header)
 export const header = style({
-  padding: `${vars.space.md} ${vars.space.md}`,
-  backgroundColor: vars.colors.surface,
-  borderBottom: `1px solid ${vars.colors.border}`,
   position: 'sticky',
-  top: 0,
-  zIndex: 10
+  top: '12px',
+  margin: '12px 16px 0 16px',
+  padding: '14px 20px',
+  backgroundColor: 'rgba(255, 255, 255, 0.82)',
+  backdropFilter: 'blur(16px)',
+  WebkitBackdropFilter: 'blur(16px)',
+  borderRadius: '24px',
+  border: '1px solid rgba(255, 255, 255, 0.7)',
+  boxShadow: '0 8px 24px rgba(0, 0, 0, 0.04)',
+  zIndex: 20
 });
 
 export const logoText = style({
@@ -17,50 +23,58 @@ export const logoText = style({
   letterSpacing: '-0.5px'
 });
 
+// 플로팅 마트 필터 칩 컨테이너
 export const martFilterContainer = style({
   display: 'flex',
   gap: vars.space.sm,
-  padding: `${vars.space.sm} ${vars.space.md}`,
-  backgroundColor: vars.colors.bgLight
+  padding: '16px 16px 8px 16px',
+  overflowX: 'auto'
 });
 
 export const martChip = style({
-  padding: '6px 14px',
+  padding: '8px 16px',
   borderRadius: vars.radii.full,
   fontSize: '13px',
   fontWeight: 600,
-  border: `1px solid ${vars.colors.border}`,
-  backgroundColor: vars.colors.surface,
+  border: '1px solid rgba(255, 255, 255, 0.8)',
+  backgroundColor: 'rgba(255, 255, 255, 0.7)',
+  backdropFilter: 'blur(8px)',
+  color: vars.colors.textSub,
   cursor: 'pointer',
-  transition: 'all 0.2s ease'
+  transition: 'all 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
+  boxShadow: '0 4px 12px rgba(0, 0, 0, 0.03)'
 });
 
 export const martChipActive = style({
   backgroundColor: vars.colors.primary,
   color: vars.colors.surface,
-  borderColor: vars.colors.primary
+  borderColor: vars.colors.primary,
+  boxShadow: '0 6px 16px rgba(255, 94, 0, 0.25)',
+  transform: 'translateY(-1px)'
 });
 
 export const cardList = style({
-  padding: vars.space.md,
+  padding: '8px 16px 16px 16px',
   display: 'flex',
   flexDirection: 'column',
   gap: vars.space.md
 });
 
+// 플로팅 카드 (Floating Card)
 export const productCard = style({
   backgroundColor: vars.colors.surface,
-  borderRadius: vars.radii.lg,
-  padding: vars.space.md,
-  border: `1px solid ${vars.colors.border}`,
-  boxShadow: '0 2px 8px rgba(0, 0, 0, 0.04)'
+  borderRadius: '24px',
+  padding: '20px',
+  border: '1px solid rgba(255, 255, 255, 0.8)',
+  boxShadow: '0 10px 30px rgba(0, 0, 0, 0.05), 0 2px 8px rgba(0, 0, 0, 0.02)',
+  transition: 'all 0.3s ease'
 });
 
 export const tipBadge = style({
   display: 'inline-flex',
   alignItems: 'center',
-  padding: '4px 8px',
-  borderRadius: vars.radii.sm,
+  padding: '4px 10px',
+  borderRadius: '12px',
   fontSize: '12px',
   fontWeight: 700,
   marginBottom: vars.space.xs

@@ -9,32 +9,44 @@ export const DdibCart: React.FC = () => {
 
   return (
     <div style={{ padding: '16px' }}>
-      <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+      {/* 플로팅 헤더 */}
+      <header style={{
+        margin: '0 0 16px 0',
+        padding: '14px 20px',
+        backgroundColor: 'rgba(255, 255, 255, 0.82)',
+        backdropFilter: 'blur(16px)',
+        borderRadius: '24px',
+        border: '1px solid rgba(255, 255, 255, 0.7)',
+        boxShadow: '0 8px 24px rgba(0, 0, 0, 0.04)',
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center'
+      }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
           <Bookmark size={22} color="#FF5E00" />
-          <h2 style={{ fontSize: '20px', fontWeight: 800, margin: 0 }}>🏷️ 띱! 분할 쇼핑 계산기</h2>
+          <h2 style={{ fontSize: '18px', fontWeight: 800, margin: 0, color: '#111827' }}>🏷️ 띱! 분할 쇼핑 계산기</h2>
         </div>
 
         {cart.length > 0 && (
           <button
             onClick={clearCart}
-            style={{ border: 'none', background: 'none', color: '#9CA3AF', fontSize: '13px', cursor: 'pointer' }}
+            style={{ border: 'none', background: 'none', color: '#9CA3AF', fontSize: '13px', cursor: 'pointer', fontWeight: 600 }}
           >
             전체 비우기
           </button>
         )}
       </header>
 
-      {/* 절약액 비교 대시보드 박스 */}
+      {/* 절약액 비교 플로팅 대시보드 박스 */}
       <div style={{
         backgroundColor: '#111827',
         color: '#FFF',
-        borderRadius: '16px',
-        padding: '20px',
+        borderRadius: '24px',
+        padding: '22px',
         marginBottom: '20px',
-        boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
+        boxShadow: '0 12px 32px rgba(17, 24, 39, 0.2)'
       }}>
-        <div style={{ fontSize: '13px', color: '#9CA3AF', marginBottom: '4px' }}>
+        <div style={{ fontSize: '13px', color: '#9CA3AF', marginBottom: '4px', fontWeight: 500 }}>
           단일 마트 몰아담기 vs 최적 분할 비교
         </div>
 
@@ -59,14 +71,14 @@ export const DdibCart: React.FC = () => {
         {savings > 0 && (
           <div style={{
             marginTop: '16px',
-            paddingTop: '12px',
+            paddingTop: '14px',
             borderTop: '1px solid #374151',
             display: 'flex',
             justifyContent: 'space-between',
             alignItems: 'center'
           }}>
             <span style={{ fontSize: '13px', color: '#F3F4F6' }}>🎉 예상 절약액:</span>
-            <span style={{ fontSize: '16px', fontWeight: 800, color: '#FF5E00' }}>
+            <span style={{ fontSize: '17px', fontWeight: 800, color: '#FF5E00' }}>
               총 {savings.toLocaleString()}원 절약!
             </span>
           </div>
@@ -74,7 +86,7 @@ export const DdibCart: React.FC = () => {
       </div>
 
       {/* 담은 띱 위시리스트 */}
-      <h3 style={{ fontSize: '15px', fontWeight: 700, margin: '0 0 12px 0' }}>
+      <h3 style={{ fontSize: '15px', fontWeight: 700, margin: '0 4px 12px 4px', color: '#374151' }}>
         장바구니 띱 목록 ({cart.length}개)
       </h3>
 
@@ -83,32 +95,34 @@ export const DdibCart: React.FC = () => {
           [🎯 콕] 탭에서 원하는 최저가 상품을 띱 담아보세요!
         </div>
       ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
           {cart.map((item, idx) => (
             <motion.div
               key={idx}
               initial={{ opacity: 0, x: -10 }}
               animate={{ opacity: 1, x: 0 }}
+              whileHover={{ y: -2 }}
               style={{
                 display: 'flex',
                 justifyContent: 'space-between',
                 alignItems: 'center',
-                padding: '14px',
+                padding: '16px 18px',
                 backgroundColor: '#FFF',
-                borderRadius: '12px',
-                border: '1px solid #E5E7EB'
+                borderRadius: '20px',
+                border: '1px solid rgba(255, 255, 255, 0.8)',
+                boxShadow: '0 6px 20px rgba(0,0,0,0.03)'
               }}
             >
               <div>
-                <div style={{ fontSize: '14px', fontWeight: 700 }}>{item.product.productName}</div>
-                <div style={{ fontSize: '12px', color: '#6B7280', marginTop: '2px' }}>
+                <div style={{ fontSize: '15px', fontWeight: 700, color: '#111827' }}>{item.product.productName}</div>
+                <div style={{ fontSize: '12px', color: '#6B7280', marginTop: '3px' }}>
                   {item.product.salePrice.toLocaleString()}원 × {item.quantity}개 ({item.product.martName})
                 </div>
               </div>
 
               <button
                 onClick={() => removeFromCart(item.product.id || item.product.productName)}
-                style={{ border: 'none', background: 'none', color: '#EF4444', cursor: 'pointer' }}
+                style={{ border: 'none', background: 'none', color: '#EF4444', cursor: 'pointer', padding: '4px' }}
               >
                 <Trash2 size={18} />
               </button>

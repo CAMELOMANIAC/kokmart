@@ -32,40 +32,44 @@ export const KokHome: React.FC = () => {
 
   return (
     <div>
+      {/* 플로팅 헤더 */}
       <header className={header}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <div className={logoText}>Kokmart 🎯</div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '13px', color: '#6B7280' }}>
-            <MapPin size={14} color="#FF5E00" />
+          <div style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '13px', color: '#6B7280', fontWeight: 600 }}>
+            <MapPin size={15} color="#FF5E00" />
             <span>강남구 역삼지점</span>
           </div>
         </div>
       </header>
 
-      {/* 마트 3사 ON/OFF 토글 필터 */}
+      {/* 플로팅 마트 3사 ON/OFF 토글 칩 */}
       <div className={martFilterContainer}>
-        <button
+        <motion.button
+          whileTap={{ scale: 0.94 }}
           onClick={() => toggleMart('emart')}
           className={`${martChip} ${selectedMarts.emart ? martChipActive : ''}`}
         >
           이마트 ON
-        </button>
-        <button
+        </motion.button>
+        <motion.button
+          whileTap={{ scale: 0.94 }}
           onClick={() => toggleMart('homeplus')}
           className={`${martChip} ${selectedMarts.homeplus ? martChipActive : ''}`}
         >
           홈플러스 ON
-        </button>
-        <button
+        </motion.button>
+        <motion.button
+          whileTap={{ scale: 0.94 }}
           onClick={() => toggleMart('lottemart')}
           className={`${martChip} ${selectedMarts.lottemart ? martChipActive : ''}`}
         >
           롯데마트 ON
-        </button>
+        </motion.button>
       </div>
 
       <div className={cardList}>
-        <h3 style={{ margin: '8px 0', fontSize: '16px', fontWeight: 700 }}>
+        <h3 style={{ margin: '8px 4px 4px 4px', fontSize: '15px', fontWeight: 700, color: '#374151' }}>
           주변 마트 단위당 최저가 큐레이션
         </h3>
 
@@ -75,9 +79,10 @@ export const KokHome: React.FC = () => {
           products.map((item, idx) => (
             <motion.div
               key={item.id || idx}
-              initial={{ opacity: 0, y: 15 }}
+              initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: idx * 0.1 }}
+              whileHover={{ y: -3 }}
               className={productCard}
             >
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
@@ -93,7 +98,7 @@ export const KokHome: React.FC = () => {
                 {item.productName}
               </div>
 
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginTop: '12px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginTop: '14px' }}>
                 <div>
                   <span style={{ fontSize: '20px', fontWeight: 800, color: '#111827' }}>
                     {item.salePrice.toLocaleString()}원
@@ -105,19 +110,21 @@ export const KokHome: React.FC = () => {
 
                 <motion.button
                   whileTap={{ scale: 0.9 }}
+                  whileHover={{ scale: 1.05 }}
                   onClick={() => addToCart(item)}
                   style={{
                     backgroundColor: '#FF5E00',
                     color: '#FFF',
                     border: 'none',
-                    borderRadius: '8px',
-                    padding: '8px 12px',
+                    borderRadius: '12px',
+                    padding: '8px 14px',
                     fontSize: '13px',
-                    fontWeight: 600,
+                    fontWeight: 700,
                     cursor: 'pointer',
                     display: 'flex',
                     alignItems: 'center',
-                    gap: '4px'
+                    gap: '4px',
+                    boxShadow: '0 4px 12px rgba(255, 94, 0, 0.25)'
                   }}
                 >
                   <ShoppingBag size={14} />
@@ -125,14 +132,16 @@ export const KokHome: React.FC = () => {
                 </motion.button>
               </div>
 
-              {/* Mart-First 스마트 팁 박스 */}
+              {/* Mart-First 플로팅 스마트 팁 박스 */}
               <div style={{
-                marginTop: '12px',
-                padding: '10px',
-                borderRadius: '8px',
+                marginTop: '14px',
+                padding: '12px 14px',
+                borderRadius: '16px',
                 backgroundColor: item.smartTip.tipType === 'COUPANG_BULK' ? '#F0F9FF' : '#FEFCE8',
                 fontSize: '12px',
-                color: item.smartTip.tipType === 'COUPANG_BULK' ? '#1E40AF' : '#854D0E'
+                lineHeight: '1.4',
+                color: item.smartTip.tipType === 'COUPANG_BULK' ? '#1E40AF' : '#854D0E',
+                border: item.smartTip.tipType === 'COUPANG_BULK' ? '1px solid #DBEAFE' : '1px solid #FEF08A'
               }}>
                 💡 <strong>알뜰 팁:</strong> {item.smartTip.tipMessage}
               </div>
