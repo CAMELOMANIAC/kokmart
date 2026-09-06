@@ -3,6 +3,7 @@ import { Users, Plus, MessageCircle } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { FloatingTopBar } from '../components/FloatingTopBar';
 import { useScrollDirection } from '../hooks/useScrollDirection';
+import * as s from './BbumCommunity.css';
 
 export const BbumCommunity: React.FC = () => {
   // window 스크롤 감지 → useUIStore.isScrollingDown 업데이트 → GNB 자동 축소/펼침
@@ -52,7 +53,7 @@ export const BbumCommunity: React.FC = () => {
   ];
 
   return (
-    <div style={{ padding: '16px' }}>
+    <div className={s.container}>
       {/* 상단 공통 플로팅 바 (GNB Users 아이콘 추가) */}
       <FloatingTopBar
         title="뿜! 함께 나눔"
@@ -60,97 +61,53 @@ export const BbumCommunity: React.FC = () => {
       />
 
       {/* 플로팅 안내 카드 & 뿜 글쓰기 */}
-      <div style={{
-        padding: '14px 18px',
-        backgroundColor: '#ECFDF5',
-        borderRadius: '20px',
-        border: '1px solid #A7F3D0',
-        marginBottom: '16px',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        gap: '12px'
-      }}>
-        <div style={{ fontSize: '13px', color: '#065F46', lineHeight: '1.4' }}>
+      <div className={s.bannerCard}>
+        <div className={s.bannerText}>
           💡 1+1 이나 대용량 상품을 동네 이웃과 딱 절반 1/N 가격으로 나누세요!
         </div>
         <motion.button
           whileTap={{ scale: 0.9 }}
           whileHover={{ scale: 1.05 }}
-          style={{
-            backgroundColor: '#059669',
-            color: '#FFF',
-            border: 'none',
-            borderRadius: '16px',
-            padding: '8px 12px',
-            fontSize: '12px',
-            fontWeight: 700,
-            display: 'flex',
-            alignItems: 'center',
-            gap: '4px',
-            cursor: 'pointer',
-            flexShrink: 0,
-            boxShadow: '0 4px 12px rgba(5, 150, 105, 0.25)'
-          }}
+          className={s.writeButton}
         >
           <Plus size={14} />
           <span>뿜 글쓰기</span>
         </motion.button>
       </div>
 
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+      <div className={s.postList}>
         {posts.map(post => (
           <motion.div
             key={post.id}
             whileHover={{ y: -2 }}
-            style={{
-              backgroundColor: '#FFF',
-              borderRadius: '24px',
-              padding: '20px',
-              border: '1px solid rgba(255, 255, 255, 0.8)',
-              boxShadow: '0 8px 24px rgba(0,0,0,0.04)'
-            }}
+            className={s.postCard}
           >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span style={{
-                fontSize: '11px',
-                fontWeight: 700,
-                color: post.status === '매칭 완료' ? '#9CA3AF' : '#10B981',
-                backgroundColor: post.status === '매칭 완료' ? '#F3F4F6' : '#D1FAE5',
-                padding: '4px 10px',
-                borderRadius: '12px'
-              }}>
+            <div className={s.postHeader}>
+              <span
+                className={
+                  post.status === '매칭 완료'
+                    ? s.statusBadge.completed
+                    : s.statusBadge.inProgress
+                }
+              >
                 {post.status}
               </span>
-              <span style={{ fontSize: '12px', color: '#6B7280', fontWeight: 500 }}>{post.location}</span>
+              <span className={s.locationText}>{post.location}</span>
             </div>
 
-            <div style={{ fontSize: '16px', fontWeight: 700, marginTop: '10px', color: '#111827' }}>
+            <div className={s.postTitle}>
               {post.title}
             </div>
 
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '14px' }}>
-              <div style={{ fontSize: '15px', fontWeight: 800, color: '#FF5E00' }}>
+            <div className={s.postFooter}>
+              <div className={s.priceText}>
                 1인 부담금: {post.pricePerShare}
               </div>
 
               <motion.button
                 whileTap={{ scale: 0.95 }}
                 whileHover={{ scale: 1.05 }}
-                style={{
-                  backgroundColor: '#111827',
-                  color: '#FFF',
-                  border: 'none',
-                  borderRadius: '12px',
-                  padding: '8px 14px',
-                  fontSize: '12px',
-                  fontWeight: 600,
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '4px',
-                  cursor: 'pointer',
-                  boxShadow: '0 4px 12px rgba(17, 24, 39, 0.15)'
-                }}
+                className={s.chatButton}
               >
                 <MessageCircle size={14} />
                 <span>채팅하기</span>

@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { Zap, Upload } from 'lucide-react';
 import { FloatingTopBar } from '../components/FloatingTopBar';
 import { useScrollDirection } from '../hooks/useScrollDirection';
+import * as s from './DdingFlyers.css';
 
 export const DdingFlyers: React.FC = () => {
   // window 스크롤 감지 → useUIStore.isScrollingDown 업데이트 → GNB 자동 축소/펼침
@@ -26,8 +27,15 @@ export const DdingFlyers: React.FC = () => {
     }
   };
 
+  const getBrandBadgeClass = (brand: string) => {
+    if (brand === '이마트') return s.brandBadge.emart;
+    if (brand === '홈플러스') return s.brandBadge.homeplus;
+    if (brand === '롯데마트') return s.brandBadge.lotte;
+    return s.brandBadge.default;
+  };
+
   return (
-    <div style={{ padding: '16px' }}>
+    <div className={s.container}>
       {/* 상단 공통 플로팅 바 (GNB Zap 아이콘 추가) */}
       <FloatingTopBar
         title="띵! 한 핫딜"
@@ -35,31 +43,18 @@ export const DdingFlyers: React.FC = () => {
       />
 
       {/* 플로팅 안내 카드 */}
-      <div style={{
-        padding: '18px',
-        backgroundColor: '#FFF7ED',
-        borderRadius: '20px',
-        border: '1px solid #FFEDD5',
-        boxShadow: '0 6px 18px rgba(255, 94, 0, 0.06)',
-        marginBottom: '16px'
-      }}>
-        <div style={{ fontWeight: 700, color: '#C2410C', marginBottom: '4px', fontSize: '14px' }}>
+      <div className={s.noticeCard}>
+        <div className={s.noticeTitle}>
           📢 매주 목요일 전단 발행 알림
         </div>
-        <div style={{ fontSize: '13px', color: '#9A3412', lineHeight: '1.4' }}>
+        <div className={s.noticeDesc}>
           이마트·홈플러스·롯데마트의 최신 종이 전단지가 4~6분할 AI 파싱으로 자동 업데이트됩니다.
         </div>
       </div>
 
       {/* AI 파싱 파이프라인 시뮬레이션 플로팅 카드 */}
-      <div style={{
-        padding: '20px',
-        backgroundColor: '#FFF',
-        borderRadius: '24px',
-        border: '1px solid rgba(255, 255, 255, 0.8)',
-        boxShadow: '0 10px 30px rgba(0, 0, 0, 0.05)'
-      }}>
-        <h4 style={{ margin: '0 0 12px 0', fontSize: '15px', fontWeight: 700, color: '#1F2937' }}>
+      <div className={s.ocrCard}>
+        <h4 className={s.ocrTitle}>
           전단지 OCR 파싱 테스트 (Gemini Grid Crop Engine)
         </h4>
 
@@ -68,39 +63,25 @@ export const DdingFlyers: React.FC = () => {
           whileHover={{ scale: 1.02 }}
           onClick={handleSimulateParse}
           disabled={isParsing}
-          style={{
-            width: '100%',
-            padding: '14px',
-            backgroundColor: isParsing ? '#9CA3AF' : '#111827',
-            color: '#FFF',
-            border: 'none',
-            borderRadius: '16px',
-            fontWeight: 700,
-            cursor: 'pointer',
-            display: 'flex',
-            justifyContent: 'center',
-            alignItems: 'center',
-            gap: '8px',
-            boxShadow: '0 6px 20px rgba(17, 24, 39, 0.15)'
-          }}
+          className={s.ocrButton}
         >
           <Upload size={16} />
           <span>{isParsing ? '파싱 실행 중...' : '4분할 전단 파싱 테스트 실행'}</span>
         </motion.button>
 
         {parseMessage && (
-          <div style={{ marginTop: '14px', fontSize: '13px', fontWeight: 600, color: '#059669' }}>
+          <div className={s.ocrMessage}>
             {parseMessage}
           </div>
         )}
       </div>
 
       {/* 실시간 전단 핫딜 상품 리스트 (자연스러운 스크롤 피드) */}
-      <h3 style={{ fontSize: '15px', fontWeight: 700, margin: '20px 4px 12px 4px', color: '#374151' }}>
+      <h3 className={s.sectionTitle}>
         🔥 이번 주 전단 파격 핫딜
       </h3>
 
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+      <div className={s.dealList}>
         {[
           {
             id: 'd1',
@@ -161,52 +142,34 @@ export const DdingFlyers: React.FC = () => {
           <motion.div
             key={item.id}
             whileHover={{ y: -2 }}
-            style={{
-              padding: '16px 18px',
-              backgroundColor: '#FFF',
-              borderRadius: '20px',
-              border: '1px solid rgba(255, 255, 255, 0.8)',
-              boxShadow: '0 4px 16px rgba(0, 0, 0, 0.03)',
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center'
-            }}
+            className={s.dealItemCard}
           >
             <div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px' }}>
-                <span
-                  style={{
-                    fontSize: '11px',
-                    fontWeight: 700,
-                    padding: '2px 6px',
-                    borderRadius: '6px',
-                    backgroundColor: item.brand === '이마트' ? '#FEF3C7' : item.brand === '홈플러스' ? '#FEE2E2' : '#FEE2E2',
-                    color: item.brand === '이마트' ? '#B45309' : '#B91C1C'
-                  }}
-                >
+              <div className={s.brandHeader}>
+                <span className={getBrandBadgeClass(item.brand)}>
                   {item.martName}
                 </span>
-                <span style={{ fontSize: '11px', fontWeight: 700, color: '#FF5E00' }}>
+                <span className={s.dealBadge}>
                   {item.badge}
                 </span>
               </div>
-              <div style={{ fontSize: '15px', fontWeight: 700, color: '#111827' }}>
+              <div className={s.productName}>
                 {item.productName}
               </div>
-              <div style={{ fontSize: '12px', color: '#6B7280', marginTop: '3px' }}>
+              <div className={s.unitPrice}>
                 {item.unitPrice}
               </div>
             </div>
 
-            <div style={{ textAlign: 'right' }}>
-              <div style={{ fontSize: '12px', color: '#9CA3AF', textDecoration: 'line-through' }}>
+            <div className={s.priceArea}>
+              <div className={s.originalPrice}>
                 {item.originalPrice.toLocaleString()}원
               </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '4px', justifyContent: 'flex-end' }}>
-                <span style={{ fontSize: '14px', fontWeight: 800, color: '#EF4444' }}>
+              <div className={s.salePriceRow}>
+                <span className={s.discountRate}>
                   {item.discountRate}
                 </span>
-                <span style={{ fontSize: '17px', fontWeight: 800, color: '#111827' }}>
+                <span className={s.salePrice}>
                   {item.salePrice.toLocaleString()}원
                 </span>
               </div>
