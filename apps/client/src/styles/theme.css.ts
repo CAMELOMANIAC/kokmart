@@ -62,3 +62,11 @@ export const mapContainerStyle = style({
   paddingBottom: 0,
   boxShadow: '0 0 40px rgba(0, 0, 0, 0.08)'
 });
+
+export const mainContent = style({
+  height: 'auto'
+});
+
+export const mainContentMap = style({
+  height: '100%'
+});

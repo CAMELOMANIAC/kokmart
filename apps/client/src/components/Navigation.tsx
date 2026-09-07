@@ -1,23 +1,33 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { navContainer, navItem, navItemActive, activeIndicator } from './Navigation.css';
+import {
+  navContainer,
+  navItem,
+  navItemActive,
+  activeIndicator,
+  iconWrapper,
+  labelSpan
+} from './Navigation.css';
 import { Target, Zap, Bookmark, Users } from 'lucide-react';
 import { useUIStore } from '../store/useUIStore';
+import { useLocation, useNavigate } from '@tanstack/react-router';
 
 interface NavigationProps {
-  currentTab: string;
-  onTabChange: (tab: string) => void;
+  currentTab?: string;
+  onTabChange?: (tab: string) => void;
 }
 
 // 4개 탭 모두 3글자로 수평 밸런스 통일
 const tabs = [
-  { id: 'kok', label: '지도 콕', icon: Target },
-  { id: 'dding', label: '전단 띵', icon: Zap },
-  { id: 'ddib', label: '카트 띱', icon: Bookmark },
-  { id: 'bbum', label: '반반 뿜', icon: Users }
-];
+  { id: 'kok', path: '/', label: '지도 콕', icon: Target },
+  { id: 'dding', path: '/dding', label: '전단 띵', icon: Zap },
+  { id: 'ddib', path: '/ddib', label: '카트 띱', icon: Bookmark },
+  { id: 'bbum', path: '/bbum', label: '반반 뿜', icon: Users }
+] as const;
 
 export const Navigation: React.FC<NavigationProps> = ({ currentTab, onTabChange }) => {
+  const location = useLocation();
+  const navigate = useNavigate();
   const { isBottomSheetFullscreen, isScrollingDown } = useUIStore();
 
   /**
@@ -29,6 +39,15 @@ export const Navigation: React.FC<NavigationProps> = ({ currentTab, onTabChange 
    * 방지하기 위해 hover 기능을 제거했습니다.
    */
   const collapsed = isScrollingDown || isBottomSheetFullscreen;
+
+  const handleTabClick = (tab: (typeof tabs)[number]) => {
+    if (onTabChange) {
+      onTabChange(tab.id);
+    }
+    if (location.pathname !== tab.path) {
+      navigate({ to: tab.path });
+    }
+  };
 
   return (
     <motion.nav
@@ -47,14 +66,13 @@ export const Navigation: React.FC<NavigationProps> = ({ currentTab, onTabChange 
     >
       {tabs.map((tab) => {
         const Icon = tab.icon;
-        const isActive = currentTab === tab.id;
+        const isActive = currentTab ? currentTab === tab.id : location.pathname === tab.path;
 
         return (
           <button
             key={tab.id}
-            onClick={() => onTabChange(tab.id)}
+            onClick={() => handleTabClick(tab)}
             className={`${navItem} ${isActive ? navItemActive : ''}`}
-            style={{ background: 'none', border: 'none', width: '100%', height: '100%' }}
           >
             {isActive && (
               <motion.div
@@ -65,12 +83,7 @@ export const Navigation: React.FC<NavigationProps> = ({ currentTab, onTabChange 
             )}
             <motion.div
               whileTap={{ scale: 0.92 }}
-              style={{
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                justifyContent: 'center'
-              }}
+              className={iconWrapper}
             >
               <Icon size={collapsed ? 18 : 19} strokeWidth={isActive ? 2.4 : 1.8} />
 
@@ -84,13 +97,7 @@ export const Navigation: React.FC<NavigationProps> = ({ currentTab, onTabChange 
                       duration: 0.28,
                       ease: [0.25, 1, 0.5, 1]
                     }}
-                    style={{
-                      position: 'relative',
-                      zIndex: 2,
-                      fontSize: '11px',
-                      whiteSpace: 'nowrap',
-                      overflow: 'hidden'
-                    }}
+                    className={labelSpan}
                   >
                     {tab.label}
                   </motion.span>

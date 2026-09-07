@@ -5,12 +5,14 @@ import { StoreBottomSheet } from '../components/StoreBottomSheet';
 import { useSelectedStoreStore } from '../store/useSelectedStoreStore';
 import { pageWrapper } from './KokHome.css';
 import { FloatingTopBar } from '../components/FloatingTopBar';
+import { useNavigate } from '@tanstack/react-router';
 
 interface KokHomeProps {
   onNavigateTab?: (tab: string) => void;
 }
 
 export const KokHome: React.FC<KokHomeProps> = ({ onNavigateTab }) => {
+  const navigate = useNavigate();
   // 내 현재 위치 (기본값: 강남구 역삼)
   const myLocation = { lat: 37.5006, lng: 127.0364 };
 
@@ -47,7 +49,12 @@ export const KokHome: React.FC<KokHomeProps> = ({ onNavigateTab }) => {
       {/* 3. 드래그 제스처 바텀시트 */}
       <StoreBottomSheet
         stores={nearbyStores}
-        onGoToFlyerTab={() => onNavigateTab && onNavigateTab('dding')}
+        onGoToFlyerTab={() => {
+          if (onNavigateTab) {
+            onNavigateTab('dding');
+          }
+          navigate({ to: '/dding' });
+        }}
       />
     </div>
   );
