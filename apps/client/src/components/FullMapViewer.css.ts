@@ -62,3 +62,54 @@ export const markerSelected = style({
   border: '2px solid #FFFFFF',
   boxShadow: '0 12px 28px rgba(0,0,0,0.28)'
 });
+
+export const kakaoMapContainer = style({
+  width: '100%',
+  height: '100%',
+  position: 'absolute',
+  inset: 0
+});
+
+export const recenterContainer = style({
+  position: 'absolute',
+  top: '16px',
+  right: '16px',
+  display: 'flex',
+  flexDirection: 'column',
+  gap: '8px',
+  zIndex: 30
+});
+
+export const recenterButton = style({
+  width: '44px',
+  height: '44px',
+  borderRadius: '50%',
+  backgroundColor: 'rgba(255, 255, 255, 0.92)',
+  backdropFilter: 'blur(16px)',
+  WebkitBackdropFilter: 'blur(16px)',
+  border: '1px solid rgba(255, 255, 255, 0.8)',
+  boxShadow: '0 8px 24px rgba(0, 0, 0, 0.08)',
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  cursor: 'pointer',
+  padding: 0,
+  boxSizing: 'border-box'
+});
+
+export const pulseWave = style({
+  position: 'absolute',
+  inset: -8,
+  borderRadius: '50%',
+  backgroundColor: '#3B82F6',
+  opacity: 0.4
+});
+
+export const fallbackSvg = style({
+  position: 'absolute',
+  inset: 0,
+  width: '100%',
+  height: '100%',
+  opacity: 0.28
+});
+
