@@ -237,12 +237,63 @@ export const storePill = style({
   boxSizing: "border-box",
 });
 
-export const storePillActive = style({
-  borderColor: vars.colors.primary,
-  backgroundColor: "#FFF7ED",
-  boxShadow: "0 4px 12px rgba(255, 94, 0, 0.18)",
+// 브랜드별 알약 활성(선택) 스타일
+export const storePillActiveBase = style({
   transform: "translateY(-1px)",
 });
+
+export const storePillActiveEmart = style([
+  storePillActiveBase,
+  {
+    borderColor: vars.colors.brandEmart,
+    backgroundColor: vars.colors.brandEmartBg,
+    boxShadow: "0 4px 12px rgba(255, 184, 0, 0.22)",
+  },
+]);
+
+export const storePillActiveHomeplus = style([
+  storePillActiveBase,
+  {
+    borderColor: vars.colors.brandHomeplus,
+    backgroundColor: vars.colors.brandHomeplusBg,
+    boxShadow: "0 4px 12px rgba(230, 0, 36, 0.18)",
+  },
+]);
+
+export const storePillActiveLottemart = style([
+  storePillActiveBase,
+  {
+    borderColor: vars.colors.brandLottemart,
+    backgroundColor: vars.colors.brandLottemartBg,
+    boxShadow: "0 4px 12px rgba(218, 41, 28, 0.18)",
+  },
+]);
+
+// 알약 칩 내부 브랜드별 체크 아이콘 컬러
+export const storePillCheck = style({
+  flexShrink: 0,
+});
+
+export const storePillCheckEmart = style([
+  storePillCheck,
+  {
+    color: vars.colors.brandEmartText,
+  },
+]);
+
+export const storePillCheckHomeplus = style([
+  storePillCheck,
+  {
+    color: vars.colors.brandHomeplus,
+  },
+]);
+
+export const storePillCheckLottemart = style([
+  storePillCheck,
+  {
+    color: vars.colors.brandLottemart,
+  },
+]);
 
 export const storePillName = style({
   fontSize: "13px",
@@ -283,10 +334,22 @@ export const storeCard = style({
   cursor: "pointer",
 });
 
-export const storeCardActive = style({
-  borderColor: vars.colors.primary,
-  backgroundColor: "#FFFBF8",
-  boxShadow: "0 6px 20px rgba(255, 94, 0, 0.12)",
+export const storeCardActiveEmart = style({
+  borderColor: vars.colors.brandEmart,
+  backgroundColor: "#FFFDF5",
+  boxShadow: "0 6px 20px rgba(255, 184, 0, 0.14)",
+});
+
+export const storeCardActiveHomeplus = style({
+  borderColor: vars.colors.brandHomeplus,
+  backgroundColor: "#FFF8F8",
+  boxShadow: "0 6px 20px rgba(230, 0, 36, 0.12)",
+});
+
+export const storeCardActiveLottemart = style({
+  borderColor: vars.colors.brandLottemart,
+  backgroundColor: "#FFF8F8",
+  boxShadow: "0 6px 20px rgba(218, 41, 28, 0.12)",
 });
 
 export const cardHeader = style({

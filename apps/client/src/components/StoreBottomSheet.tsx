@@ -28,13 +28,20 @@ import {
   brandBadgeLottemart,
   pillListContainer,
   storePill,
-  storePillActive,
+  storePillActiveEmart,
+  storePillActiveHomeplus,
+  storePillActiveLottemart,
+  storePillCheckEmart,
+  storePillCheckHomeplus,
+  storePillCheckLottemart,
   storePillName,
   storePillDistance,
   emptyMessage,
   cardListContainer,
   storeCard,
-  storeCardActive,
+  storeCardActiveEmart,
+  storeCardActiveHomeplus,
+  storeCardActiveLottemart,
   cardHeader,
   cardTitleRow,
   cardTitle,
@@ -154,6 +161,24 @@ export const StoreBottomSheet: React.FC<StoreBottomSheetProps> = ({
     if (brand === '이마트') return brandBadgeEmart;
     if (brand === '홈플러스') return brandBadgeHomeplus;
     return brandBadgeLottemart;
+  };
+
+  const getPillActiveClass = (brand: string) => {
+    if (brand === '이마트') return storePillActiveEmart;
+    if (brand === '홈플러스') return storePillActiveHomeplus;
+    return storePillActiveLottemart;
+  };
+
+  const getPillCheckClass = (brand: string) => {
+    if (brand === '이마트') return storePillCheckEmart;
+    if (brand === '홈플러스') return storePillCheckHomeplus;
+    return storePillCheckLottemart;
+  };
+
+  const getCardActiveClass = (brand: string) => {
+    if (brand === '이마트') return storeCardActiveEmart;
+    if (brand === '홈플러스') return storeCardActiveHomeplus;
+    return storeCardActiveLottemart;
   };
 
   const isAnyFilterActive = onlyOpen || !selectedBrands['이마트'] || !selectedBrands['홈플러스'] || !selectedBrands['롯데마트'];
@@ -289,7 +314,7 @@ export const StoreBottomSheet: React.FC<StoreBottomSheetProps> = ({
                     key={store.id}
                     whileTap={{ scale: 0.94 }}
                     onClick={() => toggleStoreSelection(store)}
-                    className={`${storePill} ${isSelected ? storePillActive : ''}`}
+                    className={`${storePill} ${isSelected ? getPillActiveClass(store.brand) : ''}`}
                   >
                     <span className={getBrandBadgeClass(store.brand)}>
                       {store.brand}
@@ -302,7 +327,9 @@ export const StoreBottomSheet: React.FC<StoreBottomSheetProps> = ({
                         {store.distanceKm}km
                       </span>
                     )}
-                    {isSelected && <Check size={14} color="#FF5E00" strokeWidth={2.5} />}
+                    {isSelected && (
+                      <Check size={14} className={getPillCheckClass(store.brand)} strokeWidth={2.5} />
+                    )}
                   </motion.div>
                 );
               })
@@ -331,7 +358,7 @@ export const StoreBottomSheet: React.FC<StoreBottomSheetProps> = ({
                   <motion.div
                     key={store.id}
                     layout
-                    className={`${storeCard} ${isSelected ? storeCardActive : ''}`}
+                    className={`${storeCard} ${isSelected ? getCardActiveClass(store.brand) : ''}`}
                     onClick={() => toggleStoreSelection(store)}
                   >
                     <div className={cardHeader}>
@@ -351,7 +378,7 @@ export const StoreBottomSheet: React.FC<StoreBottomSheetProps> = ({
                           </span>
                         )}
                         {isSelected ? (
-                          <CheckCircle2 size={20} color="#FF5E00" />
+                          <CheckCircle2 size={20} className={getPillCheckClass(store.brand)} />
                         ) : (
                           <Circle size={20} color="#D1D5DB" />
                         )}
