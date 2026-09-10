@@ -4,7 +4,7 @@ import { vars } from "../styles/theme.css";
 // 플로팅 바텀 알약 아일랜드 (Floating Bottom Pill Dock)
 export const navContainer = style({
   position: "fixed",
-  bottom: "16px",
+  bottom: "calc(16px + env(safe-area-inset-bottom, 0px))",
   left: "50%",
   transform: "translateX(-50%)",
   width: "calc(100% - 50px)",

@@ -3,6 +3,7 @@ import { motion, useMotionValue, animate, AnimatePresence } from 'framer-motion'
 import type { MartStore, MartBrand } from '@kokmart/shared';
 import { useUIStore } from '../store/useUIStore';
 import { useSelectedStoreStore } from '../store/useSelectedStoreStore';
+import { useSafeAreaInsets } from '../hooks/useSafeAreaInsets';
 import {
   sheetContainer,
   dragHandleArea,
@@ -131,13 +132,15 @@ export const StoreBottomSheet: React.FC<StoreBottomSheetProps> = ({
     });
   }, [stores, selectedCategory, selectedBrands, onlyOpen]);
 
-  // 4. 바텀시트 높이 & 모션 제어
+  // 4. 바텀시트 높이 & 모션 제어 (모바일 홈 인디케이터 안전영역 연동)
+  const insets = useSafeAreaInsets();
   const hasSelected = selectedStores.length > 0;
   const baseVisibleHeight = 268;
-  const defaultVisibleHeight = Math.min(
-    hasSelected ? baseVisibleHeight + 56 : baseVisibleHeight,
-    windowH * 0.48
-  );
+  const defaultVisibleHeight =
+    Math.min(
+      hasSelected ? baseVisibleHeight + 56 : baseVisibleHeight,
+      windowH * 0.48
+    ) + insets.bottom;
   const defaultOffset = windowH - defaultVisibleHeight;
   const y = useMotionValue(defaultOffset);
   const [currentMode, setCurrentMode] = useState<SnapMode>('default');

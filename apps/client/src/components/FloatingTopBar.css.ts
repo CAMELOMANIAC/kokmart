@@ -4,7 +4,7 @@ import { vars } from '../styles/theme.css';
 // 1. 콕홈 전용: 우측 나침반(내 위치) 버튼 공간(68px)을 제외한 절대 위치 플로팅 바
 export const topBarHome = style({
   position: 'absolute',
-  top: '16px',
+  top: 'calc(16px + env(safe-area-inset-top, 0px))',
   left: '16px',
   right: '68px',
   minHeight: '44px',
@@ -26,7 +26,7 @@ export const topBarHome = style({
 // 2. 띵/띱/뿜 전용: 페이지 전체 너비를 가득 채우는 스티키 플로팅 바
 export const topBarFull = style({
   position: 'sticky',
-  top: '16px',
+  top: 'calc(16px + env(safe-area-inset-top, 0px))',
   width: '100%',
   minHeight: '44px',
   display: 'flex',

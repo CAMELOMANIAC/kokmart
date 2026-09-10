@@ -2,7 +2,7 @@ import { style } from "@vanilla-extract/css";
 import { vars } from "../../styles/theme.css";
 
 export const cardListContainer = style({
-  padding: "16px 20px 140px 20px",
+  padding: "16px 20px calc(150px + env(safe-area-inset-bottom, 0px)) 20px",
   overflowY: "auto",
   flex: 1,
   WebkitOverflowScrolling: "touch",

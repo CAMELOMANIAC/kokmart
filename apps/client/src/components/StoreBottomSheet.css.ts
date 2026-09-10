@@ -47,6 +47,7 @@ export const pillViewWrapper = style({
   display: "flex",
   flexDirection: "column",
   width: "100%",
+  paddingBottom: "env(safe-area-inset-bottom, 0px)",
 });
 
 // 축소 상태 바텀시트 내부 인라인 CTA 래퍼 (가운데 정렬, 알약과의 적정 여백 확보)
@@ -61,7 +62,7 @@ export const collapsedCtaWrapper = style({
 // 전체화면 확장 상태 하단 고정 CTA 래퍼 (GNB 바로 윗선에 고정)
 export const fullscreenCtaWrapper = style({
   position: "fixed",
-  bottom: "76px",
+  bottom: "calc(92px + env(safe-area-inset-bottom, 0px))",
   left: "50%",
   transform: "translateX(-50%)",
   zIndex: 90,

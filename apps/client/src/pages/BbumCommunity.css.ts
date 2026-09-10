@@ -2,7 +2,7 @@ import { style, styleVariants } from '@vanilla-extract/css';
 import { vars } from '../styles/theme.css';
 
 export const container = style({
-  padding: vars.space.md
+  padding: `${vars.space.md} ${vars.space.md} calc(100px + env(safe-area-inset-bottom, 0px)) ${vars.space.md}`,
 });
 
 export const bannerCard = style({

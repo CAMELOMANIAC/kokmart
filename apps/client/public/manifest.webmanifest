@@ -1,0 +1,20 @@
+{
+  "name": "마트콕 (Martkok)",
+  "short_name": "마트콕",
+  "description": "AI 마트 전단 비교 & 스마트 장보기",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "display_override": ["window-controls-overlay", "standalone"],
+  "orientation": "portrait",
+  "background_color": "#FFFFFF",
+  "theme_color": "#FF5E00",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

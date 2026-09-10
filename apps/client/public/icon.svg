@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="kokmartGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FF6B1A"/>
+      <stop offset="100%" stop-color="#FF4800"/>
+    </linearGradient>
+    <filter id="shadow" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="16" stdDeviation="24" flood-color="#C23600" flood-opacity="0.35"/>
+    </filter>
+  </defs>
+  <!-- Background Container -->
+  <rect width="512" height="512" rx="118" fill="url(#kokmartGrad)"/>
+  
+  <!-- Subtle Inner Ring Highlight -->
+  <rect x="16" y="16" width="480" height="480" rx="102" fill="none" stroke="rgba(255,255,255,0.22)" stroke-width="4"/>
+
+  <!-- Main Symbol: Pin + Cart / Target Motif -->
+  <g filter="url(#shadow)">
+    <!-- Location Pin Body -->
+    <path d="M256 100 C182 100 122 160 122 234 C122 328 238 410 250 418 C253.5 420.5 258.5 420.5 262 418 C274 410 390 328 390 234 C390 160 330 100 256 100 Z" fill="#FFFFFF"/>
+    
+    <!-- Pin Center Core (Primary Orange) -->
+    <circle cx="256" cy="230" r="62" fill="#FF5E00"/>
+    
+    <!-- Spark / Kok Accent Inside Core -->
+    <polygon points="256,192 268,222 298,226 274,244 282,274 256,256 230,274 238,244 214,226 244,222" fill="#FFFFFF"/>
+  </g>
+</svg>

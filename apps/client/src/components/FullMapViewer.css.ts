@@ -158,7 +158,7 @@ export const kakaoMapContainer = style({
 
 export const recenterContainer = style({
   position: 'absolute',
-  top: '16px',
+  top: 'calc(16px + env(safe-area-inset-top, 0px))',
   right: '16px',
   display: 'flex',
   flexDirection: 'column',
