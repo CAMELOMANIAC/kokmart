@@ -4,6 +4,7 @@ export const vars = createGlobalTheme(':root', {
   colors: {
     primary: '#FF5E00',       // 마트콕 주황
     primaryHover: '#E05300',
+    primaryBg: '#FFF7ED',     // 마트콕 연한 주황 배경 (선택/활성 상태)
     secondary: '#111827',     // 다크 차콜
     accentGreen: '#10B981',   // 최저가 뱃지
     accentBlue: '#3B82F6',    // 쿠팡 대용량 팁
