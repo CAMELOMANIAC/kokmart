@@ -14,16 +14,46 @@ export const vars = createGlobalTheme(':root', {
     textSub: '#6B7280',
     border: '#E5E7EB',
 
-    // 대형마트 3사 브랜드 공식 컬러 (CSS 변수)
+    // 대형마트 3사 및 SSM/중형마트 공식 컬러 (CSS 변수)
     brandEmart: '#FFB800',        // 이마트 공식 옐로우
     brandEmartBg: '#FEF3C7',      // 이마트 뱃지 배경
     brandEmartText: '#B45309',    // 이마트 뱃지 텍스트
+
+    brandEveryday: '#F97316',     // 에브리데이 오렌지
+    brandEverydayBg: '#FFEDD5',   // 에브리데이 뱃지 배경
+    brandEverydayText: '#C2410C', // 에브리데이 뱃지 텍스트
+
+    brandTraders: '#00A862',      // 트레이더스 그린
+    brandTradersBg: '#D1FAE5',    // 트레이더스 뱃지 배경
+    brandTradersText: '#065F46',  // 트레이더스 뱃지 텍스트
+
     brandHomeplus: '#E60024',     // 홈플러스 공식 레드
     brandHomeplusBg: '#FEE2E2',   // 홈플러스 뱃지 배경
     brandHomeplusText: '#E60024', // 홈플러스 뱃지 텍스트
+
+    brandExpress: '#003876',      // 익스프레스 네이비
+    brandExpressBg: '#E0F2FE',    // 익스프레스 뱃지 배경
+    brandExpressText: '#0369A1',  // 익스프레스 뱃지 텍스트
+
     brandLottemart: '#DA291C',    // 롯데마트 공식 롯데 레드 (Pantone 485C)
     brandLottemartBg: '#FFE4E6',  // 롯데마트 뱃지 배경
-    brandLottemartText: '#DA291C' // 롯데마트 뱃지 텍스트
+    brandLottemartText: '#DA291C', // 롯데마트 뱃지 텍스트
+
+    brandLottesuper: '#059669',   // 롯데슈퍼 그린
+    brandLottesuperBg: '#ECFDF5', // 롯데슈퍼 뱃지 배경
+    brandLottesuperText: '#047857', // 롯데슈퍼 뱃지 텍스트
+
+    brandGsTheFresh: '#008272',   // GS더프레시 틸/그린
+    brandGsTheFreshBg: '#E6FFFA', // GS더프레시 뱃지 배경
+    brandGsTheFreshText: '#008272', // GS더프레시 뱃지 텍스트
+
+    brandKimsClub: '#6B21A8',     // 킴스클럽 퍼플
+    brandKimsClubBg: '#F3E8FF',   // 킴스클럽 뱃지 배경
+    brandKimsClubText: '#6B21A8', // 킴스클럽 뱃지 텍스트
+
+    brandDefault: '#4B5563',      // 기타/일반 마트
+    brandDefaultBg: '#F3F4F6',    // 기타 마트 배경
+    brandDefaultText: '#374151'   // 기타 마트 텍스트
   },
   space: {
     xs: '4px',

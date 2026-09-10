@@ -119,10 +119,30 @@ export const filterButtonActive = style({
 
 export const filterPanel = style({
   display: "flex",
-  alignItems: "center",
+  flexDirection: "column",
   gap: "8px",
-  flexWrap: "wrap",
   padding: "8px 4px 4px 4px",
+});
+
+export const filterCategoryRow = style({
+  display: "flex",
+  alignItems: "center",
+  gap: "6px",
+  flexWrap: "wrap",
+});
+
+export const filterBrandRowScrollable = style({
+  display: "flex",
+  alignItems: "center",
+  gap: "6px",
+  overflowX: "auto",
+  width: "100%",
+  padding: "2px 2px 6px 2px",
+  scrollbarWidth: "none",
+  "::-webkit-scrollbar": {
+    display: "none",
+  },
+  WebkitOverflowScrolling: "touch",
 });
 
 export const filterChip = style({
@@ -139,6 +159,7 @@ export const filterChip = style({
   cursor: "pointer",
   transition: "all 0.2s ease",
   userSelect: "none",
+  flexShrink: 0,
 });
 
 export const filterChipActive = style({
@@ -168,6 +189,20 @@ export const brandDotEmart = style([
   },
 ]);
 
+export const brandDotEveryday = style([
+  brandDotBase,
+  {
+    backgroundColor: vars.colors.brandEveryday,
+  },
+]);
+
+export const brandDotTraders = style([
+  brandDotBase,
+  {
+    backgroundColor: vars.colors.brandTraders,
+  },
+]);
+
 export const brandDotHomeplus = style([
   brandDotBase,
   {
@@ -175,10 +210,45 @@ export const brandDotHomeplus = style([
   },
 ]);
 
+export const brandDotExpress = style([
+  brandDotBase,
+  {
+    backgroundColor: vars.colors.brandExpress,
+  },
+]);
+
 export const brandDotLottemart = style([
   brandDotBase,
   {
     backgroundColor: vars.colors.brandLottemart,
+  },
+]);
+
+export const brandDotLottesuper = style([
+  brandDotBase,
+  {
+    backgroundColor: vars.colors.brandLottesuper,
+  },
+]);
+
+export const brandDotGsTheFresh = style([
+  brandDotBase,
+  {
+    backgroundColor: vars.colors.brandGsTheFresh,
+  },
+]);
+
+export const brandDotKimsClub = style([
+  brandDotBase,
+  {
+    backgroundColor: vars.colors.brandKimsClub,
+  },
+]);
+
+export const brandDotDefault = style([
+  brandDotBase,
+  {
+    backgroundColor: vars.colors.brandDefault,
   },
 ]);
 
@@ -203,6 +273,22 @@ export const brandBadgeEmart = style([
   },
 ]);
 
+export const brandBadgeEveryday = style([
+  brandBadgeBase,
+  {
+    backgroundColor: vars.colors.brandEverydayBg,
+    color: vars.colors.brandEverydayText,
+  },
+]);
+
+export const brandBadgeTraders = style([
+  brandBadgeBase,
+  {
+    backgroundColor: vars.colors.brandTradersBg,
+    color: vars.colors.brandTradersText,
+  },
+]);
+
 export const brandBadgeHomeplus = style([
   brandBadgeBase,
   {
@@ -211,11 +297,51 @@ export const brandBadgeHomeplus = style([
   },
 ]);
 
+export const brandBadgeExpress = style([
+  brandBadgeBase,
+  {
+    backgroundColor: vars.colors.brandExpressBg,
+    color: vars.colors.brandExpressText,
+  },
+]);
+
 export const brandBadgeLottemart = style([
   brandBadgeBase,
   {
     backgroundColor: vars.colors.brandLottemartBg,
     color: vars.colors.brandLottemartText,
+  },
+]);
+
+export const brandBadgeLottesuper = style([
+  brandBadgeBase,
+  {
+    backgroundColor: vars.colors.brandLottesuperBg,
+    color: vars.colors.brandLottesuperText,
+  },
+]);
+
+export const brandBadgeGsTheFresh = style([
+  brandBadgeBase,
+  {
+    backgroundColor: vars.colors.brandGsTheFreshBg,
+    color: vars.colors.brandGsTheFreshText,
+  },
+]);
+
+export const brandBadgeKimsClub = style([
+  brandBadgeBase,
+  {
+    backgroundColor: vars.colors.brandKimsClubBg,
+    color: vars.colors.brandKimsClubText,
+  },
+]);
+
+export const brandBadgeDefault = style([
+  brandBadgeBase,
+  {
+    backgroundColor: vars.colors.brandDefaultBg,
+    color: vars.colors.brandDefaultText,
   },
 ]);
 

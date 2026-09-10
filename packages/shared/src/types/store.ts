@@ -1,9 +1,25 @@
-export type MartBrand = '이마트' | '홈플러스' | '롯데마트';
+export type MartCategoryType = 'hypermarket' | 'ssm' | 'warehouse';
+
+export type MartBrand =
+  | '이마트'
+  | '홈플러스'
+  | '롯데마트'
+  | '에브리데이'
+  | '익스프레스'
+  | '롯데슈퍼'
+  | '트레이더스'
+  | 'GS더프레시'
+  | '킴스클럽'
+  | '노브랜드'
+  | '하나로마트'
+  | '기타마트';
 
 export interface MartStore {
   id: string;
   name: string;
   brand: MartBrand;
+  storeType?: MartCategoryType;
+  displayName?: string;
   lat: number;
   lng: number;
   address: string;

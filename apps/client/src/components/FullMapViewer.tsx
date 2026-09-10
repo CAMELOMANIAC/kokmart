@@ -6,10 +6,18 @@ import {
   myLocationPin,
   fallbackMyLocationPin,
   storeMarker,
+  storeMarkerSSM,
   fallbackStoreMarker,
   emartMarker,
+  everydayMarker,
+  tradersMarker,
   homeplusMarker,
+  expressMarker,
   lottemartMarker,
+  lottesuperMarker,
+  gsTheFreshMarker,
+  kimsClubMarker,
+  defaultMarker,
   markerSelected,
   fallbackStoreMarkerSelected,
   markerFaviconWrapper,
@@ -36,13 +44,31 @@ interface FullMapViewerProps {
 }
 
 const getBrandFaviconUrl = (brand: string): string => {
-  if (brand === '이마트') {
-    return 'https://www.google.com/s2/favicons?domain=emart.ssg.com&sz=64';
+  switch (brand) {
+    case '이마트':
+      return 'https://www.google.com/s2/favicons?domain=emart.ssg.com&sz=64';
+    case '에브리데이':
+      return 'https://www.google.com/s2/favicons?domain=emarteveryday.co.kr&sz=64';
+    case '트레이더스':
+      return 'https://www.google.com/s2/favicons?domain=traders.co.kr&sz=64';
+    case '홈플러스':
+    case '익스프레스':
+      return 'https://www.google.com/s2/favicons?domain=homeplus.co.kr&sz=64';
+    case '롯데마트':
+      return 'https://www.google.com/s2/favicons?domain=lottemart.com&sz=64';
+    case '롯데슈퍼':
+      return 'https://www.google.com/s2/favicons?domain=lottesuper.co.kr&sz=64';
+    case 'GS더프레시':
+      return 'https://www.google.com/s2/favicons?domain=woodongs.com&sz=64';
+    case '킴스클럽':
+      return 'https://www.google.com/s2/favicons?domain=elandmall.co.kr&sz=64';
+    case '노브랜드':
+      return 'https://www.google.com/s2/favicons?domain=nobrand.emart.com&sz=64';
+    case '하나로마트':
+      return 'https://www.google.com/s2/favicons?domain=nhhanaromart.co.kr&sz=64';
+    default:
+      return 'https://www.google.com/s2/favicons?domain=daum.net&sz=64';
   }
-  if (brand === '홈플러스') {
-    return 'https://www.google.com/s2/favicons?domain=homeplus.co.kr&sz=64';
-  }
-  return 'https://www.google.com/s2/favicons?domain=lottemart.com&sz=64';
 };
 
 const BrandFavicon: React.FC<{ brand: string }> = ({ brand }) => {
@@ -65,9 +91,28 @@ const BrandFavicon: React.FC<{ brand: string }> = ({ brand }) => {
 };
 
 const getMarkerStyle = (brand: string) => {
-  if (brand === '이마트') return emartMarker;
-  if (brand === '홈플러스') return homeplusMarker;
-  return lottemartMarker;
+  switch (brand) {
+    case '이마트':
+      return emartMarker;
+    case '에브리데이':
+      return everydayMarker;
+    case '트레이더스':
+      return tradersMarker;
+    case '홈플러스':
+      return homeplusMarker;
+    case '익스프레스':
+      return expressMarker;
+    case '롯데마트':
+      return lottemartMarker;
+    case '롯데슈퍼':
+      return lottesuperMarker;
+    case 'GS더프레시':
+      return gsTheFreshMarker;
+    case '킴스클럽':
+      return kimsClubMarker;
+    default:
+      return defaultMarker;
+  }
 };
 
 export const FullMapViewer: React.FC<FullMapViewerProps> = ({
@@ -138,14 +183,15 @@ export const FullMapViewer: React.FC<FullMapViewerProps> = ({
     myOverlay.setMap(map);
     overlaysRef.current.push(myOverlay);
 
-    // 대형마트 3사 마커
+    // 마트 마커 렌더링
     stores.forEach((store) => {
       const isSelected = selectedIds.includes(store.id);
       const isFocused = currentActiveId === store.id;
       const brandClass = getMarkerStyle(store.brand);
+      const isSsm = store.storeType === 'ssm';
 
       const markerEl = document.createElement('div');
-      markerEl.className = `${storeMarker} ${brandClass} ${isSelected ? markerSelected : ''}`;
+      markerEl.className = `${storeMarker} ${brandClass} ${isSsm ? storeMarkerSSM : ''} ${isSelected ? markerSelected : ''}`;
 
       const faviconWrapper = document.createElement('span');
       faviconWrapper.className = markerFaviconWrapper;
@@ -166,7 +212,7 @@ export const FullMapViewer: React.FC<FullMapViewerProps> = ({
       markerEl.appendChild(faviconWrapper);
 
       const textSpan = document.createElement('span');
-      textSpan.textContent = store.name;
+      textSpan.textContent = store.displayName || store.name;
       markerEl.appendChild(textSpan);
 
       markerEl.addEventListener('click', () => {
@@ -262,6 +308,7 @@ export const FullMapViewer: React.FC<FullMapViewerProps> = ({
             {stores.map((store) => {
               const isSelected = selectedIds.includes(store.id);
               const pos = getPixelCoord(store.lat, store.lng);
+              const isSsm = store.storeType === 'ssm';
 
               return (
                 <motion.div
@@ -270,13 +317,13 @@ export const FullMapViewer: React.FC<FullMapViewerProps> = ({
                   animate={{ scale: 1, opacity: 1 }}
                   whileTap={{ scale: 0.95 }}
                   onClick={() => onSelectStore(store)}
-                  className={`${storeMarker} ${getMarkerStyle(store.brand)} ${fallbackStoreMarker} ${
+                  className={`${storeMarker} ${getMarkerStyle(store.brand)} ${isSsm ? storeMarkerSSM : ''} ${fallbackStoreMarker} ${
                     isSelected ? `${markerSelected} ${fallbackStoreMarkerSelected}` : ''
                   }`}
                   style={pos}
                 >
                   <BrandFavicon brand={store.brand} />
-                  <span>{store.name}</span>
+                  <span>{store.displayName || store.name}</span>
                 </motion.div>
               );
             })}

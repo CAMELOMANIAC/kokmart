@@ -1,14 +1,137 @@
-import { MartBrand, MartStore, calculateDistanceKm, mockMartStores } from '@kokmart/shared';
+import { MartBrand, MartCategoryType, MartStore, calculateDistanceKm, mockMartStores } from '@kokmart/shared';
 import type { KakaoPlaceResult } from '../types/kakao';
 
+export interface DetectedMartInfo {
+  brand: MartBrand;
+  storeType: MartCategoryType;
+  displayName: string;
+  branchName: string;
+}
+
 /**
- * 장소명에서 대형마트 3사 브랜드를 식별합니다.
+ * 장소명에서 브랜드, 매장 유형(대형마트 vs SSM 등), 축약 표시명을 정밀 파싱합니다.
+ */
+export function parseMartInfo(placeName: string): DetectedMartInfo | null {
+  // 1. 특정 브랜드 및 SSM/창고형 매장을 우선 검사 (순서 중요)
+  if (/(이마트\s*트레이더스|트레이더스\s*홀세일\s*클럽|트레이더스)/.test(placeName)) {
+    const branchName = placeName.replace(/이마트\s*트레이더스|트레이더스\s*홀세일\s*클럽|트레이더스/g, '').trim();
+    return {
+      brand: '트레이더스',
+      storeType: 'warehouse',
+      displayName: branchName ? `트레이더스 ${branchName}` : '트레이더스',
+      branchName
+    };
+  }
+
+  if (/(이마트\s*에브리데이|이마트에브리데이|에브리데이)/.test(placeName)) {
+    const branchName = placeName.replace(/이마트\s*에브리데이|이마트에브리데이|에브리데이/g, '').trim();
+    return {
+      brand: '에브리데이',
+      storeType: 'ssm',
+      displayName: branchName ? `에브리데이 ${branchName}` : '에브리데이',
+      branchName
+    };
+  }
+
+  if (/(홈플러스\s*익스프레스|홈플러스익스프레스|익스프레스)/.test(placeName)) {
+    const branchName = placeName.replace(/홈플러스\s*익스프레스|홈플러스익스프레스|익스프레스/g, '').trim();
+    return {
+      brand: '익스프레스',
+      storeType: 'ssm',
+      displayName: branchName ? `익스프레스 ${branchName}` : '익스프레스',
+      branchName
+    };
+  }
+
+  if (/(롯데슈퍼|롯데프레시|롯데마켓999)/.test(placeName)) {
+    const branchName = placeName.replace(/롯데슈퍼|롯데프레시|롯데마켓999/g, '').trim();
+    return {
+      brand: '롯데슈퍼',
+      storeType: 'ssm',
+      displayName: branchName ? `롯데슈퍼 ${branchName}` : '롯데슈퍼',
+      branchName
+    };
+  }
+
+  if (/(GS더프레시|GS더프레쉬|GS수퍼마켓|GS슈퍼마켓|GS슈퍼)/i.test(placeName)) {
+    const branchName = placeName.replace(/GS더프레시|GS더프레쉬|GS수퍼마켓|GS슈퍼마켓|GS슈퍼/gi, '').trim();
+    return {
+      brand: 'GS더프레시',
+      storeType: 'ssm',
+      displayName: branchName ? `GS더프레시 ${branchName}` : 'GS더프레시',
+      branchName
+    };
+  }
+
+  if (/킴스클럽/.test(placeName)) {
+    const branchName = placeName.replace(/킴스클럽/g, '').trim();
+    return {
+      brand: '킴스클럽',
+      storeType: 'ssm',
+      displayName: branchName ? `킴스클럽 ${branchName}` : '킴스클럽',
+      branchName
+    };
+  }
+
+  if (/노브랜드/.test(placeName)) {
+    const branchName = placeName.replace(/노브랜드/g, '').trim();
+    return {
+      brand: '노브랜드',
+      storeType: 'ssm',
+      displayName: branchName ? `노브랜드 ${branchName}` : '노브랜드',
+      branchName
+    };
+  }
+
+  if (/(농협하나로마트|하나로마트|하나로클럽)/.test(placeName)) {
+    const branchName = placeName.replace(/농협하나로마트|하나로마트|하나로클럽/g, '').trim();
+    return {
+      brand: '하나로마트',
+      storeType: 'hypermarket',
+      displayName: branchName ? `하나로마트 ${branchName}` : '하나로마트',
+      branchName
+    };
+  }
+
+  // 2. 대형마트 3사 순수 브랜드 검사
+  if (/이마트/.test(placeName)) {
+    const branchName = placeName.replace(/이마트/g, '').trim();
+    return {
+      brand: '이마트',
+      storeType: 'hypermarket',
+      displayName: branchName ? `이마트 ${branchName}` : '이마트',
+      branchName
+    };
+  }
+
+  if (/홈플러스/.test(placeName)) {
+    const branchName = placeName.replace(/홈플러스/g, '').trim();
+    return {
+      brand: '홈플러스',
+      storeType: 'hypermarket',
+      displayName: branchName ? `홈플러스 ${branchName}` : '홈플러스',
+      branchName
+    };
+  }
+
+  if (/롯데마트/.test(placeName)) {
+    const branchName = placeName.replace(/롯데마트/g, '').trim();
+    return {
+      brand: '롯데마트',
+      storeType: 'hypermarket',
+      displayName: branchName ? `롯데마트 ${branchName}` : '롯데마트',
+      branchName
+    };
+  }
+
+  return null;
+}
+
+/**
+ * 장소명에서 마트 브랜드를 식별합니다.
  */
 export function detectMartBrand(placeName: string): MartBrand | null {
-  if (placeName.includes('이마트') || placeName.includes('트레이더스')) return '이마트';
-  if (placeName.includes('홈플러스')) return '홈플러스';
-  if (placeName.includes('롯데마트') || placeName.includes('롯데슈퍼')) return '롯데마트';
-  return null;
+  return parseMartInfo(placeName)?.brand ?? null;
 }
 
 /**
@@ -18,8 +141,14 @@ export function convertKakaoPlaceToMartStore(
   place: KakaoPlaceResult,
   myLocation?: { lat: number; lng: number }
 ): MartStore | null {
-  const brand = detectMartBrand(place.place_name);
-  if (!brand) return null; // 3대 마트 필터링
+  const info = parseMartInfo(place.place_name);
+  if (!info && place.category_group_code !== 'MT1' && !place.place_name.includes('마트')) {
+    return null;
+  }
+
+  const brand: MartBrand = info?.brand ?? '기타마트';
+  const storeType: MartCategoryType = info?.storeType ?? 'ssm';
+  const displayName = info?.displayName ?? place.place_name;
 
   const lat = parseFloat(place.y);
   const lng = parseFloat(place.x);
@@ -34,14 +163,16 @@ export function convertKakaoPlaceToMartStore(
   return {
     id: `kakao-${place.id}`,
     name: place.place_name,
+    displayName,
     brand,
+    storeType,
     lat,
     lng,
     address: place.road_address_name || place.address_name,
     phone: place.phone || '전화번호 미등록',
     businessHours: '10:00 ~ 23:00',
     isHolidayToday: false,
-    activeDealCount: 15, // 마트별 특가 정보는 향후 백엔드 연결
+    activeDealCount: 15,
     distanceKm
   };
 }
@@ -154,13 +285,17 @@ export async function searchMartsByKeyword(
           const genericMarts = data
             .filter((item) => item.category_group_code === 'MT1' || item.place_name.includes('마트'))
             .map((item) => {
-              const brand = detectMartBrand(item.place_name) ?? '이마트';
+              const info = parseMartInfo(item.place_name);
+              const brand: MartBrand = info?.brand ?? '기타마트';
+              const storeType: MartCategoryType = info?.storeType ?? 'ssm';
               const lat = parseFloat(item.y);
               const lng = parseFloat(item.x);
               return {
                 id: `kakao-${item.id}`,
                 name: item.place_name,
+                displayName: info?.displayName ?? item.place_name,
                 brand,
+                storeType,
                 lat,
                 lng,
                 address: item.road_address_name || item.address_name,

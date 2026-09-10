@@ -81,8 +81,25 @@ export const markerFaviconFallback = style({
   lineHeight: 1
 });
 
+export const storeMarkerSSM = style({
+  padding: '3px 8px 3px 4px',
+  fontSize: '11px',
+  fontWeight: 600,
+  opacity: 0.95
+});
+
 export const emartMarker = style({
   backgroundColor: vars.colors.brandEmart, // 이마트 공식 옐로우
+  color: '#FFFFFF'
+});
+
+export const everydayMarker = style({
+  backgroundColor: vars.colors.brandEveryday, // 에브리데이 오렌지
+  color: '#FFFFFF'
+});
+
+export const tradersMarker = style({
+  backgroundColor: vars.colors.brandTraders, // 트레이더스 그린
   color: '#FFFFFF'
 });
 
@@ -91,8 +108,33 @@ export const homeplusMarker = style({
   color: '#FFFFFF'
 });
 
+export const expressMarker = style({
+  backgroundColor: vars.colors.brandExpress, // 익스프레스 네이비
+  color: '#FFFFFF'
+});
+
 export const lottemartMarker = style({
   backgroundColor: vars.colors.brandLottemart, // 롯데마트 공식 롯데 레드
+  color: '#FFFFFF'
+});
+
+export const lottesuperMarker = style({
+  backgroundColor: vars.colors.brandLottesuper, // 롯데슈퍼 그린
+  color: '#FFFFFF'
+});
+
+export const gsTheFreshMarker = style({
+  backgroundColor: vars.colors.brandGsTheFresh, // GS더프레시 틸
+  color: '#FFFFFF'
+});
+
+export const kimsClubMarker = style({
+  backgroundColor: vars.colors.brandKimsClub, // 킴스클럽 퍼플
+  color: '#FFFFFF'
+});
+
+export const defaultMarker = style({
+  backgroundColor: vars.colors.brandDefault, // 기타 마트
   color: '#FFFFFF'
 });
 

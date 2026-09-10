@@ -16,16 +16,32 @@ import {
   filterButton,
   filterButtonActive,
   filterPanel,
+  filterCategoryRow,
+  filterBrandRowScrollable,
   filterPanelWrapper,
   filterChip,
   filterChipActive,
   filterChipBrandActive,
   brandDotEmart,
+  brandDotEveryday,
+  brandDotTraders,
   brandDotHomeplus,
+  brandDotExpress,
   brandDotLottemart,
+  brandDotLottesuper,
+  brandDotGsTheFresh,
+  brandDotKimsClub,
+  brandDotDefault,
   brandBadgeEmart,
+  brandBadgeEveryday,
+  brandBadgeTraders,
   brandBadgeHomeplus,
+  brandBadgeExpress,
   brandBadgeLottemart,
+  brandBadgeLottesuper,
+  brandBadgeGsTheFresh,
+  brandBadgeKimsClub,
+  brandBadgeDefault,
   pillListContainer,
   storePill,
   storePillActive,
@@ -115,12 +131,29 @@ export const StoreBottomSheet: React.FC<StoreBottomSheetProps> = ({
     };
   }, []);
 
+  type CategoryFilter = 'all' | 'hypermarket' | 'ssm';
+
+  const ALL_FILTER_BRANDS: MartBrand[] = [
+    '이마트',
+    '홈플러스',
+    '롯데마트',
+    '에브리데이',
+    '익스프레스',
+    '롯데슈퍼',
+    'GS더프레시',
+    '킴스클럽',
+    '트레이더스'
+  ];
+
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [onlyOpen, setOnlyOpen] = useState(false);
-  const [selectedBrands, setSelectedBrands] = useState<Record<MartBrand, boolean>>({
-    이마트: true,
-    홈플러스: true,
-    롯데마트: true
+  const [selectedCategory, setSelectedCategory] = useState<CategoryFilter>('all');
+  const [selectedBrands, setSelectedBrands] = useState<Record<string, boolean>>(() => {
+    const initial: Record<string, boolean> = {};
+    ALL_FILTER_BRANDS.forEach((b) => {
+      initial[b] = true;
+    });
+    return initial;
   });
 
   // 축소 상태 높이: 검색창 + 알약 2줄 + GNB 하단 여백을 편안히 담는 약 300px 노출 (상단 지도는 시원하게 확보)
@@ -174,26 +207,103 @@ export const StoreBottomSheet: React.FC<StoreBottomSheetProps> = ({
   const toggleBrand = (brand: MartBrand) => {
     setSelectedBrands((prev) => ({
       ...prev,
-      [brand]: !prev[brand]
+      [brand]: prev[brand] === false ? true : false
     }));
   };
 
-  // 브랜드 및 영업 여부 필터링 (검색어는 카카오 장소 검색 API로 실시간 동기화)
-  const filteredStores = useMemo(() => {
-    return stores.filter((s) => {
-      if (!selectedBrands[s.brand]) return false;
-      if (onlyOpen && s.isHolidayToday) return false;
-      return true;
-    });
-  }, [stores, selectedBrands, onlyOpen]);
-
-  const getBrandBadgeClass = (brand: string) => {
-    if (brand === '이마트') return brandBadgeEmart;
-    if (brand === '홈플러스') return brandBadgeHomeplus;
-    return brandBadgeLottemart;
+  const getBranchName = (store: MartStore): string => {
+    let name = store.name;
+    name = name.replace(/이마트\s*에브리데이|이마트에브리데이/g, '');
+    name = name.replace(/홈플러스\s*익스프레스|홈플러스익스프레스/g, '');
+    name = name.replace(/트레이더스\s*홀세일\s*클럽|이마트\s*트레이더스/g, '');
+    name = name.replace(/롯데슈퍼|롯데프레시|롯데마켓999/g, '');
+    name = name.replace(/GS더프레시|GS더프레쉬|GS수퍼마켓|GS슈퍼마켓|GS슈퍼/gi, '');
+    name = name.replace(/이마트|홈플러스|롯데마트|킴스클럽|노브랜드|하나로마트/g, '');
+    const trimmed = name.trim();
+    return trimmed || store.name;
   };
 
-  const isAnyFilterActive = onlyOpen || !selectedBrands['이마트'] || !selectedBrands['홈플러스'] || !selectedBrands['롯데마트'];
+  const getBrandBadgeClass = (brand: MartBrand | string) => {
+    switch (brand) {
+      case '이마트':
+        return brandBadgeEmart;
+      case '에브리데이':
+        return brandBadgeEveryday;
+      case '트레이더스':
+        return brandBadgeTraders;
+      case '홈플러스':
+        return brandBadgeHomeplus;
+      case '익스프레스':
+        return brandBadgeExpress;
+      case '롯데마트':
+        return brandBadgeLottemart;
+      case '롯데슈퍼':
+        return brandBadgeLottesuper;
+      case 'GS더프레시':
+        return brandBadgeGsTheFresh;
+      case '킴스클럽':
+        return brandBadgeKimsClub;
+      default:
+        return brandBadgeDefault;
+    }
+  };
+
+  const getBrandDotClass = (brand: MartBrand | string) => {
+    switch (brand) {
+      case '이마트':
+        return brandDotEmart;
+      case '에브리데이':
+        return brandDotEveryday;
+      case '트레이더스':
+        return brandDotTraders;
+      case '홈플러스':
+        return brandDotHomeplus;
+      case '익스프레스':
+        return brandDotExpress;
+      case '롯데마트':
+        return brandDotLottemart;
+      case '롯데슈퍼':
+        return brandDotLottesuper;
+      case 'GS더프레시':
+        return brandDotGsTheFresh;
+      case '킴스클럽':
+        return brandDotKimsClub;
+      default:
+        return brandDotDefault;
+    }
+  };
+
+  // 대분류, 개별 브랜드 및 영업 여부 복합 필터링
+  const filteredStores = useMemo(() => {
+    return stores.filter((s) => {
+      // 1. 카테고리 필터
+      if (selectedCategory === 'hypermarket') {
+        const isHyper =
+          s.storeType === 'hypermarket' ||
+          s.storeType === 'warehouse' ||
+          ['이마트', '홈플러스', '롯데마트', '트레이더스'].includes(s.brand);
+        if (!isHyper) return false;
+      } else if (selectedCategory === 'ssm') {
+        const isSsm =
+          s.storeType === 'ssm' ||
+          ['에브리데이', '익스프레스', '롯데슈퍼', 'GS더프레시', '킴스클럽', '노브랜드'].includes(s.brand);
+        if (!isSsm) return false;
+      }
+
+      // 2. 개별 브랜드 필터
+      if (selectedBrands[s.brand] === false) return false;
+
+      // 3. 영업중 필터
+      if (onlyOpen && s.isHolidayToday) return false;
+
+      return true;
+    });
+  }, [stores, selectedCategory, selectedBrands, onlyOpen]);
+
+  const isAnyFilterActive =
+    onlyOpen ||
+    selectedCategory !== 'all' ||
+    ALL_FILTER_BRANDS.some((b) => selectedBrands[b] === false);
 
   return (
     <motion.div
@@ -264,40 +374,55 @@ export const StoreBottomSheet: React.FC<StoreBottomSheetProps> = ({
               className={filterPanelWrapper}
             >
               <div className={filterPanel}>
-                <div
-                  className={`${filterChip} ${onlyOpen ? filterChipActive : ''}`}
-                  onClick={() => setOnlyOpen(!onlyOpen)}
-                >
-                  <Clock size={13} color={onlyOpen ? '#FFFFFF' : '#6B7280'} />
-                  <span>영업중만 보기</span>
-                  {onlyOpen && <Check size={12} />}
+                {/* 1행: 대분류 카테고리 탭 & 영업중 토글 */}
+                <div className={filterCategoryRow}>
+                  <div
+                    className={`${filterChip} ${selectedCategory === 'all' ? filterChipActive : ''}`}
+                    onClick={() => setSelectedCategory('all')}
+                  >
+                    <span>전체</span>
+                  </div>
+
+                  <div
+                    className={`${filterChip} ${selectedCategory === 'hypermarket' ? filterChipActive : ''}`}
+                    onClick={() => setSelectedCategory((prev) => (prev === 'hypermarket' ? 'all' : 'hypermarket'))}
+                  >
+                    <span>대형마트</span>
+                  </div>
+
+                  <div
+                    className={`${filterChip} ${selectedCategory === 'ssm' ? filterChipActive : ''}`}
+                    onClick={() => setSelectedCategory((prev) => (prev === 'ssm' ? 'all' : 'ssm'))}
+                  >
+                    <span>SSM·슈퍼</span>
+                  </div>
+
+                  <div
+                    className={`${filterChip} ${onlyOpen ? filterChipActive : ''}`}
+                    onClick={() => setOnlyOpen(!onlyOpen)}
+                  >
+                    <Clock size={13} color={onlyOpen ? '#FFFFFF' : '#6B7280'} />
+                    <span>영업중만</span>
+                    {onlyOpen && <Check size={12} />}
+                  </div>
                 </div>
 
-                <div
-                  className={`${filterChip} ${selectedBrands['이마트'] ? filterChipBrandActive : ''}`}
-                  onClick={() => toggleBrand('이마트')}
-                >
-                  <span className={brandDotEmart} />
-                  <span>이마트</span>
-                  {selectedBrands['이마트'] && <Check size={12} color="#EA580C" />}
-                </div>
-
-                <div
-                  className={`${filterChip} ${selectedBrands['홈플러스'] ? filterChipBrandActive : ''}`}
-                  onClick={() => toggleBrand('홈플러스')}
-                >
-                  <span className={brandDotHomeplus} />
-                  <span>홈플러스</span>
-                  {selectedBrands['홈플러스'] && <Check size={12} color="#EA580C" />}
-                </div>
-
-                <div
-                  className={`${filterChip} ${selectedBrands['롯데마트'] ? filterChipBrandActive : ''}`}
-                  onClick={() => toggleBrand('롯데마트')}
-                >
-                  <span className={brandDotLottemart} />
-                  <span>롯데마트</span>
-                  {selectedBrands['롯데마트'] && <Check size={12} color="#EA580C" />}
+                {/* 2행: 가로 스크롤 개별 브랜드 칩 */}
+                <div className={filterBrandRowScrollable}>
+                  {ALL_FILTER_BRANDS.map((brand) => {
+                    const isChecked = selectedBrands[brand] !== false;
+                    return (
+                      <div
+                        key={brand}
+                        className={`${filterChip} ${isChecked ? filterChipBrandActive : ''}`}
+                        onClick={() => toggleBrand(brand)}
+                      >
+                        <span className={getBrandDotClass(brand)} />
+                        <span>{brand}</span>
+                        {isChecked && <Check size={12} color="#EA580C" />}
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
             </motion.div>
@@ -336,7 +461,7 @@ export const StoreBottomSheet: React.FC<StoreBottomSheetProps> = ({
                       {store.brand}
                     </span>
                     <span className={storePillName}>
-                      {store.name.replace(store.brand, '').trim()}
+                      {getBranchName(store)}
                     </span>
                     {store.distanceKm && (
                       <span className={storePillDistance}>
@@ -383,7 +508,7 @@ export const StoreBottomSheet: React.FC<StoreBottomSheetProps> = ({
                           {store.brand}
                         </span>
                         <h4 className={cardTitle}>
-                          {store.name}
+                          {store.displayName || store.name}
                         </h4>
                       </div>
 
