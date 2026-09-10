@@ -27,14 +27,20 @@ const RootComponent: React.FC = () => {
 
   // 1. 라우트별 상태표시줄 & html/body 배경색 동적 동기화
   React.useEffect(() => {
-    // 지도콕에서는 지도가 비치도록 화이트, 다른 페이지는 시스템 테마 배경색(#F9FAFB)
-    const targetColor = isMapTab ? '#FFFFFF' : '#F9FAFB';
     const metaThemeColor = document.querySelector('meta[name="theme-color"]');
-    if (metaThemeColor) {
-      metaThemeColor.setAttribute('content', targetColor);
+
+    if (isMapTab) {
+      // 지도 탭: html·body 모두 투명하게 → 카카오 지도가 safe area까지 비치도록
+      // #FFFFFF(불투명 흰색)이면 safe area가 흰색으로 막혀 지도가 가려짐
+      document.documentElement.style.backgroundColor = 'transparent';
+      document.body.style.backgroundColor = 'transparent';
+      if (metaThemeColor) metaThemeColor.setAttribute('content', 'transparent');
+    } else {
+      // 다른 탭: 시스템 테마 배경색 복원
+      document.documentElement.style.backgroundColor = '#F9FAFB';
+      document.body.style.backgroundColor = '#F9FAFB';
+      if (metaThemeColor) metaThemeColor.setAttribute('content', '#FFFFFF');
     }
-    document.documentElement.style.backgroundColor = targetColor;
-    document.body.style.backgroundColor = targetColor;
   }, [isMapTab]);
 
   // 2. 모바일 풀투리프레시(새로고침) 제스처 및 단축키 새로고침 전면 차단
