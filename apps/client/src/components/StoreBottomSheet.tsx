@@ -45,20 +45,25 @@ import {
   cardInfoRow,
   cardFooter,
   cardDealBadge,
-  cardDealButton
+  cardDealButton,
+  loadingSpinner
 } from './StoreBottomSheet.css';
-import { Clock, MapPin, ChevronRight, Zap, Search, X, SlidersHorizontal, Check, CheckCircle2, Circle } from 'lucide-react';
+import { Clock, MapPin, ChevronRight, Zap, Search, X, SlidersHorizontal, Check, CheckCircle2, Circle, Loader2 } from 'lucide-react';
 
 interface StoreBottomSheetProps {
   stores: MartStore[];
   onGoToFlyerTab: () => void;
+  onSearch?: (query: string) => void;
+  isLoading?: boolean;
 }
 
 type SnapMode = 'default' | 'fullscreen';
 
 export const StoreBottomSheet: React.FC<StoreBottomSheetProps> = ({
   stores,
-  onGoToFlyerTab
+  onGoToFlyerTab,
+  onSearch,
+  isLoading
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   // 전체화면 시 카드리스트 내부 스크롤 감지용 ref
@@ -72,6 +77,44 @@ export const StoreBottomSheet: React.FC<StoreBottomSheetProps> = ({
   
   // 검색어 & 필터 상태
   const [searchQuery, setSearchQuery] = useState('');
+  const searchDebounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const handleSearchChange = (val: string) => {
+    setSearchQuery(val);
+    if (searchDebounceTimer.current) {
+      clearTimeout(searchDebounceTimer.current);
+    }
+    searchDebounceTimer.current = setTimeout(() => {
+      onSearch?.(val);
+    }, 350);
+  };
+
+  const handleClearSearch = () => {
+    setSearchQuery('');
+    if (searchDebounceTimer.current) {
+      clearTimeout(searchDebounceTimer.current);
+    }
+    onSearch?.('');
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      if (searchDebounceTimer.current) {
+        clearTimeout(searchDebounceTimer.current);
+      }
+      onSearch?.(searchQuery);
+    }
+  };
+
+  useEffect(() => {
+    return () => {
+      if (searchDebounceTimer.current) {
+        clearTimeout(searchDebounceTimer.current);
+      }
+    };
+  }, []);
+
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [onlyOpen, setOnlyOpen] = useState(false);
   const [selectedBrands, setSelectedBrands] = useState<Record<MartBrand, boolean>>({
@@ -135,21 +178,14 @@ export const StoreBottomSheet: React.FC<StoreBottomSheetProps> = ({
     }));
   };
 
-  // 검색어 및 필터 복합 필터링
+  // 브랜드 및 영업 여부 필터링 (검색어는 카카오 장소 검색 API로 실시간 동기화)
   const filteredStores = useMemo(() => {
     return stores.filter((s) => {
       if (!selectedBrands[s.brand]) return false;
       if (onlyOpen && s.isHolidayToday) return false;
-      if (searchQuery.trim()) {
-        const query = searchQuery.toLowerCase();
-        const matchName = s.name.toLowerCase().includes(query);
-        const matchBrand = s.brand.toLowerCase().includes(query);
-        const matchAddress = s.address.toLowerCase().includes(query);
-        if (!matchName && !matchBrand && !matchAddress) return false;
-      }
       return true;
     });
-  }, [stores, searchQuery, selectedBrands, onlyOpen]);
+  }, [stores, selectedBrands, onlyOpen]);
 
   const getBrandBadgeClass = (brand: string) => {
     if (brand === '이마트') return brandBadgeEmart;
@@ -190,17 +226,21 @@ export const StoreBottomSheet: React.FC<StoreBottomSheetProps> = ({
               className={searchInput}
               placeholder="마트 지점명 또는 동네 검색"
               value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
+              onChange={(e) => handleSearchChange(e.target.value)}
+              onKeyDown={handleKeyDown}
               onFocus={() => snapTo('fullscreen')}
             />
-            {searchQuery && (
+            {isLoading ? (
+              <Loader2 size={16} color="#FF5E00" className={loadingSpinner} />
+            ) : searchQuery ? (
               <button
-                onClick={() => setSearchQuery('')}
+                onClick={handleClearSearch}
                 className={searchClearButton}
+                title="검색어 지우기"
               >
                 <X size={15} color="#9CA3AF" />
               </button>
-            )}
+            ) : null}
           </div>
 
           {/* 우측 필터 버튼 */}
@@ -279,7 +319,7 @@ export const StoreBottomSheet: React.FC<StoreBottomSheetProps> = ({
           >
             {filteredStores.length === 0 ? (
               <div className={emptyMessage}>
-                조건에 일치하는 마트가 없습니다.
+                {isLoading ? '마트 정보를 검색 중입니다...' : '조건에 일치하는 마트가 없습니다.'}
               </div>
             ) : (
               filteredStores.map((store) => {
@@ -324,7 +364,7 @@ export const StoreBottomSheet: React.FC<StoreBottomSheetProps> = ({
           >
             {filteredStores.length === 0 ? (
               <div className={emptyMessage}>
-                조건에 일치하는 마트 지점이 없습니다.
+                {isLoading ? '마트 정보를 검색 중입니다...' : '조건에 일치하는 마트 지점이 없습니다.'}
               </div>
             ) : (
               filteredStores.map((store) => {

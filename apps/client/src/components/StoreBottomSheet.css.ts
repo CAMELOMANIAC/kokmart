@@ -1,5 +1,15 @@
-import { style } from "@vanilla-extract/css";
+import { style, keyframes } from "@vanilla-extract/css";
 import { vars } from "../styles/theme.css";
+
+const spin = keyframes({
+  from: { transform: "rotate(0deg)" },
+  to: { transform: "rotate(360deg)" },
+});
+
+export const loadingSpinner = style({
+  animation: `${spin} 0.8s linear infinite`,
+  flexShrink: 0,
+});
 
 export const sheetContainer = style({
   position: "fixed",
