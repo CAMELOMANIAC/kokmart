@@ -46,21 +46,23 @@ export const storeMarker = style({
 });
 
 export const emartMarker = style({
-  backgroundColor: '#F59E0B' // 이마트 옐로우골드
+  backgroundColor: '#F59E0B', // 이마트 옐로우골드
+  color: '#FFFFFF'
 });
 
 export const homeplusMarker = style({
-  backgroundColor: '#EF4444' // 홈플러스 레드
+  backgroundColor: '#0055A5', // 홈플러스 시그니처 코발트 블루
+  color: '#FFFFFF'
 });
 
 export const lottemartMarker = style({
-  backgroundColor: '#DC2626' // 롯데마트 레드
+  backgroundColor: '#E60012', // 롯데 시그니처 딥레드
+  color: '#FFFFFF'
 });
 
 export const markerSelected = style({
-  transform: 'translate(-50%, -115%) scale(1.12)',
-  border: '2px solid #FFFFFF',
-  boxShadow: '0 12px 28px rgba(0,0,0,0.28)'
+  transform: 'translate(-50%, -115%) scale(1.14)',
+  boxShadow: '0 0 0 2.5px #FFFFFF, 0 12px 28px rgba(0, 0, 0, 0.28)'
 });
 
 export const kakaoMapContainer = style({

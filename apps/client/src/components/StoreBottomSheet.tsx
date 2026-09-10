@@ -18,6 +18,9 @@ import {
   filterChip,
   filterChipActive,
   filterChipBrandActive,
+  brandDotEmart,
+  brandDotHomeplus,
+  brandDotLottemart,
   pillListContainer,
   storePill,
   storePillActive,
@@ -215,7 +218,7 @@ export const StoreBottomSheet: React.FC<StoreBottomSheetProps> = ({
                   className={`${filterChip} ${selectedBrands['이마트'] ? filterChipBrandActive : ''}`}
                   onClick={() => toggleBrand('이마트')}
                 >
-                  <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#F59E0B' }} />
+                  <span className={brandDotEmart} />
                   <span>이마트</span>
                   {selectedBrands['이마트'] && <Check size={12} color="#EA580C" />}
                 </div>
@@ -224,7 +227,7 @@ export const StoreBottomSheet: React.FC<StoreBottomSheetProps> = ({
                   className={`${filterChip} ${selectedBrands['홈플러스'] ? filterChipBrandActive : ''}`}
                   onClick={() => toggleBrand('홈플러스')}
                 >
-                  <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#EF4444' }} />
+                  <span className={brandDotHomeplus} />
                   <span>홈플러스</span>
                   {selectedBrands['홈플러스'] && <Check size={12} color="#EA580C" />}
                 </div>
@@ -233,7 +236,7 @@ export const StoreBottomSheet: React.FC<StoreBottomSheetProps> = ({
                   className={`${filterChip} ${selectedBrands['롯데마트'] ? filterChipBrandActive : ''}`}
                   onClick={() => toggleBrand('롯데마트')}
                 >
-                  <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#DC2626' }} />
+                  <span className={brandDotLottemart} />
                   <span>롯데마트</span>
                   {selectedBrands['롯데마트'] && <Check size={12} color="#EA580C" />}
                 </div>

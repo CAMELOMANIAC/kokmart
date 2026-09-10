@@ -16,7 +16,7 @@ export const KokHome: React.FC<KokHomeProps> = ({ onNavigateTab }) => {
   // 내 현재 위치 (기본값: 강남구 역삼)
   const myLocation = { lat: 37.5006, lng: 127.0364 };
 
-  const { selectedStores, toggleStoreSelection } = useSelectedStoreStore();
+  const { selectedStores, activeStoreId, toggleStoreSelection, setActiveStoreId } = useSelectedStoreStore();
 
   // 내 위치로부터 거리 계산 및 정렬
   const nearbyStores = useMemo(() => {
@@ -29,6 +29,7 @@ export const KokHome: React.FC<KokHomeProps> = ({ onNavigateTab }) => {
   }, [myLocation.lat, myLocation.lng]);
 
   const handleSelectStore = (store: MartStore) => {
+    setActiveStoreId(store.id);
     toggleStoreSelection(store);
   };
 
@@ -40,7 +41,8 @@ export const KokHome: React.FC<KokHomeProps> = ({ onNavigateTab }) => {
       {/* 2. 전체화면 인터랙티브 맵 뷰어 */}
       <FullMapViewer
         stores={nearbyStores}
-        selectedStoreId={selectedStores[0]?.id || null}
+        selectedStoreIds={selectedStores.map((s) => s.id)}
+        activeStoreId={activeStoreId}
         onSelectStore={handleSelectStore}
         myLat={myLocation.lat}
         myLng={myLocation.lng}

@@ -143,6 +143,35 @@ export const filterChipBrandActive = style({
   borderColor: "#FDBA74",
 });
 
+export const brandDotBase = style({
+  width: "8px",
+  height: "8px",
+  borderRadius: "50%",
+  display: "inline-block",
+  flexShrink: 0,
+});
+
+export const brandDotEmart = style([
+  brandDotBase,
+  {
+    backgroundColor: "#F59E0B",
+  },
+]);
+
+export const brandDotHomeplus = style([
+  brandDotBase,
+  {
+    backgroundColor: "#0055A5",
+  },
+]);
+
+export const brandDotLottemart = style([
+  brandDotBase,
+  {
+    backgroundColor: "#E60012",
+  },
+]);
+
 // 축소 상태: 알약 2줄만 보이고 Y축 스크롤, GNB 높이(96px) 하단 여백 보장
 export const pillListContainer = style({
   padding: "12px 16px 96px 16px", // GNB에 가려지지 않도록 96px 하단 패딩

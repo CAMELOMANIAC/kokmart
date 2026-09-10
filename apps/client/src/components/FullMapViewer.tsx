@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { MartStore } from '@kokmart/shared';
 import {
   mapContainer,
@@ -21,7 +21,9 @@ import type { KakaoMap, KakaoCustomOverlay } from '../types/kakao';
 
 interface FullMapViewerProps {
   stores: MartStore[];
-  selectedStoreId: string | null;
+  selectedStoreIds?: string[];
+  selectedStoreId?: string | null;
+  activeStoreId?: string | null;
   onSelectStore: (store: MartStore) => void;
   myLat: number;
   myLng: number;
@@ -35,7 +37,9 @@ const getMarkerStyle = (brand: string) => {
 
 export const FullMapViewer: React.FC<FullMapViewerProps> = ({
   stores,
+  selectedStoreIds,
   selectedStoreId,
+  activeStoreId,
   onSelectStore,
   myLat,
   myLng
@@ -44,6 +48,12 @@ export const FullMapViewer: React.FC<FullMapViewerProps> = ({
   const mapInstanceRef = useRef<KakaoMap | null>(null);
   const overlaysRef = useRef<KakaoCustomOverlay[]>([]);
   const [isKakaoLoaded, setIsKakaoLoaded] = useState(false);
+
+  const selectedIds = useMemo(
+    () => selectedStoreIds ?? (selectedStoreId ? [selectedStoreId] : []),
+    [selectedStoreIds, selectedStoreId]
+  );
+  const currentActiveId = activeStoreId ?? (selectedIds.length > 0 ? selectedIds[selectedIds.length - 1] : null);
 
   // 1. 카카오맵 SDK 초기화
   useEffect(() => {
@@ -95,11 +105,31 @@ export const FullMapViewer: React.FC<FullMapViewerProps> = ({
 
     // 대형마트 3사 마커
     stores.forEach((store) => {
-      const isSelected = selectedStoreId === store.id;
+      const isSelected = selectedIds.includes(store.id);
+      const isFocused = currentActiveId === store.id;
       const brandClass = getMarkerStyle(store.brand);
 
       const markerEl = document.createElement('div');
       markerEl.className = `${storeMarker} ${brandClass} ${isSelected ? markerSelected : ''}`;
+
+      const iconSvg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+      iconSvg.setAttribute('width', '13');
+      iconSvg.setAttribute('height', '13');
+      iconSvg.setAttribute('viewBox', '0 0 24 24');
+      iconSvg.setAttribute('fill', 'none');
+      iconSvg.setAttribute('stroke', 'currentColor');
+      iconSvg.setAttribute('stroke-width', '2.5');
+      iconSvg.setAttribute('stroke-linecap', 'round');
+      iconSvg.setAttribute('stroke-linejoin', 'round');
+      const pathEl = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+      pathEl.setAttribute('d', 'M20 10c0 4.993-5.539 10.193-7.399 11.799a1 1 0 0 1-1.202 0C9.539 20.193 4 14.993 4 10a8 8 0 0 1 16 0');
+      const circleEl = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+      circleEl.setAttribute('cx', '12');
+      circleEl.setAttribute('cy', '10');
+      circleEl.setAttribute('r', '3');
+      iconSvg.appendChild(pathEl);
+      iconSvg.appendChild(circleEl);
+      markerEl.appendChild(iconSvg);
 
       const textSpan = document.createElement('span');
       textSpan.textContent = store.name;
@@ -114,25 +144,25 @@ export const FullMapViewer: React.FC<FullMapViewerProps> = ({
         content: markerEl,
         yAnchor: 1.0,
         xAnchor: 0.5,
-        zIndex: isSelected ? 20 : 12
+        zIndex: isFocused ? 30 : isSelected ? 20 : 12
       });
 
       storeOverlay.setMap(map);
       overlaysRef.current.push(storeOverlay);
     });
-  }, [stores, selectedStoreId, myLat, myLng, onSelectStore, isKakaoLoaded]);
+  }, [stores, selectedIds, currentActiveId, myLat, myLng, onSelectStore, isKakaoLoaded]);
 
-  // 3. 선택된 마트 변경 시 해당 좌표로 부드럽게 이동
+  // 3. 최근 활성화된 마트 변경 시 해당 좌표로 부드럽게 이동
   useEffect(() => {
     const kakao = window.kakao;
     const map = mapInstanceRef.current;
-    if (!map || !kakao?.maps || !selectedStoreId) return;
+    if (!map || !kakao?.maps || !currentActiveId) return;
 
-    const targetStore = stores.find((s) => s.id === selectedStoreId);
+    const targetStore = stores.find((s) => s.id === currentActiveId);
     if (targetStore) {
       map.panTo(new kakao.maps.LatLng(targetStore.lat, targetStore.lng));
     }
-  }, [selectedStoreId, stores]);
+  }, [currentActiveId, stores]);
 
   // 4. 내 위치로 이동 버튼 핸들러
   const handleRecenter = () => {
@@ -186,7 +216,7 @@ export const FullMapViewer: React.FC<FullMapViewerProps> = ({
             </div>
 
             {stores.map((store) => {
-              const isSelected = selectedStoreId === store.id;
+              const isSelected = selectedIds.includes(store.id);
               const pos = getPixelCoord(store.lat, store.lng);
 
               return (
