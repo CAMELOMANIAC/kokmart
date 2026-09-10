@@ -25,6 +25,16 @@ const RootComponent: React.FC = () => {
   const location = useLocation();
   const isMapTab = location.pathname === '/';
 
+  React.useEffect(() => {
+    // 지도콕에서는 지도가 비치도록 화이트/투명, 다른 페이지는 시스템 테마 배경색(#F9FAFB)
+    const targetColor = isMapTab ? '#FFFFFF' : '#F9FAFB';
+    const metaThemeColor = document.querySelector('meta[name="theme-color"]');
+    if (metaThemeColor) {
+      metaThemeColor.setAttribute('content', targetColor);
+    }
+    document.body.style.backgroundColor = targetColor;
+  }, [isMapTab]);
+
   return (
     <div className={isMapTab ? mapContainerStyle : containerStyle}>
       <ScrollRestoration />

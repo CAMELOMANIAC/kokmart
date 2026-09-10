@@ -84,7 +84,7 @@ globalStyle('body', {
 export const containerStyle = style({
   maxWidth: '480px',
   margin: '0 auto',
-  minHeight: '100vh',
+  minHeight: '100dvh',
   backgroundColor: vars.colors.bgLight,
   display: 'flex',
   flexDirection: 'column',
@@ -97,8 +97,8 @@ export const containerStyle = style({
 export const mapContainerStyle = style({
   maxWidth: '480px',
   margin: '0 auto',
-  height: '100vh',
-  maxHeight: '100vh',
+  height: '100dvh',
+  maxHeight: '100dvh',
   overflow: 'hidden',
   position: 'relative',
   paddingBottom: 0,
