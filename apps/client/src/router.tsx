@@ -19,6 +19,7 @@ import { KokHome } from './pages/KokHome';
 import { DdingFlyers } from './pages/DdingFlyers';
 import { DdibCart } from './pages/DdibCart';
 import { BbumCommunity } from './pages/BbumCommunity';
+import './styles/transitions.css';
 
 const RootComponent: React.FC = () => {
   const location = useLocation();

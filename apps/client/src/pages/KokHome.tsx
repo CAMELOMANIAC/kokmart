@@ -6,6 +6,7 @@ import { useSelectedStoreStore } from '../store/useSelectedStoreStore';
 import { pageWrapper } from './KokHome.css';
 import { FloatingTopBar } from '../components/FloatingTopBar';
 import { useNavigate } from '@tanstack/react-router';
+import { setViewTransitionDirection } from '../utils/transition';
 
 interface KokHomeProps {
   onNavigateTab?: (tab: string) => void;
@@ -55,7 +56,8 @@ export const KokHome: React.FC<KokHomeProps> = ({ onNavigateTab }) => {
           if (onNavigateTab) {
             onNavigateTab('dding');
           }
-          navigate({ to: '/dding' });
+          setViewTransitionDirection('forward');
+          navigate({ to: '/dding', viewTransition: true });
         }}
       />
     </div>

@@ -11,6 +11,7 @@ import {
 import { Target, Zap, Bookmark, Users } from 'lucide-react';
 import { useUIStore } from '../store/useUIStore';
 import { useLocation, useNavigate } from '@tanstack/react-router';
+import { getTabDirection, setViewTransitionDirection } from '../utils/transition';
 
 interface NavigationProps {
   currentTab?: string;
@@ -45,7 +46,9 @@ export const Navigation: React.FC<NavigationProps> = ({ currentTab, onTabChange 
       onTabChange(tab.id);
     }
     if (location.pathname !== tab.path) {
-      navigate({ to: tab.path });
+      const direction = getTabDirection(location.pathname, tab.path);
+      setViewTransitionDirection(direction);
+      navigate({ to: tab.path, viewTransition: true });
     }
   };
 
