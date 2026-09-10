@@ -44,6 +44,7 @@ export const storeMarker = style({
   fontSize: '12px',
   boxShadow: '0 8px 20px rgba(0,0,0,0.18)',
   cursor: 'pointer',
+  transform: 'translate(-50%, -50%)',
   zIndex: 12,
   transition: 'transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1)'
 });
@@ -96,7 +97,7 @@ export const lottemartMarker = style({
 });
 
 export const markerSelected = style({
-  transform: 'scale(1.14)',
+  transform: 'translate(-50%, -50%) scale(1.14)',
   boxShadow: '0 0 0 2.5px #FFFFFF, 0 12px 28px rgba(0, 0, 0, 0.28)'
 });
 

@@ -170,14 +170,15 @@ export const FullMapViewer: React.FC<FullMapViewerProps> = ({
       markerEl.appendChild(textSpan);
 
       markerEl.addEventListener('click', () => {
+        map.panTo(new kakaoMaps.LatLng(store.lat, store.lng));
         onSelectStore(store);
       });
 
       const storeOverlay = new kakaoMaps.CustomOverlay({
         position: new kakaoMaps.LatLng(store.lat, store.lng),
         content: markerEl,
-        yAnchor: 0.5,
-        xAnchor: 0.5,
+        yAnchor: 0,
+        xAnchor: 0,
         zIndex: isFocused ? 30 : isSelected ? 20 : 12
       });
 
