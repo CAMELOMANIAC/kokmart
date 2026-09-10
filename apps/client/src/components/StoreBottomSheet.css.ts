@@ -154,21 +154,58 @@ export const brandDotBase = style({
 export const brandDotEmart = style([
   brandDotBase,
   {
-    backgroundColor: "#F59E0B",
+    backgroundColor: vars.colors.brandEmart,
   },
 ]);
 
 export const brandDotHomeplus = style([
   brandDotBase,
   {
-    backgroundColor: "#0055A5",
+    backgroundColor: vars.colors.brandHomeplus,
   },
 ]);
 
 export const brandDotLottemart = style([
   brandDotBase,
   {
-    backgroundColor: "#E60012",
+    backgroundColor: vars.colors.brandLottemart,
+  },
+]);
+
+// 마트 브랜드 태그 뱃지 (스토어 필 & 카드 공용)
+export const brandBadgeBase = style({
+  padding: "2px 6px",
+  borderRadius: "6px",
+  fontSize: "11px",
+  fontWeight: 800,
+  display: "inline-flex",
+  alignItems: "center",
+  justifyContent: "center",
+  letterSpacing: "-0.2px",
+  flexShrink: 0,
+});
+
+export const brandBadgeEmart = style([
+  brandBadgeBase,
+  {
+    backgroundColor: vars.colors.brandEmartBg,
+    color: vars.colors.brandEmartText,
+  },
+]);
+
+export const brandBadgeHomeplus = style([
+  brandBadgeBase,
+  {
+    backgroundColor: vars.colors.brandHomeplusBg,
+    color: vars.colors.brandHomeplusText,
+  },
+]);
+
+export const brandBadgeLottemart = style([
+  brandBadgeBase,
+  {
+    backgroundColor: vars.colors.brandLottemartBg,
+    color: vars.colors.brandLottemartText,
   },
 ]);
 
@@ -207,6 +244,26 @@ export const storePillActive = style({
   transform: "translateY(-1px)",
 });
 
+export const storePillName = style({
+  fontSize: "13px",
+  fontWeight: 700,
+  color: vars.colors.textMain,
+});
+
+export const storePillDistance = style({
+  fontSize: "12px",
+  fontWeight: 700,
+  color: vars.colors.primary,
+});
+
+export const emptyMessage = style({
+  textAlign: "center",
+  width: "100%",
+  padding: "24px 0",
+  color: vars.colors.textSub,
+  fontSize: "13px",
+});
+
 // 확장 상태: 상세 카드 리스트 컨테이너
 export const cardListContainer = style({
   padding: "16px 20px 110px 20px",
@@ -230,4 +287,95 @@ export const storeCardActive = style({
   borderColor: vars.colors.primary,
   backgroundColor: "#FFFBF8",
   boxShadow: "0 6px 20px rgba(255, 94, 0, 0.12)",
+});
+
+export const cardHeader = style({
+  display: "flex",
+  justifyContent: "space-between",
+  alignItems: "flex-start",
+});
+
+export const cardTitleRow = style({
+  display: "flex",
+  alignItems: "center",
+  gap: "8px",
+});
+
+export const cardTitle = style({
+  margin: 0,
+  fontSize: "16px",
+  fontWeight: 800,
+  color: vars.colors.textMain,
+});
+
+export const cardDistanceRow = style({
+  display: "flex",
+  alignItems: "center",
+  gap: "8px",
+});
+
+export const cardDistance = style({
+  fontSize: "13px",
+  fontWeight: 800,
+  color: vars.colors.primary,
+});
+
+export const cardInfoSection = style({
+  marginTop: "10px",
+  display: "flex",
+  flexDirection: "column",
+  gap: "4px",
+  fontSize: "12px",
+  color: vars.colors.textSub,
+});
+
+export const cardInfoRow = style({
+  display: "flex",
+  alignItems: "center",
+  gap: "6px",
+});
+
+export const cardFooter = style({
+  marginTop: "12px",
+  paddingTop: "10px",
+  borderTop: `1px solid ${vars.colors.bgLight}`,
+  display: "flex",
+  justifyContent: "space-between",
+  alignItems: "center",
+});
+
+export const cardDealBadge = style({
+  display: "flex",
+  alignItems: "center",
+  gap: "4px",
+  fontSize: "12px",
+  fontWeight: 700,
+  color: vars.colors.accentGreen,
+});
+
+export const cardDealButton = style({
+  border: "none",
+  backgroundColor: vars.colors.secondary,
+  color: "#FFFFFF",
+  padding: "6px 12px",
+  borderRadius: "12px",
+  fontSize: "12px",
+  fontWeight: 700,
+  display: "flex",
+  alignItems: "center",
+  gap: "4px",
+  cursor: "pointer",
+});
+
+export const searchClearButton = style({
+  border: "none",
+  background: "none",
+  padding: 0,
+  cursor: "pointer",
+  display: "flex",
+  alignItems: "center",
+});
+
+export const filterPanelWrapper = style({
+  overflow: "hidden",
 });

@@ -11,7 +11,18 @@ export const vars = createGlobalTheme(':root', {
     surface: '#FFFFFF',
     textMain: '#1F2937',
     textSub: '#6B7280',
-    border: '#E5E7EB'
+    border: '#E5E7EB',
+
+    // 대형마트 3사 브랜드 공식 컬러 (CSS 변수)
+    brandEmart: '#FFB800',        // 이마트 공식 옐로우
+    brandEmartBg: '#FEF3C7',      // 이마트 뱃지 배경
+    brandEmartText: '#B45309',    // 이마트 뱃지 텍스트
+    brandHomeplus: '#E60024',     // 홈플러스 공식 레드
+    brandHomeplusBg: '#FEE2E2',   // 홈플러스 뱃지 배경
+    brandHomeplusText: '#E60024', // 홈플러스 뱃지 텍스트
+    brandLottemart: '#DA291C',    // 롯데마트 공식 롯데 레드 (Pantone 485C)
+    brandLottemartBg: '#FFE4E6',  // 롯데마트 뱃지 배경
+    brandLottemartText: '#DA291C' // 롯데마트 뱃지 텍스트
   },
   space: {
     xs: '4px',

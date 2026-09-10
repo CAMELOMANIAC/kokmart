@@ -12,21 +12,39 @@ import {
   headerTopRow,
   searchBarWrapper,
   searchInput,
+  searchClearButton,
   filterButton,
   filterButtonActive,
   filterPanel,
+  filterPanelWrapper,
   filterChip,
   filterChipActive,
   filterChipBrandActive,
   brandDotEmart,
   brandDotHomeplus,
   brandDotLottemart,
+  brandBadgeEmart,
+  brandBadgeHomeplus,
+  brandBadgeLottemart,
   pillListContainer,
   storePill,
   storePillActive,
+  storePillName,
+  storePillDistance,
+  emptyMessage,
   cardListContainer,
   storeCard,
-  storeCardActive
+  storeCardActive,
+  cardHeader,
+  cardTitleRow,
+  cardTitle,
+  cardDistanceRow,
+  cardDistance,
+  cardInfoSection,
+  cardInfoRow,
+  cardFooter,
+  cardDealBadge,
+  cardDealButton
 } from './StoreBottomSheet.css';
 import { Clock, MapPin, ChevronRight, Zap, Search, X, SlidersHorizontal, Check, CheckCircle2, Circle } from 'lucide-react';
 
@@ -132,10 +150,10 @@ export const StoreBottomSheet: React.FC<StoreBottomSheetProps> = ({
     });
   }, [stores, searchQuery, selectedBrands, onlyOpen]);
 
-  const getBrandBadge = (brand: string) => {
-    if (brand === '이마트') return { bg: '#FEF3C7', color: '#B45309' };
-    if (brand === '홈플러스') return { bg: '#FEE2E2', color: '#B91C1C' };
-    return { bg: '#FEE2E2', color: '#991B1B' };
+  const getBrandBadgeClass = (brand: string) => {
+    if (brand === '이마트') return brandBadgeEmart;
+    if (brand === '홈플러스') return brandBadgeHomeplus;
+    return brandBadgeLottemart;
   };
 
   const isAnyFilterActive = onlyOpen || !selectedBrands['이마트'] || !selectedBrands['홈플러스'] || !selectedBrands['롯데마트'];
@@ -177,7 +195,7 @@ export const StoreBottomSheet: React.FC<StoreBottomSheetProps> = ({
             {searchQuery && (
               <button
                 onClick={() => setSearchQuery('')}
-                style={{ border: 'none', background: 'none', padding: 0, cursor: 'pointer', display: 'flex', alignItems: 'center' }}
+                className={searchClearButton}
               >
                 <X size={15} color="#9CA3AF" />
               </button>
@@ -202,7 +220,7 @@ export const StoreBottomSheet: React.FC<StoreBottomSheetProps> = ({
               animate={{ height: 'auto', opacity: 1 }}
               exit={{ height: 0, opacity: 0 }}
               transition={{ duration: 0.2 }}
-              style={{ overflow: 'hidden' }}
+              className={filterPanelWrapper}
             >
               <div className={filterPanel}>
                 <div
@@ -259,13 +277,12 @@ export const StoreBottomSheet: React.FC<StoreBottomSheetProps> = ({
             className={pillListContainer}
           >
             {filteredStores.length === 0 ? (
-              <div style={{ textAlign: 'center', width: '100%', padding: '20px 0', color: '#9CA3AF', fontSize: '12px' }}>
+              <div className={emptyMessage}>
                 조건에 일치하는 마트가 없습니다.
               </div>
             ) : (
               filteredStores.map((store) => {
                 const isSelected = isStoreSelected(store.id);
-                const badge = getBrandBadge(store.brand);
 
                 return (
                   <motion.div
@@ -274,23 +291,14 @@ export const StoreBottomSheet: React.FC<StoreBottomSheetProps> = ({
                     onClick={() => toggleStoreSelection(store)}
                     className={`${storePill} ${isSelected ? storePillActive : ''}`}
                   >
-                    <span
-                      style={{
-                        backgroundColor: badge.bg,
-                        color: badge.color,
-                        padding: '2px 6px',
-                        borderRadius: '6px',
-                        fontSize: '11px',
-                        fontWeight: 800
-                      }}
-                    >
+                    <span className={getBrandBadgeClass(store.brand)}>
                       {store.brand}
                     </span>
-                    <span style={{ fontSize: '13px', fontWeight: 700, color: '#1F2937' }}>
+                    <span className={storePillName}>
                       {store.name.replace(store.brand, '').trim()}
                     </span>
                     {store.distanceKm && (
-                      <span style={{ fontSize: '12px', fontWeight: 700, color: '#FF5E00' }}>
+                      <span className={storePillDistance}>
                         {store.distanceKm}km
                       </span>
                     )}
@@ -312,13 +320,12 @@ export const StoreBottomSheet: React.FC<StoreBottomSheetProps> = ({
             className={cardListContainer}
           >
             {filteredStores.length === 0 ? (
-              <div style={{ textAlign: 'center', padding: '40px 0', color: '#9CA3AF', fontSize: '13px' }}>
+              <div className={emptyMessage}>
                 조건에 일치하는 마트 지점이 없습니다.
               </div>
             ) : (
               filteredStores.map((store) => {
                 const isSelected = isStoreSelected(store.id);
-                const badge = getBrandBadge(store.brand);
 
                 return (
                   <motion.div
@@ -327,28 +334,19 @@ export const StoreBottomSheet: React.FC<StoreBottomSheetProps> = ({
                     className={`${storeCard} ${isSelected ? storeCardActive : ''}`}
                     onClick={() => toggleStoreSelection(store)}
                   >
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <span
-                          style={{
-                            backgroundColor: badge.bg,
-                            color: badge.color,
-                            padding: '3px 8px',
-                            borderRadius: '8px',
-                            fontSize: '11px',
-                            fontWeight: 800
-                          }}
-                        >
+                    <div className={cardHeader}>
+                      <div className={cardTitleRow}>
+                        <span className={getBrandBadgeClass(store.brand)}>
                           {store.brand}
                         </span>
-                        <h4 style={{ margin: 0, fontSize: '16px', fontWeight: 800, color: '#111827' }}>
+                        <h4 className={cardTitle}>
                           {store.name}
                         </h4>
                       </div>
 
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <div className={cardDistanceRow}>
                         {store.distanceKm && (
-                          <span style={{ fontSize: '13px', fontWeight: 800, color: '#FF5E00' }}>
+                          <span className={cardDistance}>
                             {store.distanceKm} km
                           </span>
                         )}
@@ -360,47 +358,20 @@ export const StoreBottomSheet: React.FC<StoreBottomSheetProps> = ({
                       </div>
                     </div>
 
-                    <div
-                      style={{
-                        marginTop: '10px',
-                        display: 'flex',
-                        flexDirection: 'column',
-                        gap: '4px',
-                        fontSize: '12px',
-                        color: '#6B7280'
-                      }}
-                    >
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <div className={cardInfoSection}>
+                      <div className={cardInfoRow}>
                         <Clock size={13} color="#9CA3AF" />
                         <span>오늘 영업: {store.businessHours}</span>
                       </div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <div className={cardInfoRow}>
                         <MapPin size={13} color="#9CA3AF" />
                         <span>{store.address}</span>
                       </div>
                     </div>
 
                     {/* 하단 특가 정보 요약 및 전단 핫딜 연동 버튼 */}
-                    <div
-                      style={{
-                        marginTop: '12px',
-                        paddingTop: '10px',
-                        borderTop: '1px solid #F3F4F6',
-                        display: 'flex',
-                        justifyContent: 'space-between',
-                        alignItems: 'center'
-                      }}
-                    >
-                      <div
-                        style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '4px',
-                          fontSize: '12px',
-                          fontWeight: 700,
-                          color: '#059669'
-                        }}
-                      >
+                    <div className={cardFooter}>
+                      <div className={cardDealBadge}>
                         <Zap size={14} color="#10B981" />
                         <span>진행 중인 전단 특가 {store.activeDealCount}개</span>
                       </div>
@@ -411,19 +382,7 @@ export const StoreBottomSheet: React.FC<StoreBottomSheetProps> = ({
                           e.stopPropagation();
                           onGoToFlyerTab();
                         }}
-                        style={{
-                          border: 'none',
-                          backgroundColor: '#111827',
-                          color: '#FFF',
-                          padding: '6px 12px',
-                          borderRadius: '12px',
-                          fontSize: '12px',
-                          fontWeight: 700,
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '4px',
-                          cursor: 'pointer'
-                        }}
+                        className={cardDealButton}
                       >
                         <span>전단 보기</span>
                         <ChevronRight size={13} />

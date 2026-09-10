@@ -111,9 +111,9 @@ const brandBadgeBase = style({
 });
 
 export const brandBadge = styleVariants({
-  emart: [brandBadgeBase, { backgroundColor: '#FEF3C7', color: '#B45309' }],
-  homeplus: [brandBadgeBase, { backgroundColor: '#FEE2E2', color: '#B91C1C' }],
-  lotte: [brandBadgeBase, { backgroundColor: '#FEE2E2', color: '#B91C1C' }],
+  emart: [brandBadgeBase, { backgroundColor: vars.colors.brandEmartBg, color: vars.colors.brandEmartText }],
+  homeplus: [brandBadgeBase, { backgroundColor: vars.colors.brandHomeplusBg, color: vars.colors.brandHomeplusText }],
+  lotte: [brandBadgeBase, { backgroundColor: vars.colors.brandLottemartBg, color: vars.colors.brandLottemartText }],
   default: [brandBadgeBase, { backgroundColor: '#F3F4F6', color: '#4B5563' }]
 });
 

@@ -4,18 +4,24 @@ import {
   mapContainer,
   mapCanvas,
   myLocationPin,
+  fallbackMyLocationPin,
   storeMarker,
+  fallbackStoreMarker,
   emartMarker,
   homeplusMarker,
   lottemartMarker,
   markerSelected,
+  fallbackStoreMarkerSelected,
+  markerFaviconWrapper,
+  markerFavicon,
+  markerFaviconFallback,
   kakaoMapContainer,
   recenterContainer,
   recenterButton,
   pulseWave,
   fallbackSvg
 } from './FullMapViewer.css';
-import { MapPin, Navigation } from 'lucide-react';
+import { Navigation } from 'lucide-react';
 import { motion } from 'framer-motion';
 import type { KakaoMap, KakaoCustomOverlay } from '../types/kakao';
 
@@ -28,6 +34,35 @@ interface FullMapViewerProps {
   myLat: number;
   myLng: number;
 }
+
+const getBrandFaviconUrl = (brand: string): string => {
+  if (brand === '이마트') {
+    return 'https://www.google.com/s2/favicons?domain=emart.ssg.com&sz=64';
+  }
+  if (brand === '홈플러스') {
+    return 'https://www.google.com/s2/favicons?domain=homeplus.co.kr&sz=64';
+  }
+  return 'https://www.google.com/s2/favicons?domain=lottemart.com&sz=64';
+};
+
+const BrandFavicon: React.FC<{ brand: string }> = ({ brand }) => {
+  const [isError, setIsError] = useState(false);
+
+  return (
+    <span className={markerFaviconWrapper}>
+      {!isError ? (
+        <img
+          src={getBrandFaviconUrl(brand)}
+          alt={brand}
+          className={markerFavicon}
+          onError={() => setIsError(true)}
+        />
+      ) : (
+        <span className={markerFaviconFallback}>{brand.charAt(0)}</span>
+      )}
+    </span>
+  );
+};
 
 const getMarkerStyle = (brand: string) => {
   if (brand === '이마트') return emartMarker;
@@ -112,24 +147,23 @@ export const FullMapViewer: React.FC<FullMapViewerProps> = ({
       const markerEl = document.createElement('div');
       markerEl.className = `${storeMarker} ${brandClass} ${isSelected ? markerSelected : ''}`;
 
-      const iconSvg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-      iconSvg.setAttribute('width', '13');
-      iconSvg.setAttribute('height', '13');
-      iconSvg.setAttribute('viewBox', '0 0 24 24');
-      iconSvg.setAttribute('fill', 'none');
-      iconSvg.setAttribute('stroke', 'currentColor');
-      iconSvg.setAttribute('stroke-width', '2.5');
-      iconSvg.setAttribute('stroke-linecap', 'round');
-      iconSvg.setAttribute('stroke-linejoin', 'round');
-      const pathEl = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-      pathEl.setAttribute('d', 'M20 10c0 4.993-5.539 10.193-7.399 11.799a1 1 0 0 1-1.202 0C9.539 20.193 4 14.993 4 10a8 8 0 0 1 16 0');
-      const circleEl = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
-      circleEl.setAttribute('cx', '12');
-      circleEl.setAttribute('cy', '10');
-      circleEl.setAttribute('r', '3');
-      iconSvg.appendChild(pathEl);
-      iconSvg.appendChild(circleEl);
-      markerEl.appendChild(iconSvg);
+      const faviconWrapper = document.createElement('span');
+      faviconWrapper.className = markerFaviconWrapper;
+
+      const faviconImg = document.createElement('img');
+      faviconImg.src = getBrandFaviconUrl(store.brand);
+      faviconImg.alt = store.brand;
+      faviconImg.className = markerFavicon;
+      faviconImg.onerror = () => {
+        faviconImg.remove();
+        const fallbackSpan = document.createElement('span');
+        fallbackSpan.className = markerFaviconFallback;
+        fallbackSpan.textContent = store.brand.charAt(0);
+        faviconWrapper.appendChild(fallbackSpan);
+      };
+
+      faviconWrapper.appendChild(faviconImg);
+      markerEl.appendChild(faviconWrapper);
 
       const textSpan = document.createElement('span');
       textSpan.textContent = store.name;
@@ -142,7 +176,7 @@ export const FullMapViewer: React.FC<FullMapViewerProps> = ({
       const storeOverlay = new kakaoMaps.CustomOverlay({
         position: new kakaoMaps.LatLng(store.lat, store.lng),
         content: markerEl,
-        yAnchor: 1.0,
+        yAnchor: 0.5,
         xAnchor: 0.5,
         zIndex: isFocused ? 30 : isSelected ? 20 : 12
       });
@@ -152,7 +186,16 @@ export const FullMapViewer: React.FC<FullMapViewerProps> = ({
     });
   }, [stores, selectedIds, currentActiveId, myLat, myLng, onSelectStore, isKakaoLoaded]);
 
-  // 3. 최근 활성화된 마트 변경 시 해당 좌표로 부드럽게 이동
+  // 3. 지도 컨테이너 리사이즈 감지 시 레이아웃 재계산
+  useEffect(() => {
+    const handleResize = () => {
+      mapInstanceRef.current?.relayout();
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  // 4. 최근 활성화된 마트 변경 시 해당 좌표로 부드럽게 이동
   useEffect(() => {
     const kakao = window.kakao;
     const map = mapInstanceRef.current;
@@ -164,7 +207,7 @@ export const FullMapViewer: React.FC<FullMapViewerProps> = ({
     }
   }, [currentActiveId, stores]);
 
-  // 4. 내 위치로 이동 버튼 핸들러
+  // 5. 내 위치로 이동 버튼 핸들러
   const handleRecenter = () => {
     const kakao = window.kakao;
     const map = mapInstanceRef.current;
@@ -207,7 +250,7 @@ export const FullMapViewer: React.FC<FullMapViewerProps> = ({
           </svg>
 
           <div className={mapCanvas}>
-            <div style={getPixelCoord(myLat, myLng)} className={myLocationPin}>
+            <div style={getPixelCoord(myLat, myLng)} className={`${myLocationPin} ${fallbackMyLocationPin}`}>
               <motion.div
                 animate={{ scale: [1, 2.4, 1], opacity: [0.7, 0, 0.7] }}
                 transition={{ repeat: Infinity, duration: 2.2, ease: 'easeInOut' }}
@@ -226,12 +269,12 @@ export const FullMapViewer: React.FC<FullMapViewerProps> = ({
                   animate={{ scale: 1, opacity: 1 }}
                   whileTap={{ scale: 0.95 }}
                   onClick={() => onSelectStore(store)}
-                  className={`${storeMarker} ${getMarkerStyle(store.brand)} ${
-                    isSelected ? markerSelected : ''
+                  className={`${storeMarker} ${getMarkerStyle(store.brand)} ${fallbackStoreMarker} ${
+                    isSelected ? `${markerSelected} ${fallbackStoreMarkerSelected}` : ''
                   }`}
                   style={pos}
                 >
-                  <MapPin size={14} />
+                  <BrandFavicon brand={store.brand} />
                   <span>{store.name}</span>
                 </motion.div>
               );
