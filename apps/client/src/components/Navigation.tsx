@@ -6,10 +6,13 @@ import {
   navItemActive,
   activeIndicator,
   iconWrapper,
+  iconInnerContainer,
+  tabBadge,
   labelSpan
 } from './Navigation.css';
 import { Target, Zap, Bookmark, Users } from 'lucide-react';
 import { useUIStore } from '../store/useUIStore';
+import { useSelectedStoreStore } from '../store/useSelectedStoreStore';
 import { useLocation, useNavigate } from '@tanstack/react-router';
 import { getTabDirection, setViewTransitionDirection } from '../utils/transition';
 
@@ -30,6 +33,7 @@ export const Navigation: React.FC<NavigationProps> = ({ currentTab, onTabChange 
   const location = useLocation();
   const navigate = useNavigate();
   const { isBottomSheetFullscreen, isScrollingDown } = useUIStore();
+  const { selectedStores } = useSelectedStoreStore();
 
   /**
    * 축소 조건 (OR):
@@ -88,7 +92,12 @@ export const Navigation: React.FC<NavigationProps> = ({ currentTab, onTabChange 
               whileTap={{ scale: 0.92 }}
               className={iconWrapper}
             >
-              <Icon size={collapsed ? 18 : 19} strokeWidth={isActive ? 2.4 : 1.8} />
+              <div className={iconInnerContainer}>
+                <Icon size={collapsed ? 18 : 19} strokeWidth={isActive ? 2.4 : 1.8} />
+                {tab.id === 'dding' && selectedStores.length > 0 && (
+                  <span className={tabBadge}>{selectedStores.length}</span>
+                )}
+              </div>
 
               <AnimatePresence>
                 {!collapsed && (

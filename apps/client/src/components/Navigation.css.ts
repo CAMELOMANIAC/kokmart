@@ -74,3 +74,32 @@ export const activeIndicator = style({
   zIndex: -1,
 });
 
+export const iconInnerContainer = style({
+  position: "relative",
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+});
+
+export const tabBadge = style({
+  position: "absolute",
+  top: "-5px",
+  right: "-9px",
+  backgroundColor: vars.colors.primary,
+  color: "#FFFFFF",
+  fontSize: "10px",
+  fontWeight: 800,
+  minWidth: "15px",
+  height: "15px",
+  borderRadius: "9999px",
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+  padding: "0 3px",
+  boxShadow: "0 2px 6px rgba(255, 94, 0, 0.4)",
+  lineHeight: "1",
+  zIndex: 3,
+  border: "1.5px solid #FFFFFF",
+  boxSizing: "border-box",
+});
+

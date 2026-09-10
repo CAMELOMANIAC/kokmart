@@ -345,15 +345,34 @@ export const brandBadgeDefault = style([
   },
 ]);
 
-// 축소 상태: 알약 2줄만 보이고 Y축 스크롤, GNB 높이(96px) 하단 여백 보장
+export const pillViewWrapper = style({
+  display: "flex",
+  flexDirection: "column",
+  width: "100%",
+});
+
+// 축소 상태: 알약 2줄만 보이고 쾌적하게 Y축 스크롤 (두 번째 줄 알약 잘림 방지 92px)
 export const pillListContainer = style({
-  padding: "12px 16px 96px 16px", // GNB에 가려지지 않도록 96px 하단 패딩
+  padding: "8px 16px 6px 16px",
   display: "flex",
   flexWrap: "wrap",
   gap: "8px",
-  maxHeight: "184px", // 알약 2줄 (76px) + 상단 패딩(12px) + GNB 하단 여백(96px)
+  maxHeight: "92px", // 알약 2줄(각 34px + gap 8px + 상하여백 14px = 90px) 완벽 노출
   overflowY: "auto",
   WebkitOverflowScrolling: "touch",
+  boxSizing: "border-box",
+  scrollbarWidth: "none",
+  "::-webkit-scrollbar": {
+    display: "none",
+  },
+});
+
+// 축소 상태 바텀시트 내부 인라인 CTA 래퍼 (가운데 정렬, 알약과의 적정 여백 확보)
+export const collapsedCtaWrapper = style({
+  display: "flex",
+  justifyContent: "center",
+  padding: "12px 16px 0 16px",
+  width: "100%",
   boxSizing: "border-box",
 });
 
@@ -409,7 +428,7 @@ export const emptyMessage = style({
 
 // 확장 상태: 상세 카드 리스트 컨테이너
 export const cardListContainer = style({
-  padding: "16px 20px 110px 20px",
+  padding: "16px 20px 140px 20px",
   overflowY: "auto",
   flex: 1,
   WebkitOverflowScrolling: "touch",
@@ -522,4 +541,67 @@ export const searchClearButton = style({
 
 export const filterPanelWrapper = style({
   overflow: "hidden",
+});
+
+// 전체화면 확장 상태 하단 고정 CTA 래퍼 (GNB 바로 윗선에 고정)
+export const fullscreenCtaWrapper = style({
+  position: "fixed",
+  bottom: "76px",
+  left: "50%",
+  transform: "translateX(-50%)",
+  zIndex: 90,
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+  boxSizing: "border-box",
+  pointerEvents: "auto",
+});
+
+export const ctaButton = style({
+  width: "auto",
+  maxWidth: "calc(100% - 16px)",
+  height: "40px",
+  backgroundColor: vars.colors.primary,
+  color: "#FFFFFF",
+  borderRadius: "9999px",
+  border: "none",
+  display: "inline-flex",
+  alignItems: "center",
+  justifyContent: "center",
+  gap: "8px",
+  padding: "0 16px",
+  fontSize: "13px",
+  fontWeight: 700,
+  cursor: "pointer",
+  boxShadow: "0 4px 16px rgba(255, 94, 0, 0.30), 0 2px 6px rgba(0, 0, 0, 0.08)",
+  transition: "all 0.15s ease",
+  userSelect: "none",
+  boxSizing: "border-box",
+  ":hover": {
+    backgroundColor: vars.colors.primaryHover,
+  },
+  ":active": {
+    transform: "scale(0.98)",
+    backgroundColor: vars.colors.primaryHover,
+  },
+});
+
+export const ctaContentLeft = style({
+  display: "flex",
+  alignItems: "center",
+  gap: "8px",
+  overflow: "hidden",
+  textOverflow: "ellipsis",
+  whiteSpace: "nowrap",
+});
+
+export const ctaBadgeCount = style({
+  backgroundColor: "#FFFFFF",
+  color: vars.colors.primary,
+  fontSize: "11px",
+  fontWeight: 800,
+  borderRadius: "9999px",
+  padding: "1px 7px",
+  marginLeft: "4px",
+  lineHeight: "16px",
 });

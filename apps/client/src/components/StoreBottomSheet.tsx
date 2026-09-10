@@ -42,7 +42,10 @@ import {
   brandBadgeGsTheFresh,
   brandBadgeKimsClub,
   brandBadgeDefault,
+  pillViewWrapper,
   pillListContainer,
+  collapsedCtaWrapper,
+  fullscreenCtaWrapper,
   storePill,
   storePillActive,
   storePillCheck,
@@ -62,7 +65,10 @@ import {
   cardFooter,
   cardDealBadge,
   cardDealButton,
-  loadingSpinner
+  loadingSpinner,
+  ctaButton,
+  ctaContentLeft,
+  ctaBadgeCount
 } from './StoreBottomSheet.css';
 import { Clock, MapPin, ChevronRight, Zap, Search, X, SlidersHorizontal, Check, CheckCircle2, Circle, Loader2 } from 'lucide-react';
 
@@ -86,7 +92,7 @@ export const StoreBottomSheet: React.FC<StoreBottomSheetProps> = ({
   const cardListRef = useRef<HTMLDivElement>(null);
   const [windowH, setWindowH] = useState<number>(window.innerHeight);
   const { setBottomSheetFullscreen } = useUIStore();
-  const { toggleStoreSelection, isStoreSelected } = useSelectedStoreStore();
+  const { toggleStoreSelection, isStoreSelected, selectedStores } = useSelectedStoreStore();
 
   // 전체화면 카드리스트 스크롤 방향 감지 → isScrollingDown 업데이트
   useScrollDirection({ ref: cardListRef });
@@ -156,13 +162,29 @@ export const StoreBottomSheet: React.FC<StoreBottomSheetProps> = ({
     return initial;
   });
 
-  // 축소 상태 높이: 검색창 + 알약 2줄 + GNB 하단 여백을 편안히 담는 약 300px 노출 (상단 지도는 시원하게 확보)
-  const defaultVisibleHeight = Math.min(320, windowH * 0.45);
+  const hasSelected = selectedStores.length > 0;
+
+  // 축소 상태 높이:
+  // - 마트 0개 선택: 검색창 + 알약 2줄(92px) + GNB 여백 = 268px
+  // - 마트 1개 이상 선택: 상단 간격(12px) + 콤팩트 CTA 버튼(40px) 공간(+56px)을 확보하여 324px로 부드럽게 확장
+  const baseVisibleHeight = 268;
+  const defaultVisibleHeight = Math.min(hasSelected ? baseVisibleHeight + 56 : baseVisibleHeight, windowH * 0.48);
   const defaultOffset = windowH - defaultVisibleHeight;
   const y = useMotionValue(defaultOffset);
   const [currentMode, setCurrentMode] = useState<SnapMode>('default');
 
   const isFullscreen = currentMode === 'fullscreen';
+
+  // 마트 선택 여부(hasSelected)에 따라 축소 모드일 때 바텀시트 높이가 부드럽게 위/아래로 슬라이드
+  useEffect(() => {
+    if (currentMode === 'default') {
+      animate(y, defaultOffset, {
+        type: 'spring',
+        stiffness: 380,
+        damping: 32
+      });
+    }
+  }, [defaultOffset, currentMode, y]);
 
   useEffect(() => {
     const onResize = () => setWindowH(window.innerHeight);
@@ -305,16 +327,29 @@ export const StoreBottomSheet: React.FC<StoreBottomSheetProps> = ({
     selectedCategory !== 'all' ||
     ALL_FILTER_BRANDS.some((b) => selectedBrands[b] === false);
 
+  const getCtaText = (): string => {
+    if (selectedStores.length === 0) return '';
+    if (selectedStores.length === 1) {
+      const store = selectedStores[0];
+      const name = store.displayName || store.name;
+      return `${name} 전단 보기`;
+    }
+    const firstStore = selectedStores[0];
+    const firstName = firstStore.displayName || firstStore.name;
+    return `${firstName} 외 ${selectedStores.length - 1}곳 전단 비교하기`;
+  };
+
   return (
-    <motion.div
-      ref={containerRef}
-      className={sheetContainer}
-      style={{ y }}
-      drag="y"
-      dragConstraints={{ top: 0, bottom: defaultOffset }}
-      dragElastic={0.08}
-      onDragEnd={handleDragEnd}
-    >
+    <>
+      <motion.div
+        ref={containerRef}
+        className={sheetContainer}
+        style={{ y }}
+        drag="y"
+        dragConstraints={{ top: 0, bottom: defaultOffset }}
+        dragElastic={0.08}
+        onDragEnd={handleDragEnd}
+      >
       {/* 바텀시트 드래그 핸들 */}
       <div
         className={dragHandleArea}
@@ -433,48 +468,78 @@ export const StoreBottomSheet: React.FC<StoreBottomSheetProps> = ({
       {/* 바텀시트 본문: 축소 상태(알약 2줄 + Y스크롤 + 96px GNB 여백) vs 확장 상태(상세 카드 리스트) */}
       <AnimatePresence mode="wait">
         {!isFullscreen ? (
-          /* 1. 축소 상태: 알약 2줄만 보이고 Y축 스크롤 */
+          /* 1. 축소 상태: 알약 2줄 + CTA 버튼 (바텀시트 높이 확장에 맞춰 깔끔하게 정렬) */
           <motion.div
             key="pill-view"
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -10 }}
             transition={{ duration: 0.2 }}
-            className={pillListContainer}
+            className={pillViewWrapper}
           >
-            {filteredStores.length === 0 ? (
-              <div className={emptyMessage}>
-                {isLoading ? '마트 정보를 검색 중입니다...' : '조건에 일치하는 마트가 없습니다.'}
-              </div>
-            ) : (
-              filteredStores.map((store) => {
-                const isSelected = isStoreSelected(store.id);
+            <div className={pillListContainer}>
+              {filteredStores.length === 0 ? (
+                <div className={emptyMessage}>
+                  {isLoading ? '마트 정보를 검색 중입니다...' : '조건에 일치하는 마트가 없습니다.'}
+                </div>
+              ) : (
+                filteredStores.map((store) => {
+                  const isSelected = isStoreSelected(store.id);
 
-                return (
-                  <motion.div
-                    key={store.id}
-                    whileTap={{ scale: 0.94 }}
-                    onClick={() => toggleStoreSelection(store)}
-                    className={`${storePill} ${isSelected ? storePillActive : ''}`}
-                  >
-                    <span className={getBrandBadgeClass(store.brand)}>
-                      {store.brand}
-                    </span>
-                    <span className={storePillName}>
-                      {getBranchName(store)}
-                    </span>
-                    {store.distanceKm && (
-                      <span className={storePillDistance}>
-                        {store.distanceKm}km
+                  return (
+                    <motion.div
+                      key={store.id}
+                      whileTap={{ scale: 0.94 }}
+                      onClick={() => toggleStoreSelection(store)}
+                      className={`${storePill} ${isSelected ? storePillActive : ''}`}
+                    >
+                      <span className={getBrandBadgeClass(store.brand)}>
+                        {store.brand}
                       </span>
-                    )}
-                    {isSelected && (
-                      <Check size={14} className={storePillCheck} strokeWidth={2.5} />
-                    )}
-                  </motion.div>
-                );
-              })
-            )}
+                      <span className={storePillName}>
+                        {getBranchName(store)}
+                      </span>
+                      {store.distanceKm && (
+                        <span className={storePillDistance}>
+                          {store.distanceKm}km
+                        </span>
+                      )}
+                      {isSelected && (
+                        <Check size={14} className={storePillCheck} strokeWidth={2.5} />
+                      )}
+                    </motion.div>
+                  );
+                })
+              )}
+            </div>
+
+            {/* 축소 상태 바텀시트 내부 인라인 CTA 버튼 (알약 바로 아래 도킹) */}
+            <AnimatePresence>
+              {hasSelected && (
+                <motion.div
+                  initial={{ opacity: 0, y: 12, height: 0 }}
+                  animate={{ opacity: 1, y: 0, height: 'auto' }}
+                  exit={{ opacity: 0, y: 8, height: 0 }}
+                  transition={{ type: 'spring', stiffness: 420, damping: 28 }}
+                  className={collapsedCtaWrapper}
+                >
+                  <motion.button
+                    whileTap={{ scale: 0.97 }}
+                    onClick={onGoToFlyerTab}
+                    className={ctaButton}
+                  >
+                    <div className={ctaContentLeft}>
+                      <Zap size={17} fill="#FFFFFF" color="#FFFFFF" />
+                      <span>{getCtaText()}</span>
+                      {selectedStores.length > 1 && (
+                        <span className={ctaBadgeCount}>{selectedStores.length}</span>
+                      )}
+                    </div>
+                    <ChevronRight size={17} color="#FFFFFF" strokeWidth={2.5} />
+                  </motion.button>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </motion.div>
         ) : (
           /* 2. 확장 상태: 상세 카드 리스트 뷰 */
@@ -564,5 +629,38 @@ export const StoreBottomSheet: React.FC<StoreBottomSheetProps> = ({
         )}
       </AnimatePresence>
     </motion.div>
+
+    {/* 전체화면 확장 상태에서만 GNB 바로 위에 고정되는 플로팅 CTA 바 */}
+    <AnimatePresence>
+      {isFullscreen && hasSelected && (
+        <motion.div
+          initial={{ opacity: 0, y: 24 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: 20 }}
+          transition={{
+            type: 'spring',
+            stiffness: 420,
+            damping: 28
+          }}
+          className={fullscreenCtaWrapper}
+        >
+          <motion.button
+            whileTap={{ scale: 0.97 }}
+            onClick={onGoToFlyerTab}
+            className={ctaButton}
+          >
+            <div className={ctaContentLeft}>
+              <Zap size={17} fill="#FFFFFF" color="#FFFFFF" />
+              <span>{getCtaText()}</span>
+              {selectedStores.length > 1 && (
+                <span className={ctaBadgeCount}>{selectedStores.length}</span>
+              )}
+            </div>
+            <ChevronRight size={17} color="#FFFFFF" strokeWidth={2.5} />
+          </motion.button>
+        </motion.div>
+      )}
+    </AnimatePresence>
+  </>
   );
 };
