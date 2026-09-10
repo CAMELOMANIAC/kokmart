@@ -41,6 +41,7 @@ interface FullMapViewerProps {
   onSelectStore: (store: MartStore) => void;
   myLat: number;
   myLng: number;
+  isVisible?: boolean;
 }
 
 const getBrandFaviconUrl = (brand: string): string => {
@@ -122,12 +123,20 @@ export const FullMapViewer: React.FC<FullMapViewerProps> = ({
   activeStoreId,
   onSelectStore,
   myLat,
-  myLng
+  myLng,
+  isVisible = true,
 }) => {
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<KakaoMap | null>(null);
   const overlaysRef = useRef<KakaoCustomOverlay[]>([]);
   const [isKakaoLoaded, setIsKakaoLoaded] = useState(false);
+
+  // 탭 전환(display: none -> display: block) 시 카카오맵 뷰포트 자동 재계산
+  useEffect(() => {
+    if (isVisible && mapInstanceRef.current) {
+      mapInstanceRef.current.relayout();
+    }
+  }, [isVisible]);
 
   const selectedIds = useMemo(
     () => selectedStoreIds ?? (selectedStoreId ? [selectedStoreId] : []),

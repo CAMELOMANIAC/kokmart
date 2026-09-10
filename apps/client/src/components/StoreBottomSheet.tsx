@@ -132,14 +132,16 @@ export const StoreBottomSheet: React.FC<StoreBottomSheetProps> = ({
     });
   }, [stores, selectedCategory, selectedBrands, onlyOpen]);
 
-  // 4. 바텀시트 높이 & 모션 제어 (모바일 홈 인디케이터 안전영역 연동)
+  // 4. 바텀시트 높이 & 모션 제어 (모바일 홈 인디케이터 안전영역 및 필터 패널 연동)
   const insets = useSafeAreaInsets();
   const hasSelected = selectedStores.length > 0;
   const baseVisibleHeight = 268;
+  // 필터 패널이 열리면 시트가 아래로 밀리지 않고 위로 88px 슥 확장되도록 높이에 가산
+  const filterPanelHeight = isFilterOpen ? 88 : 0;
   const defaultVisibleHeight =
     Math.min(
-      hasSelected ? baseVisibleHeight + 56 : baseVisibleHeight,
-      windowH * 0.48
+      (hasSelected ? baseVisibleHeight + 56 : baseVisibleHeight) + filterPanelHeight,
+      windowH * 0.65
     ) + insets.bottom;
   const defaultOffset = windowH - defaultVisibleHeight;
   const y = useMotionValue(defaultOffset);

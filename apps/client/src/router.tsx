@@ -83,9 +83,21 @@ const RootComponent: React.FC = () => {
   return (
     <div className={isMapTab ? mapContainerStyle : containerStyle}>
       <ScrollRestoration />
-      <main className={isMapTab ? mainContentMap : mainContent}>
-        <Outlet />
-      </main>
+
+      {/* 1. 지도콕 (항상 DOM 인스턴스를 유지하여 탭 전환 시 카카오맵 재요청/깜빡임 없이 0ms 즉시 표시) */}
+      <div style={{ display: isMapTab ? 'contents' : 'none' }}>
+        <main className={mainContentMap}>
+          <KokHome isVisible={isMapTab} />
+        </main>
+      </div>
+
+      {/* 2. 서브 탭 (전단 띵, 찜한 띱, 커뮤니티 뿜) */}
+      {!isMapTab && (
+        <main className={mainContent}>
+          <Outlet />
+        </main>
+      )}
+
       <Navigation />
     </div>
   );
@@ -98,7 +110,7 @@ const rootRoute = createRootRoute({
 const indexRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/',
-  component: KokHome
+  component: () => null
 });
 
 const ddingRoute = createRoute({

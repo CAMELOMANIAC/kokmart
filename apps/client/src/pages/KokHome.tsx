@@ -11,9 +11,10 @@ import { searchNearbyMarts, searchMartsByKeyword } from '../services/kakaoPlaces
 
 interface KokHomeProps {
   onNavigateTab?: (tab: string) => void;
+  isVisible?: boolean;
 }
 
-export const KokHome: React.FC<KokHomeProps> = ({ onNavigateTab }) => {
+export const KokHome: React.FC<KokHomeProps> = ({ onNavigateTab, isVisible = true }) => {
   const navigate = useNavigate();
   // 내 현재 위치 (기본값: 강남구 역삼)
   const myLocation = useMemo(() => ({ lat: 37.5006, lng: 127.0364 }), []);
@@ -97,6 +98,7 @@ export const KokHome: React.FC<KokHomeProps> = ({ onNavigateTab }) => {
         onSelectStore={handleSelectStore}
         myLat={myLocation.lat}
         myLng={myLocation.lng}
+        isVisible={isVisible}
       />
 
       {/* 3. 드래그 제스처 바텀시트 */}
