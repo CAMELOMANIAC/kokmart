@@ -3,7 +3,7 @@ import { calculateDistanceKm, MartStore, mockMartStores } from '@kokmart/shared'
 import { FullMapViewer } from '../components/FullMapViewer';
 import { StoreBottomSheet } from '../components/StoreBottomSheet';
 import { useSelectedStoreStore } from '../store/useSelectedStoreStore';
-import { pageWrapper } from './KokHome.css';
+import { pageWrapper, topStatusVignette } from './KokHome.css';
 import { FloatingTopBar } from '../components/FloatingTopBar';
 import { useNavigate } from '@tanstack/react-router';
 import { setViewTransitionDirection } from '../utils/transition';
@@ -83,6 +83,9 @@ export const KokHome: React.FC<KokHomeProps> = ({ onNavigateTab }) => {
 
   return (
     <div className={pageWrapper}>
+      {/* iOS black-translucent 상태표시줄 가독성을 위한 상단 소프트 비네팅 (지도는 그대로 투명하게 비침) */}
+      <div className={topStatusVignette} />
+
       {/* 1. 상단 플로팅 바 (공통 컴포넌트) */}
       <FloatingTopBar isHome />
 

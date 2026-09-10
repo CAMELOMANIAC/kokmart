@@ -70,15 +70,25 @@ export const vars = createGlobalTheme(':root', {
   }
 });
 
+globalStyle('html', {
+  margin: 0,
+  padding: 0,
+  backgroundColor: '#FFFFFF',
+  overscrollBehavior: 'none',
+  overscrollBehaviorY: 'none',
+});
+
 globalStyle('body', {
   margin: 0,
   padding: 0,
   fontFamily: '"Pretendard", -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif',
-  backgroundColor: '#E5E7EB',
+  backgroundColor: '#FFFFFF',
   color: vars.colors.textMain,
   WebkitFontSmoothing: 'antialiased',
   userSelect: 'none',
-  overflowX: 'hidden'
+  overflowX: 'hidden',
+  overscrollBehavior: 'none',
+  overscrollBehaviorY: 'none',
 });
 
 export const containerStyle = style({
@@ -94,6 +104,8 @@ export const containerStyle = style({
 });
 
 // 지도 콕 홈 전용 (스크롤 오버플로우 100% 방지)
+// height: 100dvh → iOS PWA standalone에서 safe area를 포함한 정확한 뷰포트 높이
+// backgroundColor: transparent → body 배경을 safe area까지 비치게 하기 위해 컨테이너도 투명
 export const mapContainerStyle = style({
   maxWidth: '480px',
   margin: '0 auto',
@@ -102,6 +114,7 @@ export const mapContainerStyle = style({
   overflow: 'hidden',
   position: 'relative',
   paddingBottom: 0,
+  backgroundColor: 'transparent',
   boxShadow: '0 0 40px rgba(0, 0, 0, 0.08)'
 });
 
