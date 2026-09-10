@@ -371,7 +371,7 @@ export const pillListContainer = style({
 export const collapsedCtaWrapper = style({
   display: "flex",
   justifyContent: "center",
-  padding: "12px 16px 0 16px",
+  padding: "6px 16px 0 16px",
   width: "100%",
   boxSizing: "border-box",
 });
@@ -448,8 +448,8 @@ export const storeCard = style({
 // 통일된 카드 활성(선택) 스타일 - 마트콕 프라이머리 주황
 export const storeCardActive = style({
   borderColor: vars.colors.primary,
-  backgroundColor: '#FFFBF7',
-  boxShadow: '0 6px 20px rgba(255, 94, 0, 0.12)',
+  backgroundColor: "#FFFBF7",
+  boxShadow: "0 6px 20px rgba(255, 94, 0, 0.12)",
 });
 
 export const cardHeader = style({
@@ -557,51 +557,3 @@ export const fullscreenCtaWrapper = style({
   pointerEvents: "auto",
 });
 
-export const ctaButton = style({
-  width: "auto",
-  maxWidth: "calc(100% - 16px)",
-  height: "40px",
-  backgroundColor: vars.colors.primary,
-  color: "#FFFFFF",
-  borderRadius: "9999px",
-  border: "none",
-  display: "inline-flex",
-  alignItems: "center",
-  justifyContent: "center",
-  gap: "8px",
-  padding: "0 16px",
-  fontSize: "13px",
-  fontWeight: 700,
-  cursor: "pointer",
-  boxShadow: "0 4px 16px rgba(255, 94, 0, 0.30), 0 2px 6px rgba(0, 0, 0, 0.08)",
-  transition: "all 0.15s ease",
-  userSelect: "none",
-  boxSizing: "border-box",
-  ":hover": {
-    backgroundColor: vars.colors.primaryHover,
-  },
-  ":active": {
-    transform: "scale(0.98)",
-    backgroundColor: vars.colors.primaryHover,
-  },
-});
-
-export const ctaContentLeft = style({
-  display: "flex",
-  alignItems: "center",
-  gap: "8px",
-  overflow: "hidden",
-  textOverflow: "ellipsis",
-  whiteSpace: "nowrap",
-});
-
-export const ctaBadgeCount = style({
-  backgroundColor: "#FFFFFF",
-  color: vars.colors.primary,
-  fontSize: "11px",
-  fontWeight: 800,
-  borderRadius: "9999px",
-  padding: "1px 7px",
-  marginLeft: "4px",
-  lineHeight: "16px",
-});

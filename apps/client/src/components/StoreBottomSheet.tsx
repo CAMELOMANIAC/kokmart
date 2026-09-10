@@ -65,11 +65,9 @@ import {
   cardFooter,
   cardDealBadge,
   cardDealButton,
-  loadingSpinner,
-  ctaButton,
-  ctaContentLeft,
-  ctaBadgeCount
+  loadingSpinner
 } from './StoreBottomSheet.css';
+import { StoreCtaButton } from './StoreCtaButton';
 import { Clock, MapPin, ChevronRight, Zap, Search, X, SlidersHorizontal, Check, CheckCircle2, Circle, Loader2 } from 'lucide-react';
 
 interface StoreBottomSheetProps {
@@ -327,18 +325,6 @@ export const StoreBottomSheet: React.FC<StoreBottomSheetProps> = ({
     selectedCategory !== 'all' ||
     ALL_FILTER_BRANDS.some((b) => selectedBrands[b] === false);
 
-  const getCtaText = (): string => {
-    if (selectedStores.length === 0) return '';
-    if (selectedStores.length === 1) {
-      const store = selectedStores[0];
-      const name = store.displayName || store.name;
-      return `${name} 전단 보기`;
-    }
-    const firstStore = selectedStores[0];
-    const firstName = firstStore.displayName || firstStore.name;
-    return `${firstName} 외 ${selectedStores.length - 1}곳 전단 비교하기`;
-  };
-
   return (
     <>
       <motion.div
@@ -523,20 +509,10 @@ export const StoreBottomSheet: React.FC<StoreBottomSheetProps> = ({
                   transition={{ type: 'spring', stiffness: 420, damping: 28 }}
                   className={collapsedCtaWrapper}
                 >
-                  <motion.button
-                    whileTap={{ scale: 0.97 }}
+                  <StoreCtaButton
+                    selectedStores={selectedStores}
                     onClick={onGoToFlyerTab}
-                    className={ctaButton}
-                  >
-                    <div className={ctaContentLeft}>
-                      <Zap size={17} fill="#FFFFFF" color="#FFFFFF" />
-                      <span>{getCtaText()}</span>
-                      {selectedStores.length > 1 && (
-                        <span className={ctaBadgeCount}>{selectedStores.length}</span>
-                      )}
-                    </div>
-                    <ChevronRight size={17} color="#FFFFFF" strokeWidth={2.5} />
-                  </motion.button>
+                  />
                 </motion.div>
               )}
             </AnimatePresence>
@@ -644,20 +620,10 @@ export const StoreBottomSheet: React.FC<StoreBottomSheetProps> = ({
           }}
           className={fullscreenCtaWrapper}
         >
-          <motion.button
-            whileTap={{ scale: 0.97 }}
+          <StoreCtaButton
+            selectedStores={selectedStores}
             onClick={onGoToFlyerTab}
-            className={ctaButton}
-          >
-            <div className={ctaContentLeft}>
-              <Zap size={17} fill="#FFFFFF" color="#FFFFFF" />
-              <span>{getCtaText()}</span>
-              {selectedStores.length > 1 && (
-                <span className={ctaBadgeCount}>{selectedStores.length}</span>
-              )}
-            </div>
-            <ChevronRight size={17} color="#FFFFFF" strokeWidth={2.5} />
-          </motion.button>
+          />
         </motion.div>
       )}
     </AnimatePresence>
