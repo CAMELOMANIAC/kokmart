@@ -104,16 +104,24 @@ export const containerStyle = style({
 });
 
 // 지도 콕 홈 전용 (스크롤 오버플로우 100% 방지)
-// height: 100dvh → iOS PWA standalone에서 safe area를 포함한 정확한 뷰포트 높이
-// backgroundColor: transparent → body 배경을 safe area까지 비치게 하기 위해 컨테이너도 투명
+//
+// position: fixed + top/left/right/bottom: 0 을 사용하는 이유:
+//   - height: 100dvh / 100vh 는 iOS PWA에서 safe area 포함 여부가 버전·기기마다 달라
+//     계산 오차가 생길 수 있음 (height 값에 의존하는 방식의 한계)
+//   - position: fixed + inset: 0 은 4개 모서리를 뷰포트에 직접 고정하므로
+//     safe area를 포함한 전체 물리 화면을 100% 확실하게 덮음
+//   - left: 0; right: 0; margin: 0 auto 로 maxWidth 480px 중앙 정렬 유지
+//   - overflow: hidden 은 fixed 자식 요소를 클립하지 않으므로 Navigation에 영향 없음
 export const mapContainerStyle = style({
-  maxWidth: '480px',
+  position: 'fixed',
+  top: 0,
+  left: 0,
+  right: 0,
+  bottom: 0,
   margin: '0 auto',
-  height: '100dvh',
-  maxHeight: '100dvh',
+  width: '100%',
+  maxWidth: '480px',
   overflow: 'hidden',
-  position: 'relative',
-  paddingBottom: 0,
   backgroundColor: 'transparent',
   boxShadow: '0 0 40px rgba(0, 0, 0, 0.08)'
 });
