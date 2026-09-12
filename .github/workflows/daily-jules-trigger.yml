@@ -60,11 +60,11 @@ jobs:
           작성 완료 후 새로운 브랜치를 생성하여 Pull Request를 열어주세요.
           EOF
 
-          # 2. 라벨이 없을 경우 자동 생성 (라벨 부재로 인한 에러 방지)
-          gh label create "jules-task" --color "0E8A16" --description "Tasks assigned to Jules" --force || true
+          # 2. 라벨이 없을 경우 자동 생성 (Jules가 감지하는 표준 라벨은 'jules')
+          gh label create "jules" --color "0E8A16" --description "Tasks for Google Jules agent" --force || true
 
-          # 3. 이슈 생성
+          # 3. 이슈 생성 (jules 라벨 부착)
           gh issue create \
             --title "[Automated] 최근 커밋에 대한 Vitest 단위/통합 테스트 작성 요청" \
             --body-file issue_body.md \
-            --label "jules-task"
+            --label "jules"
