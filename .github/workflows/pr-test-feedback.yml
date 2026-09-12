@@ -1,0 +1,85 @@
+name: Jules PR Test & Feedback Loop
+
+on:
+  pull_request:
+    types: [opened, synchronize]
+
+jobs:
+  run-tests:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+      issues: write
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v3
+        with:
+          version: 9
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build shared package
+        run: pnpm build:shared
+
+      - name: Check commit count in PR (Loop Guard)
+        id: loop_guard
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          COMMIT_COUNT=$(gh pr view ${{ github.event.pull_request.number }} --json commits -q '.commits | length')
+          echo "Current commits in PR: $COMMIT_COUNT"
+          if [ "$COMMIT_COUNT" -gt 4 ]; then
+            echo "exceeded=true" >> $GITHUB_OUTPUT
+          else
+            echo "exceeded=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Run Tests
+        id: test_run
+        continue-on-error: true
+        run: |
+          pnpm test 2>&1 | tee test_output.log
+          echo "exit_code=${PIPESTATUS[0]}" >> $GITHUB_OUTPUT
+
+      - name: Report Success
+        if: steps.test_run.outputs.exit_code == 0
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh pr comment ${{ github.event.pull_request.number }} \
+            --body "🎉 **Vitest 테스트 통과 완료!** 모든 테스트 케이스가 성공적으로 실행되었습니다. 리뷰 후 머지해 주세요."
+
+      - name: Comment Failure for Jules
+        if: steps.test_run.outputs.exit_code != 0 && steps.loop_guard.outputs.exceeded == 'false'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          ERROR_LOG=$(tail -n 40 test_output.log)
+          gh pr comment ${{ github.event.pull_request.number }} \
+            --body "⚠️ **테스트 실행 실패 (Jules 자동 피드백)**
+
+          테스트 실행 중 다음 에러가 발생했습니다. 로그를 분석하여 테스트 코드 또는 대상 코드를 수정한 뒤 다시 커밋해 주세요:
+
+          \`\`\`
+          $ERROR_LOG
+          \`\`\`"
+
+      - name: Alert Human on Loop Exceeded
+        if: steps.test_run.outputs.exit_code != 0 && steps.loop_guard.outputs.exceeded == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh pr comment ${{ github.event.pull_request.number }} \
+            --body "🚨 **자동 수정 횟수 초과 (Human Review 필요)**
+          AI가 4회 이상 수정을 시도했으나 테스트가 계속 실패하고 있습니다. 무한 루프 방지를 위해 자동 피드백을 중단합니다. 개발자의 확인이 필요합니다."

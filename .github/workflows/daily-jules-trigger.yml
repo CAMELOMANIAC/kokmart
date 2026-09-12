@@ -1,0 +1,58 @@
+name: Daily Jules Test Generation Trigger
+
+on:
+  schedule:
+    # 매일 UTC 18:00 (한국 시간 기준 다음날 새벽 03:00)
+    - cron: '0 18 * * *'
+  workflow_dispatch: # Actions 탭에서 수동 실행 지원
+
+jobs:
+  check-and-trigger:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check commits in the last 24 hours
+        id: commit_check
+        run: |
+          COMMITS=$(git log --since="24 hours ago" --oneline)
+          if [ -z "$COMMITS" ]; then
+            echo "has_commits=false" >> $GITHUB_OUTPUT
+            echo "최근 24시간 동안 새로운 커밋이 없습니다."
+          else
+            echo "has_commits=true" >> $GITHUB_OUTPUT
+            echo "COMMITS<<EOF" >> $GITHUB_ENV
+            echo "$COMMITS" >> $GITHUB_ENV
+            echo "EOF" >> $GITHUB_ENV
+          fi
+
+      - name: Create Issue for Jules
+        if: steps.commit_check.outputs.has_commits == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh issue create \
+            --title "[Automated] 최근 커밋에 대한 Vitest 단위/통합 테스트 작성 요청" \
+            --body "안녕하세요 Jules! 지난 24시간 동안 추가/수정된 다음 커밋들을 분석하고, 적절한 Vitest 단위/통합 테스트 케이스를 작성하여 PR을 생성해 주세요.
+
+          ### 최근 커밋 목록:
+          \`\`\`
+          ${{ env.COMMITS }}
+          \`\`\`
+
+          ### 테스트 작성 가이드:
+          1. **테스트 프레임워크**: 프로젝트 루트의 \`vitest.config.ts\` 기반 **Vitest**를 사용합니다.
+             - Shared 패키지: \`packages/shared/src/**/*.test.ts\`
+             - Server API: \`apps/server/api/**/*.test.ts\` (supertest 활용 가능)
+             - Client 컴포넌트/로직: \`apps/client/src/**/*.test.ts(x)\`
+          2. **Strict TypeScript 준수**: \`PROJECT_SPEC.md\`에 명시된 대로 \`any\` 타입 사용을 금지하고 엄격한 타입을 적용해 주세요.
+          3. **테스트 검증**: 작성한 테스트는 \`pnpm test\` 명령어로 실행됩니다.
+
+          작성 완료 후 새로운 브랜치를 생성하여 Pull Request를 열어주세요." \
+            --label "jules-task"

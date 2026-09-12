@@ -10,14 +10,19 @@
     "build:shared": "pnpm --filter @kokmart/shared build",
     "build:client": "pnpm --filter @kokmart/client build",
     "build:server": "pnpm --filter @kokmart/server build",
-    "lint": "eslint \"{apps,packages}/**/*.{ts,tsx}\""
+    "lint": "eslint \"{apps,packages}/**/*.{ts,tsx}\"",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "devDependencies": {
+    "@types/supertest": "^7.2.1",
     "@typescript-eslint/eslint-plugin": "^7.10.0",
     "@typescript-eslint/parser": "^7.10.0",
     "eslint": "^8.57.0",
     "eslint-plugin-react": "^7.34.1",
     "eslint-plugin-react-hooks": "^4.6.2",
-    "typescript": "^5.4.5"
+    "supertest": "^7.2.2",
+    "typescript": "^5.4.5",
+    "vitest": "^2.1.9"
   }
 }
