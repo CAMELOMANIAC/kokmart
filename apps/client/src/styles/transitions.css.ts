@@ -86,10 +86,19 @@ globalStyle(':root[data-transition="back"]::view-transition-new(root)', {
 });
 
 // 하단 GNB 네비게이션은 페이지 좌우 슬라이드와 분리하여 화면 하단에 고정
+// old 스냅샷을 숨기고 new의 페이드인을 꺼서 0.26초 동안 그림자/요소가 중첩되는 현상 방지
 globalStyle('nav', {
   viewTransitionName: 'gnb-nav',
 });
 
 globalStyle('::view-transition-group(gnb-nav)', {
+  animation: 'none',
+});
+
+globalStyle('::view-transition-old(gnb-nav)', {
+  display: 'none',
+});
+
+globalStyle('::view-transition-new(gnb-nav)', {
   animation: 'none',
 });
