@@ -70,10 +70,17 @@ export const vars = createGlobalTheme(':root', {
   }
 });
 
+globalStyle('html, body, #root', {
+  width: '100%',
+  height: '100%',
+  margin: 0,
+  padding: 0,
+});
+
 globalStyle('html', {
   margin: 0,
   padding: 0,
-  backgroundColor: '#FFFFFF',
+  backgroundColor: 'transparent',
   overscrollBehavior: 'none',
   overscrollBehaviorY: 'none',
 });
@@ -82,7 +89,7 @@ globalStyle('body', {
   margin: 0,
   padding: 0,
   fontFamily: '"Pretendard", -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif',
-  backgroundColor: '#FFFFFF',
+  backgroundColor: 'transparent',
   color: vars.colors.textMain,
   WebkitFontSmoothing: 'antialiased',
   userSelect: 'none',

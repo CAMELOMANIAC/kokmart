@@ -8,7 +8,7 @@ export const sheetContainer = style({
   margin: "0 auto",
   width: "100%",
   maxWidth: "480px",
-  height: "100vh",
+  height: "100dvh",
   backgroundColor: "rgba(255, 255, 255, 0.96)",
   backdropFilter: "blur(20px)",
   WebkitBackdropFilter: "blur(20px)",

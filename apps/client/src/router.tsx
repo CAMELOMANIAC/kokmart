@@ -27,15 +27,32 @@ const RootComponent: React.FC = () => {
 
   // 1. 라우트별 상태표시줄 & html/body 배경색 동적 동기화
   React.useEffect(() => {
-    const metaThemeColor = document.querySelector('meta[name="theme-color"]');
-    // apple-mobile-web-app-status-bar-style: default 기준
-    // 지도 탭: 흰색 — paddingTop(safe area) 영역이 흰색으로 채워져 상태바와 자연스럽게 연결
-    // 다른 탭: 흰색 — 동일하게 흰색 상태바
-    const bgColor = '#FFFFFF';
-    document.documentElement.style.backgroundColor = bgColor;
-    document.body.style.backgroundColor = bgColor;
-    if (metaThemeColor) metaThemeColor.setAttribute('content', bgColor);
-  }, []);
+    let metaThemeColor = document.querySelector('meta[name="theme-color"]');
+
+    if (isMapTab) {
+      // 지도 탭: iOS PWA/사파리에서 상단 상태표시줄(노치) 뒤로 지도가 투명하게 관통하도록 처리
+      document.documentElement.style.backgroundColor = 'transparent';
+      document.body.style.backgroundColor = 'transparent';
+
+      // iOS 사파리 15+ 및 PWA는 theme-color 메타 태그가 존재하면 black-translucent를 무시하고 해당 색상으로 상태바를 덮음
+      // 따라서 지도 화면에서는 theme-color 태그를 임시 제거하여 온전한 black-translucent Edge-to-Edge 활성화
+      if (metaThemeColor) {
+        metaThemeColor.remove();
+      }
+    } else {
+      // 다른 탭 (전단 띵, 찜한 띱, 커뮤니티 뿜): 흰색 테마 복원
+      const bgColor = '#FFFFFF';
+      document.documentElement.style.backgroundColor = bgColor;
+      document.body.style.backgroundColor = bgColor;
+
+      if (!metaThemeColor) {
+        metaThemeColor = document.createElement('meta');
+        metaThemeColor.setAttribute('name', 'theme-color');
+        document.head.appendChild(metaThemeColor);
+      }
+      metaThemeColor.setAttribute('content', bgColor);
+    }
+  }, [isMapTab]);
 
   // 2. 모바일 풀투리프레시(새로고침) 제스처 및 단축키 새로고침 전면 차단
   React.useEffect(() => {
