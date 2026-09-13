@@ -33,18 +33,14 @@ export const StoreCtaButton: React.FC<StoreCtaButtonProps> = ({
 
   return (
     <motion.button
-      layout
       whileTap={{ scale: 0.97 }}
       onClick={onClick}
       className={ctaButton}
-      transition={{
-        layout: { type: 'spring', stiffness: 500, damping: 35 },
-      }}
     >
       <div className={ctaContentLeft}>
         <Zap size={16} fill="#FFFFFF" color="#FFFFFF" className={ctaIcon} />
 
-        <motion.div layout className={ctaTextWrapper}>
+        <div className={ctaTextWrapper}>
           <AnimatePresence mode="popLayout" initial={false}>
             <motion.div
               key={ctaText}
@@ -61,7 +57,7 @@ export const StoreCtaButton: React.FC<StoreCtaButtonProps> = ({
               {count > 1 && <span className={ctaBadgeCount}>{count}</span>}
             </motion.div>
           </AnimatePresence>
-        </motion.div>
+        </div>
       </div>
 
       <ChevronRight size={16} color="#FFFFFF" strokeWidth={2.5} className={ctaIcon} />

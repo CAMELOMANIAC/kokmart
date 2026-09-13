@@ -63,7 +63,6 @@ export const StoreCardList: React.FC<StoreCardListProps> = ({
           return (
             <motion.div
               key={store.id}
-              layout
               className={`${storeCard} ${isSelected ? storeCardActive : ''}`}
               onClick={() => toggleStoreSelection(store)}
             >
