@@ -96,7 +96,23 @@ const RootComponent: React.FC = () => {
       <ScrollRestoration />
 
       {/* 1. 지도콕 (항상 DOM 인스턴스를 유지하여 탭 전환 시 카카오맵 재요청/깜빡임 없이 0ms 즉시 표시) */}
-      <div style={{ display: isMapTab ? 'contents' : 'none' }}>
+      <div
+        style={
+          isMapTab
+            ? { display: 'contents' }
+            : {
+                position: 'fixed',
+                top: 0,
+                left: 0,
+                right: 0,
+                bottom: 0,
+                visibility: 'hidden',
+                pointerEvents: 'none',
+                zIndex: -1,
+                opacity: 0,
+              }
+        }
+      >
         <main className={mainContentMap}>
           <KokHome isVisible={isMapTab} />
         </main>

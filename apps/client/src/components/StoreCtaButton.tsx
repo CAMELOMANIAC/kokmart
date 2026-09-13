@@ -33,6 +33,13 @@ export const StoreCtaButton: React.FC<StoreCtaButtonProps> = ({
 
   return (
     <motion.button
+      layout
+      transition={{
+        layout: {
+          duration: 0.28,
+          ease: [0.25, 1, 0.5, 1],
+        },
+      }}
       whileTap={{ scale: 0.97 }}
       onClick={onClick}
       className={ctaButton}
