@@ -23,6 +23,12 @@ import { ALL_FILTER_BRANDS, getBrandDotClass } from './storeBadgeUtils';
 
 export type CategoryFilter = 'all' | 'hypermarket' | 'ssm';
 
+export const SHEET_SPRING = {
+  type: 'spring' as const,
+  stiffness: 380,
+  damping: 32,
+};
+
 interface StoreSearchFilterHeaderProps {
   searchQuery: string;
   isLoading?: boolean;
@@ -32,6 +38,7 @@ interface StoreSearchFilterHeaderProps {
   onFocus: () => void;
   isFilterOpen: boolean;
   onToggleFilter: () => void;
+  onHeightChange?: (height: number) => void;
   isAnyFilterActive: boolean;
   selectedCategory: CategoryFilter;
   onSelectCategory: (category: CategoryFilter) => void;
@@ -50,6 +57,7 @@ export const StoreSearchFilterHeader: React.FC<StoreSearchFilterHeaderProps> = (
   onFocus,
   isFilterOpen,
   onToggleFilter,
+  onHeightChange,
   isAnyFilterActive,
   selectedCategory,
   onSelectCategory,
@@ -58,6 +66,30 @@ export const StoreSearchFilterHeader: React.FC<StoreSearchFilterHeaderProps> = (
   selectedBrands,
   onToggleBrand,
 }) => {
+  const filterPanelRef = React.useRef<HTMLDivElement>(null);
+
+  React.useLayoutEffect(() => {
+    if (isFilterOpen && filterPanelRef.current) {
+      const measured = filterPanelRef.current.offsetHeight;
+      if (measured > 0) {
+        onHeightChange?.(measured);
+      }
+    }
+  }, [isFilterOpen, onHeightChange]);
+
+  React.useEffect(() => {
+    if (!isFilterOpen || !filterPanelRef.current) return;
+    const observer = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        const height = entry.borderBoxSize?.[0]?.blockSize ?? entry.contentRect.height;
+        if (height > 0) {
+          onHeightChange?.(Math.round(height));
+        }
+      }
+    });
+    observer.observe(filterPanelRef.current);
+    return () => observer.disconnect();
+  }, [isFilterOpen, onHeightChange]);
   return (
     <div className={sheetHeader}>
       <div className={headerTopRow}>
@@ -105,10 +137,13 @@ export const StoreSearchFilterHeader: React.FC<StoreSearchFilterHeaderProps> = (
             initial={{ height: 0, opacity: 0 }}
             animate={{ height: 'auto', opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: 0.2 }}
+            transition={{
+              height: SHEET_SPRING,
+              opacity: { duration: 0.2 },
+            }}
             className={filterPanelWrapper}
           >
-            <div className={filterPanel}>
+            <div ref={filterPanelRef} className={filterPanel}>
               {/* 1행: 대분류 카테고리 탭 & 영업중 토글 */}
               <div className={filterCategoryRow}>
                 <div

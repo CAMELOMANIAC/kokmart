@@ -15,7 +15,6 @@ export const sheetHeader = style({
   padding: "0 16px 10px 16px",
   display: "flex",
   flexDirection: "column",
-  gap: "10px",
   borderBottom: "1px solid #F3F4F6",
 });
 
@@ -95,14 +94,20 @@ export const filterPanel = style({
   display: "flex",
   flexDirection: "column",
   gap: "8px",
-  padding: "8px 4px 4px 4px",
+  padding: "10px 4px 4px 4px",
 });
 
 export const filterCategoryRow = style({
   display: "flex",
   alignItems: "center",
   gap: "6px",
-  flexWrap: "wrap",
+  overflowX: "auto",
+  width: "100%",
+  scrollbarWidth: "none",
+  "::-webkit-scrollbar": {
+    display: "none",
+  },
+  WebkitOverflowScrolling: "touch",
 });
 
 export const filterBrandRowScrollable = style({
@@ -123,7 +128,8 @@ export const filterChip = style({
   display: "inline-flex",
   alignItems: "center",
   gap: "6px",
-  padding: "6px 12px",
+  padding: "0 12px",
+  height: "32px",
   borderRadius: "9999px",
   border: "1px solid #E5E7EB",
   backgroundColor: "#FFFFFF",
@@ -134,6 +140,7 @@ export const filterChip = style({
   transition: "all 0.2s ease",
   userSelect: "none",
   flexShrink: 0,
+  boxSizing: "border-box",
 });
 
 export const filterChipActive = style({

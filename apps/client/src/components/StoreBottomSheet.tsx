@@ -16,6 +16,7 @@ import { StoreCtaButton } from './StoreCtaButton';
 import {
   StoreSearchFilterHeader,
   type CategoryFilter,
+  SHEET_SPRING,
 } from './bottomsheet/StoreSearchFilterHeader';
 import { ALL_FILTER_BRANDS } from './bottomsheet/storeBadgeUtils';
 import { StorePillList } from './bottomsheet/StorePillList';
@@ -136,12 +137,13 @@ export const StoreBottomSheet: React.FC<StoreBottomSheetProps> = ({
   const insets = useSafeAreaInsets();
   const hasSelected = selectedStores.length > 0;
   const baseVisibleHeight = 268;
-  // 필터 패널이 열리면 시트가 아래로 밀리지 않고 위로 88px 슥 확장되도록 높이에 가산
-  const filterPanelHeight = isFilterOpen ? 88 : 0;
+  const [filterPanelMeasuredHeight, setFilterPanelMeasuredHeight] = useState(94);
+  // 필터 패널이 열리면 시트가 아래로 밀리지 않고 실측된 패널 높이만큼 위로 슥 확장되도록 높이에 가산
+  const filterPanelHeight = isFilterOpen ? filterPanelMeasuredHeight : 0;
   const defaultVisibleHeight =
     Math.min(
       (hasSelected ? baseVisibleHeight + 56 : baseVisibleHeight) + filterPanelHeight,
-      windowH * 0.65
+      windowH * 0.7
     ) + insets.bottom;
   const defaultOffset = windowH - defaultVisibleHeight;
   const y = useMotionValue(defaultOffset);
@@ -150,11 +152,7 @@ export const StoreBottomSheet: React.FC<StoreBottomSheetProps> = ({
 
   useEffect(() => {
     if (currentMode === 'default') {
-      animate(y, defaultOffset, {
-        type: 'spring',
-        stiffness: 380,
-        damping: 32,
-      });
+      animate(y, defaultOffset, SHEET_SPRING);
     }
   }, [defaultOffset, currentMode, y]);
 
@@ -172,11 +170,7 @@ export const StoreBottomSheet: React.FC<StoreBottomSheetProps> = ({
     setCurrentMode(mode);
     setBottomSheetFullscreen(mode === 'fullscreen');
 
-    animate(y, targetY, {
-      type: 'spring',
-      stiffness: 380,
-      damping: 32,
-    });
+    animate(y, targetY, SHEET_SPRING);
   };
 
   const handleDragEnd = (_: unknown, info: PanInfo) => {
@@ -230,6 +224,7 @@ export const StoreBottomSheet: React.FC<StoreBottomSheetProps> = ({
           onFocus={() => snapTo('fullscreen')}
           isFilterOpen={isFilterOpen}
           onToggleFilter={() => setIsFilterOpen(!isFilterOpen)}
+          onHeightChange={setFilterPanelMeasuredHeight}
           isAnyFilterActive={isAnyFilterActive}
           selectedCategory={selectedCategory}
           onSelectCategory={setSelectedCategory}
