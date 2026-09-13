@@ -18,29 +18,52 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Check commits in the last 24 hours
-        id: commit_check
-        run: |
-          COMMITS=$(git log --since="24 hours ago" --oneline)
-          if [ -z "$COMMITS" ]; then
-            echo "has_commits=false" >> $GITHUB_OUTPUT
-            echo "최근 24시간 동안 새로운 커밋이 없습니다."
-          else
-            echo "has_commits=true" >> $GITHUB_OUTPUT
-            # 커밋 목록을 임시 파일에 안전하게 저장
-            echo "$COMMITS" > recent_commits.txt
-          fi
-
-      - name: Create Issue for Jules
-        if: steps.commit_check.outputs.has_commits == 'true'
+      # 1. 이미 처리 대기 중이거나 열려 있는 Jules 이슈가 있는지 확인 (중복 방지)
+      - name: Check for existing active Jules tasks
+        id: active_check
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          # 1. 이슈 본문 마크다운 파일 안전하게 생성
-          cat << 'EOF' > issue_body.md
-          안녕하세요 Jules! 지난 24시간 동안 추가/수정된 다음 커밋들을 분석하고, 적절한 Vitest 단위/통합 테스트 케이스를 작성하여 PR을 생성해 주세요.
+          OPEN_ISSUE=$(gh issue list --label "jules" --state open --limit 1 --json number -q '.[0].number')
+          if [ -n "$OPEN_ISSUE" ]; then
+            echo "has_active_issue=true" >> $GITHUB_OUTPUT
+            echo "⚠️ 이미 열려 있는 Jules 작업 이슈(#$OPEN_ISSUE)가 존재합니다. 새 이슈 생성을 건너뜁니다."
+          else
+            echo "has_active_issue=false" >> $GITHUB_OUTPUT
+            echo "진행 중인 열린 Jules 이슈가 없습니다. 커밋 검사를 진행합니다."
+          fi
 
-          ### 최근 커밋 목록:
+      # 2. 최근 24시간 동안 실제 소스코드(src/)에 대한 사람의 커밋만 확인 (봇 및 설정 파일 제외)
+      - name: Check human commits in the last 24 hours
+        id: commit_check
+        if: steps.active_check.outputs.has_active_issue == 'false'
+        run: |
+          COMMITS=$(git log --since="24 hours ago" --no-merges \
+            --format="%h - %an: %s" \
+            -- "apps/*/src/**" "packages/*/src/**" ":!**/*.test.*" ":!**/*.spec.*" \
+            | grep -v -E "\[bot\]|jules|github-actions" || true)
+
+          if [ -z "$COMMITS" ]; then
+            echo "has_commits=false" >> $GITHUB_OUTPUT
+            echo "최근 24시간 동안 테스트가 필요한 새로운 소스코드 커밋이 없습니다."
+          else
+            echo "has_commits=true" >> $GITHUB_OUTPUT
+            echo "$COMMITS" > recent_commits.txt
+            echo "테스트 대상 커밋 발견:"
+            cat recent_commits.txt
+          fi
+
+      # 3. 새로운 커밋이 있을 때만 Jules에게 이슈 발행
+      - name: Create Issue for Jules
+        if: steps.active_check.outputs.has_active_issue == 'false' && steps.commit_check.outputs.has_commits == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # 이슈 본문 마크다운 파일 생성
+          cat << 'EOF' > issue_body.md
+          안녕하세요 Jules! 지난 24시간 동안 추가/수정된 다음 개발 커밋들을 분석하고, 적절한 Vitest 단위/통합 테스트 케이스를 작성하여 PR을 생성해 주세요.
+
+          ### 최근 신규 개발 커밋 목록:
           ```text
           EOF
 
@@ -60,10 +83,10 @@ jobs:
           작성 완료 후 새로운 브랜치를 생성하여 Pull Request를 열어주세요.
           EOF
 
-          # 2. 라벨이 없을 경우 자동 생성 (Jules가 감지하는 표준 라벨은 'jules')
+          # 라벨이 없을 경우 자동 생성
           gh label create "jules" --color "0E8A16" --description "Tasks for Google Jules agent" --force || true
 
-          # 3. 이슈 생성 (jules 라벨 부착)
+          # 이슈 생성 (jules 라벨 부착)
           gh issue create \
             --title "[Automated] 최근 커밋에 대한 Vitest 단위/통합 테스트 작성 요청" \
             --body-file issue_body.md \
