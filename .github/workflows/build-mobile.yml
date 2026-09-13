@@ -1,0 +1,152 @@
+name: Build Mobile Apps (Android & iOS)
+
+on:
+  workflow_dispatch:
+    inputs:
+      build_type:
+        description: 'Build Type'
+        required: true
+        default: 'debug'
+        type: choice
+        options:
+          - debug
+          - release
+
+jobs:
+  # ==========================================
+  # 1. Android Build Job
+  # ==========================================
+  build-android:
+    name: Build Android APK
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Setup Android SDK & NDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install Android NDK & CMake
+        run: |
+          sdkmanager --install "ndks;26.1.10909125" "cmake;3.22.1"
+          echo "ANDROID_NDK_HOME=${ANDROID_SDK_ROOT}/ndk/26.1.10909125" >> $GITHUB_ENV
+          echo "NDK_HOME=${ANDROID_SDK_ROOT}/ndk/26.1.10909125" >> $GITHUB_ENV
+
+      - name: Setup Rust Toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-linux-android,armv7-linux-androideabi,i686-linux-android,x86_64-linux-android
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v3
+        with:
+          version: 9
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build Shared Package
+        run: pnpm build:shared
+
+      - name: Init Android Project (if needed)
+        working-directory: apps/client
+        env:
+          NDK_HOME: ${{ env.ANDROID_NDK_HOME }}
+        run: |
+          if [ ! -d "src-tauri/gen/android" ]; then
+            pnpm tauri android init
+          fi
+
+      - name: Build Android (Debug / Release)
+        working-directory: apps/client
+        env:
+          NDK_HOME: ${{ env.ANDROID_NDK_HOME }}
+        run: |
+          if [ "${{ github.event.inputs.build_type }}" = "release" ]; then
+            pnpm tauri android build --apk
+          else
+            pnpm tauri android build --debug --apk
+          fi
+
+      - name: Upload Android APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: martkok-android-apk
+          path: |
+            apps/client/src-tauri/gen/android/app/build/outputs/apk/**/*.apk
+          retention-days: 7
+
+  # ==========================================
+  # 2. iOS Build Job
+  # ==========================================
+  build-ios:
+    name: Build iOS App
+    runs-on: macos-14
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Select Xcode
+        run: sudo xcode-select -switch /Applications/Xcode_15.4.app || true
+
+      - name: Setup Rust Toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-apple-ios,aarch64-apple-ios-sim,x86_64-apple-ios
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v3
+        with:
+          version: 9
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build Shared Package
+        run: pnpm build:shared
+
+      - name: Init iOS Project (if needed)
+        working-directory: apps/client
+        run: |
+          if [ ! -d "src-tauri/gen/apple" ]; then
+            pnpm tauri ios init
+          fi
+
+      - name: Build iOS App
+        working-directory: apps/client
+        run: |
+          if [ "${{ github.event.inputs.build_type }}" = "release" ]; then
+            pnpm tauri ios build --no-signing
+          else
+            pnpm tauri ios build --debug --no-signing
+          fi
+
+      - name: Upload iOS Build Output
+        uses: actions/upload-artifact@v4
+        with:
+          name: martkok-ios-build
+          path: |
+            apps/client/src-tauri/gen/apple/build/arm64/**/*.app
+            apps/client/src-tauri/gen/apple/build/**/*.ipa
+            apps/client/src-tauri/gen/apple/build/**/*.tar.gz
+          retention-days: 7
