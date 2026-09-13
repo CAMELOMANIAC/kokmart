@@ -33,11 +33,29 @@ jobs:
       - name: Setup Android SDK & NDK
         uses: android-actions/setup-android@v3
 
-      - name: Install Android NDK & CMake
+      - name: Setup Android NDK & CMake
         run: |
-          sdkmanager --install "ndks;26.1.10909125" "cmake;3.22.1"
-          echo "ANDROID_NDK_HOME=${ANDROID_SDK_ROOT}/ndk/26.1.10909125" >> $GITHUB_ENV
-          echo "NDK_HOME=${ANDROID_SDK_ROOT}/ndk/26.1.10909125" >> $GITHUB_ENV
+          SDK_PATH="${ANDROID_SDK_ROOT:-$ANDROID_HOME}"
+          echo "Checking Android SDK at: $SDK_PATH"
+          
+          # GitHub Actions ubuntu-latest에는 NDK가 이미 설치되어 있는 경우가 많습니다.
+          if [ -d "$SDK_PATH/ndk" ] && [ "$(ls -A $SDK_PATH/ndk 2>/dev/null)" ]; then
+            echo "Pre-installed NDKs found in $SDK_PATH/ndk"
+          else
+            echo "Installing NDK and CMake via sdkmanager..."
+            yes | sdkmanager --licenses || true
+            sdkmanager --install "ndk;26.1.10909125" "cmake;3.22.1"
+          fi
+
+          DETECTED_NDK=$(ls -d $SDK_PATH/ndk/* 2>/dev/null | sort -V | tail -n 1)
+          if [ -z "$DETECTED_NDK" ]; then
+            echo "Failed to find NDK directory"
+            exit 1
+          fi
+
+          echo "Selected NDK: $DETECTED_NDK"
+          echo "ANDROID_NDK_HOME=$DETECTED_NDK" >> $GITHUB_ENV
+          echo "NDK_HOME=$DETECTED_NDK" >> $GITHUB_ENV
 
       - name: Setup Rust Toolchain
         uses: dtolnay/rust-toolchain@stable
@@ -136,9 +154,9 @@ jobs:
         working-directory: apps/client
         run: |
           if [ "${{ github.event.inputs.build_type }}" = "release" ]; then
-            pnpm tauri ios build --no-signing
+            pnpm tauri ios build --no-sign
           else
-            pnpm tauri ios build --debug --no-signing
+            pnpm tauri ios build --debug --no-sign
           fi
 
       - name: Upload iOS Build Output
