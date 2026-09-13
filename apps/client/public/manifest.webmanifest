@@ -8,7 +8,6 @@
   "display_override": ["fullscreen", "window-controls-overlay", "standalone"],
   "orientation": "portrait",
   "background_color": "#FFFFFF",
-  "theme_color": "#FFFFFF",
   "icons": [
     {
       "src": "/icon.svg",
