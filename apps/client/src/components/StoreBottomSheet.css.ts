@@ -20,7 +20,6 @@ export const sheetContainer = style({
   flexDirection: "column",
   overflow: "hidden",
   userSelect: "none",
-  touchAction: "none",
 });
 
 export const dragHandleArea = style({

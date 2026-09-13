@@ -54,39 +54,17 @@ const RootComponent: React.FC = () => {
     }
   }, [isMapTab]);
 
-  // 2. 모바일 풀투리프레시(새로고침) 제스처 및 단축키 새로고침 전면 차단
+  // 2. 단축키 새로고침 차단 (풀투리프레시는 CSS overscroll-behavior: none으로 네이티브 처리)
   React.useEffect(() => {
-    let startY = 0;
-    const onTouchStart = (e: TouchEvent) => {
-      if (e.touches.length === 1) {
-        startY = e.touches[0].clientY;
-      }
-    };
-    const onTouchMove = (e: TouchEvent) => {
-      if (e.touches.length === 1) {
-        const currentY = e.touches[0].clientY;
-        // 최상단에서 아래로 당기는 새로고침 동작 차단
-        if (window.scrollY <= 0 && currentY > startY) {
-          if (e.cancelable) {
-            e.preventDefault();
-          }
-        }
-      }
-    };
-
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'F5' || ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'r')) {
         e.preventDefault();
       }
     };
 
-    window.addEventListener('touchstart', onTouchStart, { passive: true });
-    window.addEventListener('touchmove', onTouchMove, { passive: false });
     window.addEventListener('keydown', onKeyDown);
 
     return () => {
-      window.removeEventListener('touchstart', onTouchStart);
-      window.removeEventListener('touchmove', onTouchMove);
       window.removeEventListener('keydown', onKeyDown);
     };
   }, []);

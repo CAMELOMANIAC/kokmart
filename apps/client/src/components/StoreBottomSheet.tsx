@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
-import { motion, useMotionValue, animate, AnimatePresence, type PanInfo } from 'framer-motion';
+import { motion, useMotionValue, animate, AnimatePresence, useDragControls, type PanInfo } from 'framer-motion';
 import type { MartStore, MartBrand } from '@kokmart/shared';
 import { useUIStore } from '../store/useUIStore';
 import { useSelectedStoreStore } from '../store/useSelectedStoreStore';
@@ -148,6 +148,7 @@ export const StoreBottomSheet: React.FC<StoreBottomSheetProps> = ({
     ) + insets.bottom;
   const defaultOffset = windowH - defaultVisibleHeight;
   const y = useMotionValue(defaultOffset);
+  const dragControls = useDragControls();
   const [currentMode, setCurrentMode] = useState<SnapMode>('default');
   const isFullscreen = currentMode === 'fullscreen';
 
@@ -215,6 +216,8 @@ export const StoreBottomSheet: React.FC<StoreBottomSheetProps> = ({
         className={sheetContainer}
         style={{ y }}
         drag="y"
+        dragControls={dragControls}
+        dragListener={false}
         dragConstraints={{ top: 0, bottom: Math.max(defaultOffset, windowH - baseVisibleHeight) }}
         dragElastic={0.08}
         onDragEnd={handleDragEnd}
@@ -222,6 +225,7 @@ export const StoreBottomSheet: React.FC<StoreBottomSheetProps> = ({
         {/* 드래그 핸들 */}
         <div
           className={dragHandleArea}
+          onPointerDown={(e) => dragControls.start(e)}
           onClick={() => {
             const currentY = y.get();
             snapTo(currentY > defaultOffset / 2 ? 'fullscreen' : 'default');
@@ -231,23 +235,37 @@ export const StoreBottomSheet: React.FC<StoreBottomSheetProps> = ({
         </div>
 
         {/* 검색 및 필터 헤더 */}
-        <StoreSearchFilterHeader
-          searchQuery={searchQuery}
-          isLoading={isLoading}
-          onSearchChange={handleSearchChange}
-          onClearSearch={handleClearSearch}
-          onKeyDown={handleKeyDown}
-          onFocus={() => snapTo('fullscreen')}
-          isFilterOpen={isFilterOpen}
-          onToggleFilter={handleToggleFilter}
-          isAnyFilterActive={isAnyFilterActive}
-          selectedCategory={selectedCategory}
-          onSelectCategory={setSelectedCategory}
-          onlyOpen={onlyOpen}
-          onToggleOnlyOpen={() => setOnlyOpen(!onlyOpen)}
-          selectedBrands={selectedBrands}
-          onToggleBrand={toggleBrand}
-        />
+        <div
+          onPointerDown={(e) => {
+            const target = e.target as HTMLElement;
+            // 입력 필드나 버튼, 칩 등의 인터랙티브 요소가 아닐 때만 헤더 여백 드래그로 바텀시트 이동
+            if (
+              target.tagName !== 'INPUT' &&
+              !target.closest('button') &&
+              !target.closest('[role="button"]')
+            ) {
+              dragControls.start(e);
+            }
+          }}
+        >
+          <StoreSearchFilterHeader
+            searchQuery={searchQuery}
+            isLoading={isLoading}
+            onSearchChange={handleSearchChange}
+            onClearSearch={handleClearSearch}
+            onKeyDown={handleKeyDown}
+            onFocus={() => snapTo('fullscreen')}
+            isFilterOpen={isFilterOpen}
+            onToggleFilter={handleToggleFilter}
+            isAnyFilterActive={isAnyFilterActive}
+            selectedCategory={selectedCategory}
+            onSelectCategory={setSelectedCategory}
+            onlyOpen={onlyOpen}
+            onToggleOnlyOpen={() => setOnlyOpen(!onlyOpen)}
+            selectedBrands={selectedBrands}
+            onToggleBrand={toggleBrand}
+          />
+        </div>
 
         {/* 본문: 축소 모드 (알약 뷰) vs 확장 모드 (카드 리스트 뷰) */}
         <AnimatePresence mode="wait">
