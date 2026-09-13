@@ -100,6 +100,9 @@ export const containerStyle = style({
   flexDirection: 'column',
   boxShadow: '0 0 40px rgba(0, 0, 0, 0.08)',
   position: 'relative',
+  // 비-지도 탭(띵/띱/뿜): 상단 안전영역(상태바 높이)만큼 패딩 확보
+  // → 콘텐츠가 상태바 아래부터 시작, FloatingTopBar의 top: calc(16px + env(...))와 정합
+  paddingTop: 'env(safe-area-inset-top, 0px)',
   paddingBottom: '100px'
 });
 
@@ -112,6 +115,8 @@ export const containerStyle = style({
 //     safe area를 포함한 전체 물리 화면을 100% 확실하게 덮음
 //   - left: 0; right: 0; margin: 0 auto 로 maxWidth 480px 중앙 정렬 유지
 //   - overflow: hidden 은 fixed 자식 요소를 클립하지 않으므로 Navigation에 영향 없음
+//   - paddingTop 없음: 지도 타일이 안전영역(상태바 뒤)까지 채움
+//     → FloatingTopBar·재센터 버튼 등 UI 요소들은 각자 top: calc(16px + env(safe-area-inset-top))로 처리
 export const mapContainerStyle = style({
   position: 'fixed',
   top: 0,
@@ -122,10 +127,7 @@ export const mapContainerStyle = style({
   width: '100%',
   maxWidth: '480px',
   overflow: 'hidden',
-  // default 상태바 스타일 + viewport-fit=cover 사용 시 상단 안전영역 확보
-  // paddingTop만큼 지도가 상태바 아래부터 시작하고, 그 위는 배경색(흰색)으로 채워짐
-  paddingTop: 'env(safe-area-inset-top, 0px)',
-  backgroundColor: '#FFFFFF',
+  backgroundColor: 'transparent',
   boxShadow: '0 0 40px rgba(0, 0, 0, 0.08)'
 });
 
