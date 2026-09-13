@@ -51,6 +51,13 @@ export const StoreCardList: React.FC<StoreCardListProps> = ({
       exit={{ opacity: 0, y: -10 }}
       transition={{ duration: 0.25 }}
       className={cardListContainer}
+      onPointerDown={(e) => {
+        // 전체화면 카드 목록 스크롤 시 부모 바텀시트 drag="y"로 터치가 빼앗기지 않도록 방지
+        e.stopPropagation();
+      }}
+      onContextMenu={(e) => {
+        e.preventDefault();
+      }}
     >
       {stores.length === 0 ? (
         <div className={emptyMessage}>

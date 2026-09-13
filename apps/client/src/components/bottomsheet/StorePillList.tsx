@@ -1,5 +1,4 @@
 import React from 'react';
-import { motion } from 'framer-motion';
 import { Check } from 'lucide-react';
 import type { MartStore } from '@kokmart/shared';
 import {
@@ -27,7 +26,17 @@ export const StorePillList: React.FC<StorePillListProps> = ({
   toggleStoreSelection,
 }) => {
   return (
-    <div className={pillListContainer}>
+    <div
+      className={pillListContainer}
+      onPointerDown={(e) => {
+        // 알약 목록 스크롤 시 부모 바텀시트의 drag="y"로 터치가 빼앗겨 스크롤이 먹통되는 현상 방지
+        e.stopPropagation();
+      }}
+      onContextMenu={(e) => {
+        // 롱탭 시 모바일 브라우저 컨텍스트 메뉴 차단
+        e.preventDefault();
+      }}
+    >
       {stores.length === 0 ? (
         <div className={emptyMessage}>
           {isLoading ? '마트 정보를 검색 중입니다...' : '조건에 일치하는 마트가 없습니다.'}
@@ -37,9 +46,8 @@ export const StorePillList: React.FC<StorePillListProps> = ({
           const isSelected = isStoreSelected(store.id);
 
           return (
-            <motion.div
+            <div
               key={store.id}
-              whileTap={{ scale: 0.94 }}
               onClick={() => toggleStoreSelection(store)}
               className={`${storePill} ${isSelected ? storePillActive : ''}`}
             >
@@ -57,7 +65,7 @@ export const StorePillList: React.FC<StorePillListProps> = ({
               {isSelected && (
                 <Check size={14} className={storePillCheck} strokeWidth={2.5} />
               )}
-            </motion.div>
+            </div>
           );
         })
       )}

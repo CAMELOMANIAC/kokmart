@@ -6,6 +6,11 @@ export const cardListContainer = style({
   overflowY: "auto",
   flex: 1,
   WebkitOverflowScrolling: "touch",
+  touchAction: "pan-y",
+  overscrollBehavior: "contain",
+  userSelect: "none",
+  WebkitUserSelect: "none",
+  WebkitTouchCallout: "none",
 });
 
 export const storeCard = style({
@@ -17,6 +22,15 @@ export const storeCard = style({
   boxShadow: "0 4px 16px rgba(0, 0, 0, 0.03)",
   transition: "all 0.2s ease",
   cursor: "pointer",
+  userSelect: "none",
+  WebkitUserSelect: "none",
+  WebkitTouchCallout: "none",
+  WebkitTapHighlightColor: "transparent",
+  touchAction: "pan-y",
+  ":active": {
+    transform: "scale(0.985)",
+    transition: "transform 0.08s ease",
+  },
 });
 
 export const storeCardActive = style({

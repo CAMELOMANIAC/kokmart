@@ -16,6 +16,11 @@ export const pillListContainer = style({
   maxHeight: "92px",
   overflowY: "auto",
   WebkitOverflowScrolling: "touch",
+  touchAction: "pan-y",
+  overscrollBehavior: "contain",
+  userSelect: "none",
+  WebkitUserSelect: "none",
+  WebkitTouchCallout: "none",
   boxSizing: "border-box",
   scrollbarWidth: "none",
   "::-webkit-scrollbar": {
@@ -34,8 +39,17 @@ export const storePill = style({
   border: "1px solid #E5E7EB",
   boxShadow: "0 2px 6px rgba(0, 0, 0, 0.04)",
   cursor: "pointer",
-  transition: "background-color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease",
+  userSelect: "none",
+  WebkitUserSelect: "none",
+  WebkitTouchCallout: "none",
+  WebkitTapHighlightColor: "transparent",
+  touchAction: "pan-y",
+  transition: "background-color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease, transform 0.15s ease",
   boxSizing: "border-box",
+  ":active": {
+    transform: "scale(0.95)",
+    transition: "transform 0.08s ease",
+  },
 });
 
 export const storePillActive = style({
@@ -43,6 +57,9 @@ export const storePillActive = style({
   borderColor: vars.colors.primary,
   backgroundColor: vars.colors.primaryBg,
   boxShadow: "0 4px 12px rgba(255, 94, 0, 0.18)",
+  ":active": {
+    transform: "translateY(-1px) scale(0.95)",
+  },
 });
 
 export const storePillCheck = style({
