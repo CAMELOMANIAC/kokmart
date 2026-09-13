@@ -63,12 +63,15 @@ export const collapsedCtaWrapper = style({
 export const fullscreenCtaWrapper = style({
   position: "fixed",
   bottom: "calc(92px + env(safe-area-inset-bottom, 0px))",
-  left: "50%",
-  transform: "translateX(-50%)",
+  left: 0,
+  right: 0,
+  margin: "0 auto",
+  width: "100%",
+  maxWidth: "480px",
   zIndex: 90,
   display: "flex",
   alignItems: "center",
   justifyContent: "center",
   boxSizing: "border-box",
-  pointerEvents: "auto",
+  pointerEvents: "none",
 });

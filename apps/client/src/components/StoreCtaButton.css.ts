@@ -17,6 +17,7 @@ export const ctaButton = style({
   cursor: "pointer",
   userSelect: "none",
   boxSizing: "border-box",
+  pointerEvents: "auto",
   ":hover": {
     backgroundColor: vars.colors.primaryHover,
   },
