@@ -34,7 +34,7 @@ export const storePill = style({
   border: "1px solid #E5E7EB",
   boxShadow: "0 2px 6px rgba(0, 0, 0, 0.04)",
   cursor: "pointer",
-  transition: "all 0.2s cubic-bezier(0.4, 0, 0.2, 1)",
+  transition: "background-color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease",
   boxSizing: "border-box",
 });
 

@@ -48,6 +48,8 @@ export const pillViewWrapper = style({
   flexDirection: "column",
   width: "100%",
   paddingBottom: "env(safe-area-inset-bottom, 0px)",
+  willChange: "transform",
+  transform: "translateZ(0)",
 });
 
 // 축소 상태 바텀시트 내부 인라인 CTA 래퍼 (가운데 정렬, 알약과의 적정 여백 확보)

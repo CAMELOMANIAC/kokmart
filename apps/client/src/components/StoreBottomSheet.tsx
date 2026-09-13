@@ -17,6 +17,8 @@ import {
   StoreSearchFilterHeader,
   type CategoryFilter,
   SHEET_SPRING,
+  FILTER_TRANSITION,
+  FILTER_PANEL_HEIGHT,
 } from './bottomsheet/StoreSearchFilterHeader';
 import { ALL_FILTER_BRANDS } from './bottomsheet/storeBadgeUtils';
 import { StorePillList } from './bottomsheet/StorePillList';
@@ -137,9 +139,8 @@ export const StoreBottomSheet: React.FC<StoreBottomSheetProps> = ({
   const insets = useSafeAreaInsets();
   const hasSelected = selectedStores.length > 0;
   const baseVisibleHeight = 268;
-  const [filterPanelMeasuredHeight, setFilterPanelMeasuredHeight] = useState(94);
   // 필터 패널이 열리면 시트가 아래로 밀리지 않고 실측된 패널 높이만큼 위로 슥 확장되도록 높이에 가산
-  const filterPanelHeight = isFilterOpen ? filterPanelMeasuredHeight : 0;
+  const filterPanelHeight = isFilterOpen ? FILTER_PANEL_HEIGHT : 0;
   const defaultVisibleHeight =
     Math.min(
       (hasSelected ? baseVisibleHeight + 56 : baseVisibleHeight) + filterPanelHeight,
@@ -150,11 +151,26 @@ export const StoreBottomSheet: React.FC<StoreBottomSheetProps> = ({
   const [currentMode, setCurrentMode] = useState<SnapMode>('default');
   const isFullscreen = currentMode === 'fullscreen';
 
+  const handleToggleFilter = () => {
+    const nextOpen = !isFilterOpen;
+    setIsFilterOpen(nextOpen);
+    if (currentMode === 'default') {
+      const nextFilterHeight = nextOpen ? FILTER_PANEL_HEIGHT : 0;
+      const nextVisibleHeight =
+        Math.min(
+          (hasSelected ? baseVisibleHeight + 56 : baseVisibleHeight) + nextFilterHeight,
+          windowH * 0.7
+        ) + insets.bottom;
+      const nextOffset = windowH - nextVisibleHeight;
+      animate(y, nextOffset, FILTER_TRANSITION);
+    }
+  };
+
   useEffect(() => {
     if (currentMode === 'default') {
-      animate(y, defaultOffset, SHEET_SPRING);
+      animate(y, defaultOffset, FILTER_TRANSITION);
     }
-  }, [defaultOffset, currentMode, y]);
+  }, [hasSelected, currentMode, defaultOffset, y]);
 
   useEffect(() => {
     const onResize = () => setWindowH(window.innerHeight);
@@ -199,7 +215,7 @@ export const StoreBottomSheet: React.FC<StoreBottomSheetProps> = ({
         className={sheetContainer}
         style={{ y }}
         drag="y"
-        dragConstraints={{ top: 0, bottom: defaultOffset }}
+        dragConstraints={{ top: 0, bottom: Math.max(defaultOffset, windowH - baseVisibleHeight) }}
         dragElastic={0.08}
         onDragEnd={handleDragEnd}
       >
@@ -223,8 +239,7 @@ export const StoreBottomSheet: React.FC<StoreBottomSheetProps> = ({
           onKeyDown={handleKeyDown}
           onFocus={() => snapTo('fullscreen')}
           isFilterOpen={isFilterOpen}
-          onToggleFilter={() => setIsFilterOpen(!isFilterOpen)}
-          onHeightChange={setFilterPanelMeasuredHeight}
+          onToggleFilter={handleToggleFilter}
           isAnyFilterActive={isAnyFilterActive}
           selectedCategory={selectedCategory}
           onSelectCategory={setSelectedCategory}
