@@ -95,8 +95,9 @@ app.post('/api/flyers/parse', upload.single('flyer'), async (req: Request, res: 
     };
 
     res.json(response);
-  } catch (err: any) {
-    res.status(500).json({ success: false, error: err.message || 'Parsing failed' });
+  } catch (err: unknown) {
+    const errorMessage = err instanceof Error ? err.message : 'Parsing failed';
+    res.status(500).json({ success: false, error: errorMessage });
   }
 });
 

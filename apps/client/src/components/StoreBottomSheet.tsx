@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
-import { motion, useMotionValue, animate, AnimatePresence } from 'framer-motion';
+import { motion, useMotionValue, animate, AnimatePresence, type PanInfo } from 'framer-motion';
 import type { MartStore, MartBrand } from '@kokmart/shared';
 import { useUIStore } from '../store/useUIStore';
 import { useSelectedStoreStore } from '../store/useSelectedStoreStore';
@@ -179,7 +179,7 @@ export const StoreBottomSheet: React.FC<StoreBottomSheetProps> = ({
     });
   };
 
-  const handleDragEnd = (_: any, info: any) => {
+  const handleDragEnd = (_: unknown, info: PanInfo) => {
     const currentY = y.get();
     const velocityY = info.velocity.y;
 
