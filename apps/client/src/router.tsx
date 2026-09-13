@@ -28,20 +28,14 @@ const RootComponent: React.FC = () => {
   // 1. 라우트별 상태표시줄 & html/body 배경색 동적 동기화
   React.useEffect(() => {
     const metaThemeColor = document.querySelector('meta[name="theme-color"]');
-
-    if (isMapTab) {
-      // 지도 탭: html·body 모두 투명하게 → 카카오 지도가 safe area까지 비치도록
-      // #FFFFFF(불투명 흰색)이면 safe area가 흰색으로 막혀 지도가 가려짐
-      document.documentElement.style.backgroundColor = 'transparent';
-      document.body.style.backgroundColor = 'transparent';
-      if (metaThemeColor) metaThemeColor.setAttribute('content', 'transparent');
-    } else {
-      // 다른 탭: 시스템 테마 배경색 복원
-      document.documentElement.style.backgroundColor = '#F9FAFB';
-      document.body.style.backgroundColor = '#F9FAFB';
-      if (metaThemeColor) metaThemeColor.setAttribute('content', '#FFFFFF');
-    }
-  }, [isMapTab]);
+    // apple-mobile-web-app-status-bar-style: default 기준
+    // 지도 탭: 흰색 — paddingTop(safe area) 영역이 흰색으로 채워져 상태바와 자연스럽게 연결
+    // 다른 탭: 흰색 — 동일하게 흰색 상태바
+    const bgColor = '#FFFFFF';
+    document.documentElement.style.backgroundColor = bgColor;
+    document.body.style.backgroundColor = bgColor;
+    if (metaThemeColor) metaThemeColor.setAttribute('content', bgColor);
+  }, []);
 
   // 2. 모바일 풀투리프레시(새로고침) 제스처 및 단축키 새로고침 전면 차단
   React.useEffect(() => {

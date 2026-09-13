@@ -122,7 +122,10 @@ export const mapContainerStyle = style({
   width: '100%',
   maxWidth: '480px',
   overflow: 'hidden',
-  backgroundColor: 'transparent',
+  // default 상태바 스타일 + viewport-fit=cover 사용 시 상단 안전영역 확보
+  // paddingTop만큼 지도가 상태바 아래부터 시작하고, 그 위는 배경색(흰색)으로 채워짐
+  paddingTop: 'env(safe-area-inset-top, 0px)',
+  backgroundColor: '#FFFFFF',
   boxShadow: '0 0 40px rgba(0, 0, 0, 0.08)'
 });
 
