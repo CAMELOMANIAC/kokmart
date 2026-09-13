@@ -4,7 +4,8 @@ import { vars } from '../styles/theme.css';
 // 1. 콕홈 전용: 우측 나침반(내 위치) 버튼 공간(68px)을 제외한 절대 위치 플로팅 바
 export const topBarHome = style({
   position: 'absolute',
-  top: 'calc(16px + env(safe-area-inset-top, 0px))',
+  top: '16px',
+  marginTop: 'env(safe-area-inset-top, 0px)',
   left: '16px',
   right: '68px',
   minHeight: '44px',

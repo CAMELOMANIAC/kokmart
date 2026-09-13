@@ -107,9 +107,6 @@ export const containerStyle = style({
   flexDirection: 'column',
   boxShadow: '0 0 40px rgba(0, 0, 0, 0.08)',
   position: 'relative',
-  // 비-지도 탭(띵/띱/뿜): 상단 안전영역(상태바 높이)만큼 패딩 확보
-  // → 콘텐츠가 상태바 아래부터 시작, FloatingTopBar의 top: calc(16px + env(...))와 정합
-  paddingTop: 'env(safe-area-inset-top, 0px)',
   paddingBottom: '100px'
 });
 
