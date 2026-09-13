@@ -92,9 +92,10 @@ jobs:
         working-directory: apps/client
         env:
           NDK_HOME: ${{ env.ANDROID_NDK_HOME }}
+          VITE_KAKAO_MAP_API_KEY: ${{ secrets.VITE_KAKAO_MAP_API_KEY }}
         run: |
           if [ "${{ github.event.inputs.build_type }}" = "release" ]; then
-            pnpm tauri android build --apk
+            pnpm tauri android build --apk --split-per-abi
           else
             pnpm tauri android build --debug --apk
           fi
@@ -160,6 +161,8 @@ jobs:
 
       - name: Build iOS App
         working-directory: apps/client
+        env:
+          VITE_KAKAO_MAP_API_KEY: ${{ secrets.VITE_KAKAO_MAP_API_KEY }}
         run: |
           if [ "${{ github.event.inputs.build_type }}" = "release" ]; then
             pnpm tauri ios build --no-sign
