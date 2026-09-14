@@ -16,20 +16,29 @@ interface StoreCtaButtonProps {
   onClick: () => void;
 }
 
-export const StoreCtaButton: React.FC<StoreCtaButtonProps> = ({
-  selectedStores,
-  onClick,
-}) => {
+export const getCtaButtonInfo = (selectedStores: MartStore[]): { text: string; count: number } | null => {
   if (selectedStores.length === 0) return null;
 
   const count = selectedStores.length;
   const firstStore = selectedStores[0];
   const firstName = firstStore?.displayName || firstStore?.name || '마트';
 
-  const ctaText =
+  const text =
     count === 1
       ? `${firstName} 전단 보기`
       : `${firstName} 외 ${count - 1}곳 전단 비교하기`;
+
+  return { text, count };
+};
+
+export const StoreCtaButton: React.FC<StoreCtaButtonProps> = ({
+  selectedStores,
+  onClick,
+}) => {
+  const ctaInfo = getCtaButtonInfo(selectedStores);
+  if (!ctaInfo) return null;
+
+  const { text: ctaText, count } = ctaInfo;
 
   return (
     <motion.button
