@@ -35,7 +35,7 @@ jobs:
       - name: Check commit count in PR (Loop Guard)
         id: loop_guard
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.PERSONAL_GITHUB_TOKEN }}
         run: |
           COMMIT_COUNT=$(gh pr view ${{ github.event.pull_request.number }} --json commits -q '.commits | length')
           echo "Current commits in PR: $COMMIT_COUNT"
@@ -55,7 +55,7 @@ jobs:
       - name: Report Success
         if: steps.test_run.outputs.exit_code == 0
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.PERSONAL_GITHUB_TOKEN }}
         run: |
           gh pr comment ${{ github.event.pull_request.number }} \
             --body "🎉 **Vitest 테스트 통과 완료!** 모든 테스트 케이스가 성공적으로 실행되었습니다. 리뷰 후 머지해 주세요."
@@ -63,7 +63,7 @@ jobs:
       - name: Comment Failure for Jules
         if: steps.test_run.outputs.exit_code != 0 && steps.loop_guard.outputs.exceeded == 'false'
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.PERSONAL_GITHUB_TOKEN }}
         run: |
           ERROR_LOG=$(tail -n 40 test_output.log)
           gh pr comment ${{ github.event.pull_request.number }} \
@@ -78,7 +78,7 @@ jobs:
       - name: Alert Human on Loop Exceeded
         if: steps.test_run.outputs.exit_code != 0 && steps.loop_guard.outputs.exceeded == 'true'
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.PERSONAL_GITHUB_TOKEN }}
         run: |
           gh pr comment ${{ github.event.pull_request.number }} \
             --body "🚨 **자동 수정 횟수 초과 (Human Review 필요)**
