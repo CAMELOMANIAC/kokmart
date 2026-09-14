@@ -1,6 +1,7 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import request from 'supertest';
 import app from './index.js';
+import * as geminiService from '../src/services/geminiService.js';
 
 describe('Server API Endpoints', () => {
   it('GET /api/health - 서버 상태가 정상적으로 반환되어야 한다', async () => {
@@ -57,5 +58,31 @@ describe('Server API Endpoints', () => {
     expect(res.body.success).toBe(true);
     expect(res.body.gridCount).toBe(4); // default 2x2 grid
     expect(Array.isArray(res.body.products)).toBe(true);
+  });
+
+  it('POST /api/flyers/parse - 이미지 파싱 중 에러 발생 시 500 에러 응답을 반환해야 한다', async () => {
+    const cropSpy = vi.spyOn(geminiService, 'cropFlyerGrid').mockRejectedValueOnce(new Error('Image processing error'));
+
+    const { default: sharp } = await import('sharp');
+    const imageBuffer = await sharp({
+      create: {
+        width: 100,
+        height: 100,
+        channels: 3,
+        background: { r: 0, g: 0, b: 255 }
+      }
+    })
+      .jpeg()
+      .toBuffer();
+
+    const res = await request(app)
+      .post('/api/flyers/parse')
+      .attach('flyer', imageBuffer, { filename: 'invalid.jpg', contentType: 'image/jpeg' });
+
+    expect(res.status).toBe(500);
+    expect(res.body.success).toBe(false);
+    expect(res.body.error).toBe('Image processing error');
+
+    cropSpy.mockRestore();
   });
 });

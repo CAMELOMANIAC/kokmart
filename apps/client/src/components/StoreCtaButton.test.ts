@@ -1,0 +1,73 @@
+import { describe, it, expect, vi } from 'vitest';
+
+vi.mock('./StoreCtaButton.css', () => ({
+  ctaButton: 'ctaButton',
+  ctaContentLeft: 'ctaContentLeft',
+  ctaIcon: 'ctaIcon',
+  ctaTextWrapper: 'ctaTextWrapper',
+  ctaAnimatedContent: 'ctaAnimatedContent',
+  ctaBadgeCount: 'ctaBadgeCount',
+}));
+
+import { getCtaButtonInfo } from './StoreCtaButton';
+import type { MartStore } from '@kokmart/shared';
+
+const mockStoreA: MartStore = {
+  id: 'store-1',
+  name: '이마트 역삼점',
+  displayName: '이마트 역삼점',
+  brand: '이마트',
+  storeType: 'hypermarket',
+  lat: 37.499,
+  lng: 127.047,
+  address: '서울시 강남구',
+  phone: '02-1234-5678',
+  businessHours: '10:00 - 23:00',
+  isHolidayToday: false,
+  activeDealCount: 15,
+};
+
+const mockStoreB: MartStore = {
+  id: 'store-2',
+  name: '홈플러스 강서점',
+  displayName: '홈플러스 강서점',
+  brand: '홈플러스',
+  storeType: 'hypermarket',
+  lat: 37.558,
+  lng: 126.861,
+  address: '서울시 강서구',
+  phone: '02-8765-4321',
+  businessHours: '10:00 - 24:00',
+  isHolidayToday: false,
+  activeDealCount: 8,
+};
+
+describe('StoreCtaButton - CTA Button Helper Test', () => {
+  it('선택된 마트가 없을 때 null을 반환해야 한다', () => {
+    const info = getCtaButtonInfo([]);
+    expect(info).toBeNull();
+  });
+
+  it('1개의 마트가 선택되었을 때 단일 마트 전단 보기 문구를 반환해야 한다', () => {
+    const info = getCtaButtonInfo([mockStoreA]);
+    expect(info).not.toBeNull();
+    expect(info?.count).toBe(1);
+    expect(info?.text).toBe('이마트 역삼점 전단 보기');
+  });
+
+  it('2개 이상의 마트가 선택되었을 때 전단 비교하기 문구와 선택 개수를 반환해야 한다', () => {
+    const info = getCtaButtonInfo([mockStoreA, mockStoreB]);
+    expect(info).not.toBeNull();
+    expect(info?.count).toBe(2);
+    expect(info?.text).toBe('이마트 역삼점 외 1곳 전단 비교하기');
+  });
+
+  it('displayName이 없을 경우 name 필드를 폴백으로 사용해야 한다', () => {
+    const storeWithoutDisplayName: MartStore = {
+      ...mockStoreA,
+      displayName: undefined,
+    };
+    const info = getCtaButtonInfo([storeWithoutDisplayName]);
+    expect(info?.text).toBe('이마트 역삼점 전단 보기');
+  });
+});
