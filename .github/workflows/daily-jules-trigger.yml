@@ -22,7 +22,7 @@ jobs:
       - name: Check for existing active Jules tasks
         id: active_check
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.PERSONAL_GITHUB_TOKEN }}
         run: |
           OPEN_ISSUE=$(gh issue list --label "jules" --state open --limit 1 --json number -q '.[0].number')
           if [ -n "$OPEN_ISSUE" ]; then
