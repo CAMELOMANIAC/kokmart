@@ -4,5 +4,3 @@
 **/*.spec.tsx
 .env*
 **/.env*
-!.env.example
-!**/.env.example

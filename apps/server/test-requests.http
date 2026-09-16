@@ -1,0 +1,49 @@
+### 0. 서버 헬스체크
+GET http://localhost:4000/api/health
+
+###
+
+### 1. 사용자가 특정 마트(이마트/홈플러스/롯데마트) 전단 정보 요청 (1순위 공식 소스)
+GET http://localhost:4000/api/flyers/source?martId=store-emart-yeoksam
+
+###
+
+### 2 & 3. Supabase 이미지 URL을 백엔드로 직접 전달하여 Gemini Bounding Box 검출
+POST http://localhost:4000/api/flyers/detect-boxes
+Content-Type: application/json
+
+{
+  "imageUrl": "https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&w=1200&q=80",
+  "martName": "이마트"
+}
+
+###
+
+### 4. [웹워커 시뮬레이션] Bounding Box 좌표 목록에 여백(Padding)을 주고 크롭 시뮬레이션
+POST http://localhost:4000/api/flyers/simulate-worker-crop
+Content-Type: application/json
+
+{
+  "imageUrl": "https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&w=1200&q=80",
+  "paddingPercent": 5,
+  "boxes": [
+    { "id": "box-1", "ymin": 100, "xmin": 50, "ymax": 450, "xmax": 480, "labelHint": "한돈 삼겹살" },
+    { "id": "box-2", "ymin": 100, "xmin": 520, "ymax": 450, "xmax": 950, "labelHint": "다우니 섬유유연제" }
+  ]
+}
+
+###
+
+### 5. 웹워커에서 크롭된 상품 이미지(Base64 또는 Blob)를 Vercel 백엔드로 넘겨 Gemini JSON 파싱
+POST http://localhost:4000/api/flyers/parse-product
+Content-Type: application/json
+
+{
+  "martName": "이마트",
+  "imageBase64": "data:image/jpeg;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=="
+}
+
+###
+
+### 6. 기존 마트 3사 최저가 비교 조회 API
+GET http://localhost:4000/api/products/compare
