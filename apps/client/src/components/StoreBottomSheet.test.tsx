@@ -22,6 +22,39 @@ import { useSelectedStoreStore } from '../store/useSelectedStoreStore';
 import type { MartStore } from '@kokmart/shared';
 
 // Mock CSS files
+vi.mock('../styles/theme.css', () => ({
+  vars: {
+    colors: {},
+    space: {},
+    radii: {},
+  },
+  containerStyle: 'containerStyle',
+  mapContainerStyle: 'mapContainerStyle',
+  mainContent: 'mainContent',
+  mainContentMap: 'mainContentMap',
+}));
+
+vi.mock('./FloatingTopBar.css', () => ({
+  topBarHome: 'topBarHome',
+  topBarFull: 'topBarFull',
+  topBarExpanded: 'topBarExpanded',
+  topBarHeaderRow: 'topBarHeaderRow',
+  topBarHeaderRowExpanded: 'topBarHeaderRowExpanded',
+  brandTitleHome: 'brandTitleHome',
+  pageTitle: 'pageTitle',
+  locationTag: 'locationTag',
+  chipsWrapper: 'chipsWrapper',
+  selectedChipsScroll: 'selectedChipsScroll',
+  topBarPill: 'topBarPill',
+  removePillButton: 'removePillButton',
+  expandToggleButton: 'expandToggleButton',
+  expandToggleButtonActive: 'expandToggleButtonActive',
+  expandedHeaderActions: 'expandedHeaderActions',
+  storeCountBadge: 'storeCountBadge',
+  clearAllButton: 'clearAllButton',
+  expandedChipsGrid: 'expandedChipsGrid',
+}));
+
 vi.mock('./StoreBottomSheet.css', () => ({
   sheetContainer: 'sheetContainer',
   dragHandleArea: 'dragHandleArea',
