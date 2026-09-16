@@ -2,7 +2,7 @@
  * @vitest-environment happy-dom
  */
 import React from 'react';
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 
 if (typeof Element !== 'undefined' && Element.prototype.animate) {
