@@ -34,34 +34,34 @@ jobs:
           fi
 
       # 2. 최근 24시간 동안 실제 소스코드(src/)에 대한 사람의 커밋만 확인
-      - name: Check human commits since yesterday 03:00 KST
+      - name: Check human commits in the last 24 hours
         id: commit_check
         if: steps.active_check.outputs.has_active_issue == 'false'
         run: |
-          # 1. 한국 시간(KST) 기준 정확히 24시간 전 시점 추출
+          # 1. 한국 시간 기준 정확히 24시간 전 타임스탬프 계산
           export TZ="Asia/Seoul"
           SINCE_DATE=$(date -d "24 hours ago" "+%Y-%m-%dT%H:%M:%S+09:00" 2>/dev/null || date -v-24H "+%Y-%m-%dT%H:%M:%S+09:00")
           echo "기준 시점 (이 시각 이후 커밋 검사): $SINCE_DATE"
 
-          # 2. 커밋 로그 추출 (봇 커밋 및 GitHub 자동 머지 제외)
-          COMMITS=$(git log --since="$SINCE_DATE" --no-merges \
-            --format="%h - %an (%cn): %s" \
-            -- "apps/*/src/**" "packages/*/src/**" ":!**/*.test.*" ":!**/*.spec.*" \
-            | grep -v -E "\[bot\]|jules|github-actions|GitHub" || true)
-
-          # 3. 실제 변경 파일 목록 추출
+          # 2. 실제 변경된 소스코드 파일 경로만 추출 (src/ 외 워크플로우 YAML, 마크다운 등 원천 배제)
           CHANGED_FILES=$(git log --since="$SINCE_DATE" --no-merges --name-only --pretty="" \
             -- "apps/*/src/**" "packages/*/src/**" ":!**/*.test.*" ":!**/*.spec.*" \
             | sort -u | grep -v '^$' || true)
 
-          # 공백 제거 후 빈 값 검증
-          CLEAN_COMMITS=$(echo "$COMMITS" | tr -d '[:space:]')
+          # 3. 공백/개행을 모두 제거한 순수 텍스트 추출 (빈 줄 통과 버그 완벽 방지)
           CLEAN_FILES=$(echo "$CHANGED_FILES" | tr -d '[:space:]')
 
-          if [ -z "$CLEAN_COMMITS" ] || [ -z "$CLEAN_FILES" ]; then
+          # 4. 판정 기준: src/ 파일 목록이 비어있으면 워크플로우/문서 수정이 있어도 무조건 건너뜀
+          if [ -z "$CLEAN_FILES" ]; then
             echo "has_commits=false" >> $GITHUB_OUTPUT
-            echo "새벽 3시 기준 신규 유효 커밋이 없습니다. 이슈 생성을 건너뜁니다."
+            echo "테스트 대상 경로(apps/*/src, packages/*/src)에 변경된 소스코드가 없습니다. 이슈 생성을 건너뜁니다."
           else
+            # 5. 소스코드 변경이 확실할 때만 커밋 로그 요약 추출
+            COMMITS=$(git log --since="$SINCE_DATE" --no-merges \
+              --format="%h - %an (%cn): %s" \
+              -- "apps/*/src/**" "packages/*/src/**" ":!**/*.test.*" ":!**/*.spec.*" \
+              | grep -v -E "\[bot\]|jules|github-actions|GitHub" || true)
+
             echo "has_commits=true" >> $GITHUB_OUTPUT
             echo "$COMMITS" > recent_commits.txt
             echo "$CHANGED_FILES" > changed_files.txt
