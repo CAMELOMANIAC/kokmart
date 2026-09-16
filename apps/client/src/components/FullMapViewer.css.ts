@@ -163,7 +163,7 @@ export const recenterContainer = style({
   display: 'flex',
   flexDirection: 'column',
   gap: '8px',
-  zIndex: 30
+  zIndex: 70
 });
 
 export const recenterButton = style({

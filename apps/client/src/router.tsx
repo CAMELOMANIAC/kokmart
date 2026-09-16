@@ -40,8 +40,8 @@ const RootComponent: React.FC = () => {
         metaThemeColor.remove();
       }
     } else {
-      // 다른 탭 (전단 띵, 찜한 띱, 커뮤니티 뿜): 흰색 테마 복원
-      const bgColor = '#FFFFFF';
+      // 다른 탭 (전단 띵, 찜한 띱, 커뮤니티 뿜): bgLight 테마 복원
+      const bgColor = '#F3F4F6';
       document.documentElement.style.backgroundColor = bgColor;
       document.body.style.backgroundColor = bgColor;
 

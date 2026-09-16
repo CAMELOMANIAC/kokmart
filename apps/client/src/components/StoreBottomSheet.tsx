@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useMemo } from 'react';
+import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import { motion, useMotionValue, animate, AnimatePresence, useDragControls, type PanInfo } from 'framer-motion';
 import type { MartStore, MartBrand } from '@kokmart/shared';
 import { useUIStore } from '../store/useUIStore';
@@ -12,6 +12,7 @@ import {
   collapsedCtaWrapper,
   fullscreenCtaWrapper,
 } from './StoreBottomSheet.css';
+import { topBarHome } from './FloatingTopBar.css';
 import { StoreCtaButton } from './StoreCtaButton';
 import {
   StoreSearchFilterHeader,
@@ -152,6 +153,16 @@ export const StoreBottomSheet: React.FC<StoreBottomSheetProps> = ({
   const [currentMode, setCurrentMode] = useState<SnapMode>('default');
   const isFullscreen = currentMode === 'fullscreen';
 
+  // 상단 검색바(FloatingTopBar)의 하단 위치를 정밀 계산하여, 바텀시트가 완전히 끝까지 올라가지 않고 검색바 바로 아래까지만 올라오도록 제한
+  const getFullscreenOffset = useCallback(() => {
+    const topBarEl = document.querySelector(`.${topBarHome}`);
+    if (topBarEl) {
+      const rect = topBarEl.getBoundingClientRect();
+      return Math.round(rect.bottom + 8);
+    }
+    return insets.top + 68;
+  }, [insets.top]);
+
   const handleToggleFilter = () => {
     const nextOpen = !isFilterOpen;
     setIsFilterOpen(nextOpen);
@@ -168,10 +179,13 @@ export const StoreBottomSheet: React.FC<StoreBottomSheetProps> = ({
   };
 
   useEffect(() => {
-    if (currentMode === 'default') {
+    if (currentMode === 'fullscreen') {
+      const targetY = getFullscreenOffset();
+      animate(y, targetY, SHEET_SPRING);
+    } else if (currentMode === 'default') {
       animate(y, defaultOffset, FILTER_TRANSITION);
     }
-  }, [hasSelected, currentMode, defaultOffset, y]);
+  }, [hasSelected, currentMode, defaultOffset, y, getFullscreenOffset]);
 
   useEffect(() => {
     const onResize = () => setWindowH(window.innerHeight);
@@ -183,7 +197,8 @@ export const StoreBottomSheet: React.FC<StoreBottomSheetProps> = ({
   }, [setBottomSheetFullscreen]);
 
   const snapTo = (mode: SnapMode) => {
-    const targetY = mode === 'fullscreen' ? 0 : defaultOffset;
+    const fullscreenOffset = getFullscreenOffset();
+    const targetY = mode === 'fullscreen' ? fullscreenOffset : defaultOffset;
     setCurrentMode(mode);
     setBottomSheetFullscreen(mode === 'fullscreen');
 
@@ -193,6 +208,8 @@ export const StoreBottomSheet: React.FC<StoreBottomSheetProps> = ({
   const handleDragEnd = (_: unknown, info: PanInfo) => {
     const currentY = y.get();
     const velocityY = info.velocity.y;
+    const fullscreenOffset = getFullscreenOffset();
+    const snapThreshold = (fullscreenOffset + defaultOffset) / 2;
 
     if (velocityY < -300) {
       snapTo('fullscreen');
@@ -202,7 +219,7 @@ export const StoreBottomSheet: React.FC<StoreBottomSheetProps> = ({
       return;
     }
 
-    if (currentY < defaultOffset / 2) {
+    if (currentY < snapThreshold) {
       snapTo('fullscreen');
     } else {
       snapTo('default');
@@ -218,7 +235,7 @@ export const StoreBottomSheet: React.FC<StoreBottomSheetProps> = ({
         drag="y"
         dragControls={dragControls}
         dragListener={false}
-        dragConstraints={{ top: 0, bottom: Math.max(defaultOffset, windowH - baseVisibleHeight) }}
+        dragConstraints={{ top: getFullscreenOffset(), bottom: Math.max(defaultOffset, windowH - baseVisibleHeight) }}
         dragElastic={0.08}
         onDragEnd={handleDragEnd}
       >
@@ -228,7 +245,9 @@ export const StoreBottomSheet: React.FC<StoreBottomSheetProps> = ({
           onPointerDown={(e) => dragControls.start(e)}
           onClick={() => {
             const currentY = y.get();
-            snapTo(currentY > defaultOffset / 2 ? 'fullscreen' : 'default');
+            const fullscreenOffset = getFullscreenOffset();
+            const snapThreshold = (fullscreenOffset + defaultOffset) / 2;
+            snapTo(currentY > snapThreshold ? 'fullscreen' : 'default');
           }}
         >
           <div className={dragHandleBar} />

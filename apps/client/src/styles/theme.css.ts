@@ -107,6 +107,8 @@ export const containerStyle = style({
   flexDirection: 'column',
   boxShadow: '0 0 40px rgba(0, 0, 0, 0.08)',
   position: 'relative',
+  // 비-지도 탭(띵/띱/뿜): 상단 안전영역(상태바/노치 높이)만큼 별도 패딩 확보
+  paddingTop: 'env(safe-area-inset-top, 0px)',
   paddingBottom: '100px'
 });
 

@@ -19,7 +19,7 @@ export const topBarHome = style({
   borderRadius: '24px',
   border: '1px solid rgba(255, 255, 255, 0.8)',
   boxShadow: '0 8px 24px rgba(0, 0, 0, 0.08)',
-  zIndex: 30,
+  zIndex: 70,
   boxSizing: 'border-box',
   transition: 'border-radius 0.2s ease, box-shadow 0.2s ease, padding 0.2s ease'
 });
