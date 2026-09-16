@@ -33,26 +33,34 @@ jobs:
             echo "진행 중인 열린 Jules 이슈가 없습니다. 커밋 검사를 진행합니다."
           fi
 
-      # 2. 최근 24시간 동안 실제 소스코드(src/)에 대한 사람의 커밋만 확인 (봇 및 설정 파일 제외)
-      # 2. 최근 24시간 동안 변경된 실제 소스 파일 목록 추출 (테스트 파일 제외)
-      - name: Check human commits in the last 24 hours
+      # 2. 최근 24시간 동안 실제 소스코드(src/)에 대한 사람의 커밋만 확인
+      - name: Check human commits since yesterday 03:00 KST
         id: commit_check
         if: steps.active_check.outputs.has_active_issue == 'false'
         run: |
-          # 1) 커밋 로그 요약 추출
-          COMMITS=$(git log --since="24 hours ago" --no-merges \
-            --format="%h - %an: %s" \
-            -- "apps/*/src/**" "packages/*/src/**" ":!**/*.test.*" ":!**/*.spec.*" \
-            | grep -v -E "\[bot\]|jules|github-actions" || true)
+          # 1. 한국 시간(KST) 기준 정확히 24시간 전 시점 추출
+          export TZ="Asia/Seoul"
+          SINCE_DATE=$(date -d "24 hours ago" "+%Y-%m-%dT%H:%M:%S+09:00" 2>/dev/null || date -v-24H "+%Y-%m-%dT%H:%M:%S+09:00")
+          echo "기준 시점 (이 시각 이후 커밋 검사): $SINCE_DATE"
 
-          # 2) 실제 수정/추가된 구체적인 파일 경로 추출
-          CHANGED_FILES=$(git log --since="24 hours ago" --no-merges --name-only --pretty="" \
+          # 2. 커밋 로그 추출 (봇 커밋 및 GitHub 자동 머지 제외)
+          COMMITS=$(git log --since="$SINCE_DATE" --no-merges \
+            --format="%h - %an (%cn): %s" \
+            -- "apps/*/src/**" "packages/*/src/**" ":!**/*.test.*" ":!**/*.spec.*" \
+            | grep -v -E "\[bot\]|jules|github-actions|GitHub" || true)
+
+          # 3. 실제 변경 파일 목록 추출
+          CHANGED_FILES=$(git log --since="$SINCE_DATE" --no-merges --name-only --pretty="" \
             -- "apps/*/src/**" "packages/*/src/**" ":!**/*.test.*" ":!**/*.spec.*" \
             | sort -u | grep -v '^$' || true)
 
-          if [ -z "$COMMITS" ] \vert{}\vert{} [ -z "$CHANGED_FILES" ]; then
+          # 공백 제거 후 빈 값 검증
+          CLEAN_COMMITS=$(echo "$COMMITS" | tr -d '[:space:]')
+          CLEAN_FILES=$(echo "$CHANGED_FILES" | tr -d '[:space:]')
+
+          if [ -z "$CLEAN_COMMITS" ] || [ -z "$CLEAN_FILES" ]; then
             echo "has_commits=false" >> $GITHUB_OUTPUT
-            echo "최근 24시간 동안 테스트가 필요한 새로운 소스코드 변경이 없습니다."
+            echo "새벽 3시 기준 신규 유효 커밋이 없습니다. 이슈 생성을 건너뜁니다."
           else
             echo "has_commits=true" >> $GITHUB_OUTPUT
             echo "$COMMITS" > recent_commits.txt
