@@ -25,13 +25,14 @@ export interface FlyerSourceInfo {
 
 export interface ParsedProduct {
   id?: string;
+  pageIndex?: number;
   productName: string;
   salePrice: number;
   effectiveUnitPrice: number;
   unitMeasure: string;
   isPerishable: boolean;
-  martName?: '이마트' | '홈플러스' | '롯데마트';
-  smartTip: SmartTip;
+  martName?: '이마트' | '홈플러스' | '롯데마트' | string;
+  smartTip?: SmartTip;
 }
 
 export interface DetectBoxesResponse {

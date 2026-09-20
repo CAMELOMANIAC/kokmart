@@ -1,9 +1,14 @@
 import { GoogleGenAI, Type } from '@google/genai';
 import sharp from 'sharp';
-import { ParsedProduct } from '@kokmart/shared';
+import { ParsedProduct, parseFlyerTsv } from '@kokmart/shared';
 
-const apiKey = process.env.GEMINI_API_KEY || '';
-const ai = new GoogleGenAI({ apiKey });
+function getAiClient(): GoogleGenAI {
+  const apiKey = process.env.GEMINI_API_KEY || '';
+  if (!apiKey) {
+    throw new Error('GEMINI_API_KEY가 환경 변수에 설정되어 있지 않습니다.');
+  }
+  return new GoogleGenAI({ apiKey });
+}
 
 /**
  * 대형 전단지 이미지를 4~6분할 타일 그리드로 크롭
@@ -40,9 +45,7 @@ export async function cropFlyerGrid(imageBuffer: Buffer, gridCols = 2, gridRows 
  * Gemini 1.5 Flash Vision API를 사용하여 전단 조각 파싱 및 3대 팁 분류
  */
 export async function parseTileWithGemini(tileBuffer: Buffer): Promise<ParsedProduct[]> {
-  if (!apiKey) {
-    throw new Error('GEMINI_API_KEY가 환경 변수에 설정되어 있지 않습니다.');
-  }
+  const ai = getAiClient();
 
   if (!tileBuffer || tileBuffer.length === 0) {
     throw new Error('파싱할 타일 이미지 버퍼가 비어 있습니다.');
@@ -112,9 +115,7 @@ export async function detectBoundingBoxesWithGemini(
   imageBuffer: Buffer,
   martName = '마트'
 ): Promise<Array<{ id: string; ymin: number; xmin: number; ymax: number; xmax: number; labelHint: string }>> {
-  if (!apiKey) {
-    throw new Error('GEMINI_API_KEY가 환경 변수에 설정되어 있지 않습니다.');
-  }
+  const ai = getAiClient();
 
   if (!imageBuffer || imageBuffer.length === 0) {
     throw new Error('Bounding Box를 검출할 전단 이미지 데이터가 없습니다.');
@@ -191,9 +192,7 @@ export async function parseSingleCroppedProductWithGemini(
   croppedBuffer: Buffer,
   martName = '이마트'
 ): Promise<ParsedProduct> {
-  if (!apiKey) {
-    throw new Error('GEMINI_API_KEY가 환경 변수에 설정되어 있지 않습니다.');
-  }
+  const ai = getAiClient();
 
   if (!croppedBuffer || croppedBuffer.length === 0) {
     throw new Error('파싱할 크롭 상품 이미지 버퍼가 비어 있습니다.');
@@ -259,3 +258,144 @@ export async function parseSingleCroppedProductWithGemini(
     throw new Error(`Gemini 크롭 상품 파싱 실패: ${errorMsg}`);
   }
 }
+
+/**
+ * 주간 마스터 전단 이미지 묶음(최대 4~5장)을 고해상도 그대로 Gemini 3.5 Flash-Lite에 전달하여 TSV 포맷으로 일괄 파싱
+ */
+export async function parseMasterFlyerWithGemini(
+  pageBuffers: Buffer[],
+  martName = '대형마트'
+): Promise<ParsedProduct[]> {
+  if (!pageBuffers || pageBuffers.length === 0) {
+    throw new Error('파싱할 전단지 이미지 목록이 비어 있습니다.');
+  }
+
+  for (let i = 0; i < pageBuffers.length; i++) {
+    const buf = pageBuffers[i];
+    if (!buf || buf.length === 0) {
+      throw new Error(`페이지 ${i + 1}의 이미지 버퍼가 비어 있습니다.`);
+    }
+  }
+
+  const ai = getAiClient();
+  const model = process.env.GEMINI_VISION_MODEL || 'gemini-3.5-flash-lite';
+
+  // 각 페이지 이미지를 base64 inlineData 파트로 구성
+  const imageParts = pageBuffers.map((buffer) => ({
+    inlineData: {
+      mimeType: 'image/jpeg',
+      data: buffer.toString('base64'),
+    },
+  }));
+
+  const prompt = `
+당신은 대한민국 대형마트(${martName}) 전단지 데이터 분석 전문가입니다.
+제공된 ${pageBuffers.length}장의 전단지 이미지에 있는 모든 행사 상품을 추출하십시오.
+각 이미지는 순서대로 1페이지, 2페이지, ..., ${pageBuffers.length}페이지에 해당합니다.
+
+출력은 토큰 절약과 백엔드 파싱을 위해 반드시 아래 TSV(Tab-Separated Values) 형식으로만 출력하십시오.
+마크다운 코드블록이나 불필요한 설명 없이 탭으로 구분된 텍스트만 출력하십시오.
+
+[출력 TSV 헤더 형식]
+페이지번호\t상품명\t할인가\t단위당가격\t단위\t신선식품여부(Y/N)
+
+[작성 규칙]
+1. 페이지번호: 이미지가 속한 페이지 번호 (1부터 시작하는 정수).
+2. 상품명: 전단지에 표기된 구체적인 브랜드 및 상품명(용량/수량 포함).
+3. 할인가: 실제 소비자가 구매하는 행사가격 (숫자만 입력, 쉼표나 '원' 제외).
+4. 단위당가격: 100g, 100ml 또는 1개당 단가 (전단지에 표기된 단가, 숫자만 입력). 표기가 없으면 할인가와 동일하게 입력.
+5. 단위: 단가의 기준 단위 (예: 100g, 100ml, 1개, 1봉, 1박스).
+6. 신선식품여부: 정육, 수산, 채소, 과일, 계란 등 신선식품은 Y, 공산품/생필품/가공식품은 N.
+`;
+
+  try {
+    const response = await ai.models.generateContent({
+      model,
+      contents: [...imageParts, { text: prompt }],
+      config: {
+        maxOutputTokens: 8192,
+        temperature: 0.1,
+      },
+    });
+
+    const responseText = response.text || '';
+    const parsedProducts = parseFlyerTsv(responseText, 1);
+
+    return parsedProducts.map((p, index) => ({
+      ...p,
+      id: `master-p${p.pageIndex || 1}-${Date.now()}-${index}`,
+      martName: (martName === '이마트' || martName === '홈플러스' || martName === '롯데마트') ? martName : undefined,
+    }));
+  } catch (error: unknown) {
+    const errorMsg = error instanceof Error ? error.message : String(error);
+    throw new Error(`Gemini 마스터 전단 파싱 실패: ${errorMsg}`);
+  }
+}
+
+/**
+ * 변동이 감지된 특정 전단 단일 페이지만 Gemini 3.5 Flash-Lite로 통째로 재파싱 (Page-level Replacement)
+ */
+export async function parseSinglePageWithGemini(
+  pageBuffer: Buffer,
+  pageIndex = 1,
+  martName = '대형마트'
+): Promise<ParsedProduct[]> {
+  if (!pageBuffer || pageBuffer.length === 0) {
+    throw new Error('파싱할 페이지 이미지 데이터가 비어 있습니다.');
+  }
+
+  const ai = getAiClient();
+  const model = process.env.GEMINI_VISION_MODEL || 'gemini-3.5-flash-lite';
+  const base64Image = pageBuffer.toString('base64');
+
+  const prompt = `
+당신은 대한민국 대형마트(${martName}) 전단지 데이터 분석 전문가입니다.
+제공된 전단지 이미지(페이지 ${pageIndex}) 내의 모든 행사 상품을 추출하십시오.
+
+출력은 반드시 아래 TSV(Tab-Separated Values) 형식으로만 출력하십시오.
+마크다운 코드블록이나 불필요한 설명 없이 순수 TSV 텍스트만 출력하십시오.
+
+[출력 TSV 헤더 형식]
+페이지번호\t상품명\t할인가\t단위당가격\t단위\t신선식품여부(Y/N)
+
+[작성 규칙]
+1. 페이지번호: ${pageIndex}
+2. 상품명: 구체적인 상품명 및 규격
+3. 할인가: 숫자만 입력
+4. 단위당가격: 100g/100ml/개당 단가 (숫자만)
+5. 단위: 기준 단위 (100g, 100ml, 개 등)
+6. 신선식품여부: 신선식품(정육/수산/채소/과일/계란)은 Y, 그 외 가공/공산품은 N
+`;
+
+  try {
+    const response = await ai.models.generateContent({
+      model,
+      contents: [
+        {
+          inlineData: {
+            mimeType: 'image/jpeg',
+            data: base64Image,
+          },
+        },
+        { text: prompt },
+      ],
+      config: {
+        maxOutputTokens: 8192,
+        temperature: 0.1,
+      },
+    });
+
+    const responseText = response.text || '';
+    const parsedProducts = parseFlyerTsv(responseText, pageIndex);
+
+    return parsedProducts.map((p, index) => ({
+      ...p,
+      id: `page${pageIndex}-${Date.now()}-${index}`,
+      martName: (martName === '이마트' || martName === '홈플러스' || martName === '롯데마트') ? martName : undefined,
+    }));
+  } catch (error: unknown) {
+    const errorMsg = error instanceof Error ? error.message : String(error);
+    throw new Error(`Gemini 단일 페이지 재파싱 실패: ${errorMsg}`);
+  }
+}
+

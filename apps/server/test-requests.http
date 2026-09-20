@@ -47,3 +47,58 @@ Content-Type: application/json
 
 ### 6. 기존 마트 3사 최저가 비교 조회 API
 GET http://localhost:4000/api/products/compare
+
+###
+
+### 7. [신규] 마스터 전단 1차 파싱 (Gemini 3.5 Flash-Lite TSV + Gemma 4 26B Grounding 팁)
+POST http://localhost:4000/api/flyers/parse-master
+Content-Type: application/json
+
+{
+  "martName": "이마트",
+  "imageUrls": [
+    "https://lottemartgo-prod-bucket.s3.ap-northeast-2.amazonaws.com/leaflet/1789456778396.jpg",
+    "https://lottemartgo-prod-bucket.s3.ap-northeast-2.amazonaws.com/leaflet/1789456778402.jpg",
+    "https://lottemartgo-prod-bucket.s3.ap-northeast-2.amazonaws.com/leaflet/1789456778411.jpg",
+    "https://lottemartgo-prod-bucket.s3.ap-northeast-2.amazonaws.com/leaflet/1789456778417.jpg"
+  ]
+}
+
+###
+
+### 8. [신규] 지점 전단 페이지 차분 & 동기화 (Page-Diff & Single-Page Replacement)
+POST http://localhost:4000/api/flyers/sync-branch
+Content-Type: application/json
+
+{
+  "martName": "이마트",
+  "branchName": "이마트 청주점",
+  "masterProducts": [
+    {
+      "id": "prod-1",
+      "pageIndex": 1,
+      "productName": "국내산 삼겹살 100g",
+      "salePrice": 1980,
+      "effectiveUnitPrice": 1980,
+      "unitMeasure": "100g",
+      "isPerishable": true
+    },
+    {
+      "id": "prod-2",
+      "pageIndex": 2,
+      "productName": "다우니 섬유유연제 1L",
+      "salePrice": 7900,
+      "effectiveUnitPrice": 790,
+      "unitMeasure": "100ml",
+      "isPerishable": false
+    }
+  ],
+  "masterPageUrls": [
+    "https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&w=1200&q=80",
+    "https://images.unsplash.com/photo-1578916171728-46686eac8d58?auto=format&fit=crop&w=1200&q=80"
+  ],
+  "branchPageUrls": [
+    "https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&w=1200&q=80",
+    "https://images.unsplash.com/photo-1578916171728-46686eac8d58?auto=format&fit=crop&w=1200&q=80"
+  ]
+}

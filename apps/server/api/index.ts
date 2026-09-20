@@ -1,3 +1,13 @@
+import dotenv from 'dotenv';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+dotenv.config({ path: path.resolve(__dirname, '../.env') });
+dotenv.config({ path: path.resolve(process.cwd(), 'apps/server/.env') });
+dotenv.config();
+
 import express, { Request, Response } from 'express';
 import cors from 'cors';
 import multer from 'multer';
@@ -6,8 +16,12 @@ import {
   cropFlyerGrid,
   parseTileWithGemini,
   detectBoundingBoxesWithGemini,
-  parseSingleCroppedProductWithGemini
+  parseSingleCroppedProductWithGemini,
+  parseMasterFlyerWithGemini,
+  parseSinglePageWithGemini
 } from '../src/services/geminiService.js';
+import { compareFlyerPages } from '../src/services/pageDiffService.js';
+import { generateSmartTipsWithGemma } from '../src/services/gemmaTipService.js';
 import { getLatestFlyerSource } from '../src/services/flyerSourceService.js';
 import { cropBoundingBoxesWithPadding } from '../src/services/cropSimulationService.js';
 import {
@@ -243,6 +257,159 @@ app.post('/api/flyers/parse', upload.single('flyer'), async (req: Request, res: 
     res.json(response);
   } catch (err: unknown) {
     const errorMessage = err instanceof Error ? err.message : 'Parsing failed';
+    res.status(500).json({ success: false, error: errorMessage });
+  }
+});
+
+/**
+ * Helper: 이미지 URL로부터 Buffer를 안전하게 다운로드
+ */
+async function fetchImageBuffer(url: string): Promise<Buffer> {
+  const res = await fetch(url);
+  if (!res.ok) {
+    throw new Error(`이미지 다운로드 실패 (${url}): ${res.statusText}`);
+  }
+  const arrayBuffer = await res.arrayBuffer();
+  return Buffer.from(arrayBuffer);
+}
+
+/**
+ * 5. 마스터 전단 1차 파싱 엔드포인트
+ * POST /api/flyers/parse-master
+ * Body (JSON): { imageUrls?: string[], martName?: string }
+ * or Multipart: pages (File[], 최대 5장)
+ */
+app.post('/api/flyers/parse-master', upload.array('pages', 5), async (req: Request, res: Response) => {
+  try {
+    const martName = (req.body?.martName as string) || '이마트';
+    const imageUrls = req.body?.imageUrls as string[] | undefined;
+
+    let pageBuffers: Buffer[] = [];
+
+    const files = req.files as Express.Multer.File[] | undefined;
+    if (files && files.length > 0) {
+      pageBuffers = files.map(file => file.buffer);
+    } else if (imageUrls && Array.isArray(imageUrls) && imageUrls.length > 0) {
+      pageBuffers = await Promise.all(imageUrls.map(url => fetchImageBuffer(url)));
+    }
+
+    if (pageBuffers.length === 0) {
+      res.status(400).json({
+        success: false,
+        error: '전단지 이미지 파일(pages) 또는 imageUrls 목록을 제공해야 합니다.'
+      });
+      return;
+    }
+
+    // 1단계: Gemini 3.5 Flash-Lite 고속 비전 TSV 파싱
+    const rawProducts = await parseMasterFlyerWithGemini(pageBuffers, martName);
+
+    // 2단계: Gemma 4 26B + Google Search Grounding 스마트 팁 생성
+    const productsWithTips = await generateSmartTipsWithGemma(rawProducts);
+
+    res.json({
+      success: true,
+      martName,
+      totalPages: pageBuffers.length,
+      totalProducts: productsWithTips.length,
+      products: productsWithTips,
+      parsedAt: new Date().toISOString()
+    });
+  } catch (err: unknown) {
+    const errorMessage = err instanceof Error ? err.message : '마스터 전단 파싱 실패';
+    res.status(500).json({ success: false, error: errorMessage });
+  }
+});
+
+/**
+ * 6. 지점 전단 페이지 차분 & 동기화 엔드포인트 (Page-Diff & Single-Page Replacement)
+ * POST /api/flyers/sync-branch
+ * Body (JSON): {
+ *   martName?: string,
+ *   branchName: string,
+ *   masterProducts: ParsedProduct[],
+ *   masterPageUrls: string[],
+ *   branchPageUrls: string[]
+ * }
+ */
+app.post('/api/flyers/sync-branch', async (req: Request, res: Response) => {
+  try {
+    const martName = (req.body?.martName as string) || '이마트';
+    const branchName = (req.body?.branchName as string) || '지점';
+    const masterProducts = (req.body?.masterProducts as ParsedProduct[]) || [];
+    const masterPageUrls = (req.body?.masterPageUrls as string[]) || [];
+    const branchPageUrls = (req.body?.branchPageUrls as string[]) || [];
+
+    if (masterPageUrls.length === 0 || branchPageUrls.length === 0) {
+      res.status(400).json({
+        success: false,
+        error: 'masterPageUrls 및 branchPageUrls가 필요합니다.'
+      });
+      return;
+    }
+
+    const totalPages = Math.min(masterPageUrls.length, branchPageUrls.length);
+    const identicalPages: number[] = [];
+    const replacedPages: number[] = [];
+    const finalProductsByPage = new Map<number, ParsedProduct[]>();
+
+    // 기존 마스터 상품들을 페이지별로 분류
+    for (let p = 1; p <= totalPages; p++) {
+      finalProductsByPage.set(
+        p,
+        masterProducts.filter(item => (item.pageIndex || 1) === p)
+      );
+    }
+
+    // 페이지별 1:1 차분 비교 및 변동 페이지 통교체
+    for (let p = 1; p <= totalPages; p++) {
+      const masterUrl = masterPageUrls[p - 1];
+      const branchUrl = branchPageUrls[p - 1];
+
+      if (!masterUrl || !branchUrl) continue;
+
+      const [masterBuffer, branchBuffer] = await Promise.all([
+        fetchImageBuffer(masterUrl),
+        fetchImageBuffer(branchUrl)
+      ]);
+
+      const diffResult = await compareFlyerPages(masterBuffer, branchBuffer);
+
+      if (diffResult.isIdentical) {
+        // 일치도 99% 이상: 마스터 DB 상품 유지 (Gemini 호출 0회)
+        identicalPages.push(p);
+      } else {
+        // 변동 감지: 해당 페이지만 통째로 재파싱 (유령 상품 0%)
+        replacedPages.push(p);
+
+        const newPageProducts = await parseSinglePageWithGemini(branchBuffer, p, martName);
+        const newProductsWithTips = await generateSmartTipsWithGemma(newPageProducts);
+
+        // 해당 페이지 전체 교체
+        finalProductsByPage.set(p, newProductsWithTips);
+      }
+    }
+
+    // 최종 상품 목록 병합
+    const allFinalProducts: ParsedProduct[] = [];
+    for (let p = 1; p <= totalPages; p++) {
+      const pageItems = finalProductsByPage.get(p) || [];
+      allFinalProducts.push(...pageItems);
+    }
+
+    res.json({
+      success: true,
+      martName,
+      branchName,
+      totalPages,
+      identicalPages,
+      replacedPages,
+      totalProducts: allFinalProducts.length,
+      products: allFinalProducts,
+      syncedAt: new Date().toISOString()
+    });
+  } catch (err: unknown) {
+    const errorMessage = err instanceof Error ? err.message : '지점 전단 동기화 실패';
     res.status(500).json({ success: false, error: errorMessage });
   }
 });

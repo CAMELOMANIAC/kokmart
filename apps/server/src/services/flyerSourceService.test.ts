@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { getLatestFlyerSource } from './flyerSourceService';
+import { getLatestFlyerSource } from './flyerSourceService.js';
 
 describe('flyerSourceService', () => {
   beforeEach(() => {

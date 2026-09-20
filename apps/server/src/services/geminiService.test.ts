@@ -10,7 +10,9 @@ import {
   parseTileWithGemini,
   detectBoundingBoxesWithGemini,
   parseSingleCroppedProductWithGemini,
-} from './geminiService';
+  parseMasterFlyerWithGemini,
+  parseSinglePageWithGemini,
+} from './geminiService.js';
 
 describe('geminiService', () => {
   const createTestImage = async (width = 400, height = 400): Promise<Buffer> => {
@@ -56,6 +58,18 @@ describe('geminiService', () => {
 
       await expect(parseSingleCroppedProductWithGemini(emptyBuffer)).rejects.toThrow(
         '파싱할 크롭 상품 이미지 버퍼가 비어 있습니다.'
+      );
+
+      await expect(parseMasterFlyerWithGemini([])).rejects.toThrow(
+        '파싱할 전단지 이미지 목록이 비어 있습니다.'
+      );
+
+      await expect(parseMasterFlyerWithGemini([emptyBuffer])).rejects.toThrow(
+        '페이지 1의 이미지 버퍼가 비어 있습니다.'
+      );
+
+      await expect(parseSinglePageWithGemini(emptyBuffer, 1)).rejects.toThrow(
+        '파싱할 페이지 이미지 데이터가 비어 있습니다.'
       );
     });
   });

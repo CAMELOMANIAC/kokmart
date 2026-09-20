@@ -1,4 +1,4 @@
-export type TipType = 'MART_RECOMMEND' | 'MART_BEST' | 'COUPANG_BULK';
+export type TipType = 'MART_RECOMMEND' | 'MART_BEST' | 'COUPANG_BULK' | 'COUPANG_TIP';
 
 export interface SmartTip {
   tipType: TipType;

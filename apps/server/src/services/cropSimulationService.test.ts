@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import sharp from 'sharp';
-import { cropBoundingBoxesWithPadding } from './cropSimulationService';
+import { cropBoundingBoxesWithPadding } from './cropSimulationService.js';
 import type { BoundingBox } from '@kokmart/shared';
 
 describe('cropSimulationService', () => {
