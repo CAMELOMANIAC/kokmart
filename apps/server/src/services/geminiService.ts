@@ -280,6 +280,8 @@ export async function parseMasterFlyerWithGemini(
   const ai = getAiClient();
   const model = process.env.GEMINI_VISION_MODEL || 'gemini-3.5-flash-lite';
 
+  console.log(`[Gemini Vision] Calling model '${model}' with ${pageBuffers.length} flyer images...`);
+
   // 각 페이지 이미지를 base64 inlineData 파트로 구성
   const imageParts = pageBuffers.map((buffer) => ({
     inlineData: {
@@ -319,7 +321,9 @@ export async function parseMasterFlyerWithGemini(
     });
 
     const responseText = response.text || '';
+    console.log(`[Gemini Vision] Response received (${responseText.length} chars). Parsing TSV...`);
     const parsedProducts = parseFlyerTsv(responseText, 1);
+    console.log(`[Gemini Vision] Successfully extracted ${parsedProducts.length} products.`);
 
     return parsedProducts.map((p, index) => ({
       ...p,
@@ -328,6 +332,7 @@ export async function parseMasterFlyerWithGemini(
     }));
   } catch (error: unknown) {
     const errorMsg = error instanceof Error ? error.message : String(error);
+    console.error(`[Gemini Vision Error]:`, errorMsg);
     throw new Error(`Gemini 마스터 전단 파싱 실패: ${errorMsg}`);
   }
 }

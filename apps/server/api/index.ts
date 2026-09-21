@@ -195,42 +195,9 @@ app.post('/api/flyers/parse-product', upload.single('croppedProduct'), async (re
   }
 });
 
-// 기존 호환성 유지: 마트 3사 최저가 비교 큐레이션 API
+// 기존 엔드포인트 호환: 마트 상품 비교 API (모킹 데이터 제거됨)
 app.get('/api/products/compare', (req: Request, res: Response) => {
-  const mockProducts: ParsedProduct[] = [
-    {
-      id: 'prod-1',
-      productName: '국내산 냉장 삼겹살 100g',
-      salePrice: 1980,
-      effectiveUnitPrice: 1980,
-      unitMeasure: '100g',
-      isPerishable: true,
-      martName: '이마트',
-      smartTip: {
-        tipType: 'MART_BEST',
-        badgeText: '마트 최저가',
-        tipMessage: '신선식품은 오늘 저녁 집 앞 마트에서 바로 특가 구매하세요!',
-        coupangKeyword: null
-      }
-    },
-    {
-      id: 'prod-2',
-      productName: '샤인머스캣 1.5kg (box)',
-      salePrice: 12900,
-      effectiveUnitPrice: 860,
-      unitMeasure: '100g',
-      isPerishable: true,
-      martName: '롯데마트',
-      smartTip: {
-        tipType: 'MART_RECOMMEND',
-        badgeText: '신선 강추',
-        tipMessage: '당도 보장 1인 가구 소량 구매 추천!',
-        coupangKeyword: null
-      }
-    }
-  ];
-
-  res.json({ success: true, count: mockProducts.length, products: mockProducts });
+  res.json({ success: true, count: 0, products: [] });
 });
 
 // 기존 호환성 유지: 타일 그리드 방식 파싱 엔드포인트

@@ -55,29 +55,37 @@ export function generateDefaultTip(product: ParsedProduct): SmartTip {
  */
 export async function generateSmartTipsWithGemma(
   products: ParsedProduct[],
-  batchSize = 15
+  batchSize = 28,
+  concurrency = 2
 ): Promise<ParsedProduct[]> {
   if (!products || products.length === 0) {
     return [];
   }
 
   const apiKey = process.env.GEMINI_API_KEY || '';
-
-  // API 키가 없거나 테스트 환경인 경우 기본 룰 팁 적용
   if (!apiKey) {
-    return products.map((p) => ({
-      ...p,
-      smartTip: p.smartTip || generateDefaultTip(p),
-    }));
+    throw new Error('GEMINI_API_KEY가 환경 변수에 설정되어 있지 않습니다.');
   }
 
   const ai = new GoogleGenAI({ apiKey });
-  const model = process.env.GEMMA_MODEL || 'gemma-4-26b';
+  let model = process.env.GEMMA_MODEL || 'gemma-4-26b-a4b-it';
+  if (model === 'gemma-4-26b') {
+    model = 'gemma-4-26b-a4b-it';
+  }
   const updatedProducts: ParsedProduct[] = [...products];
 
-  // 배치 단위 분할 처리 (Rate Limit 및 컨텍스트 길이 최적화)
+  // 1. 청크 분할 (권장 batchSize: 25~30개)
+  const chunks: ParsedProduct[][] = [];
   for (let i = 0; i < products.length; i += batchSize) {
-    const chunk = products.slice(i, i + batchSize);
+    chunks.push(products.slice(i, i + batchSize));
+  }
+
+  // 2. 단일 청크 처리 서브루틴
+  async function processChunk(
+    chunk: ParsedProduct[],
+    chunkNum: number,
+    totalChunks: number
+  ): Promise<Map<string, SmartTip>> {
     const simplifiedList = chunk.map((p) => ({
       id: p.id,
       productName: p.productName,
@@ -87,6 +95,10 @@ export async function generateSmartTipsWithGemma(
       isPerishable: p.isPerishable,
       martName: p.martName || '마트',
     }));
+
+    console.log(
+      `[Smart Tips Grounding] Calling '${model}' for chunk ${chunkNum}/${totalChunks} (${chunk.length} products)...`
+    );
 
     const prompt = `
 당신은 대한민국 대형마트와 쿠팡/온라인 쇼핑몰 가격을 실시간으로 비교하여 소비자에게 최적의 구매처를 알려주는 스마트 장보기 전문 AI입니다.
@@ -144,29 +156,53 @@ ${JSON.stringify(simplifiedList, null, 2)}
       const rawText = stripMarkdownFences(response.text || '[]');
       const parsedTips = JSON.parse(rawText) as TipResponseItem[];
 
-      const tipMap = new Map<string, SmartTip>();
-      for (const item of parsedTips) {
-        if (item.id && item.smartTip?.tipType) {
-          tipMap.set(item.id, item.smartTip);
+      const chunkTipMap = new Map<string, SmartTip>();
+      for (let idx = 0; idx < parsedTips.length; idx++) {
+        const item = parsedTips[idx];
+        const targetProduct = chunk[idx];
+        if (item && item.smartTip?.tipType) {
+          if (item.id) {
+            chunkTipMap.set(item.id, item.smartTip);
+          }
+          if (targetProduct && targetProduct.id && !chunkTipMap.has(targetProduct.id)) {
+            chunkTipMap.set(targetProduct.id, item.smartTip);
+          }
         }
       }
 
-      for (let j = i; j < i + chunk.length; j++) {
-        const prod = updatedProducts[j];
-        if (prod && prod.id && tipMap.has(prod.id)) {
-          prod.smartTip = tipMap.get(prod.id);
-        } else if (prod && !prod.smartTip) {
-          prod.smartTip = generateDefaultTip(prod);
-        }
+      console.log(`[Smart Tips Grounding] Chunk ${chunkNum}/${totalChunks} finished (${chunkTipMap.size} tips).`);
+      return chunkTipMap;
+    } catch (error: unknown) {
+      const errorMsg = error instanceof Error ? error.message : String(error);
+      console.error(`[Smart Tips Grounding Error] Chunk ${chunkNum}/${totalChunks}:`, errorMsg);
+      throw new Error(`Gemma 스마트 팁 생성 실패 (청크 ${chunkNum}/${totalChunks}): ${errorMsg}`);
+    }
+  }
+
+  // 3. Concurrency 단위 병렬 처리 (기본 동시 2개 청크 실행)
+  const tipMap = new Map<string, SmartTip>();
+  for (let i = 0; i < chunks.length; i += concurrency) {
+    const activeChunks = chunks.slice(i, i + concurrency);
+    const results = await Promise.all(
+      activeChunks.map((chunk, idx) => {
+        const chunkNum = i + idx + 1;
+        return processChunk(chunk, chunkNum, chunks.length);
+      })
+    );
+
+    for (const chunkResult of results) {
+      for (const [id, tip] of chunkResult.entries()) {
+        tipMap.set(id, tip);
       }
-    } catch {
-      // 오류 발생 시 해당 청크는 기본 룰 기반 팁으로 안전하게 폴백
-      for (let j = i; j < i + chunk.length; j++) {
-        const prod = updatedProducts[j];
-        if (prod && !prod.smartTip) {
-          prod.smartTip = generateDefaultTip(prod);
-        }
-      }
+    }
+  }
+
+  // 4. 상품 객체에 최종 생성된 스마트 팁 주입
+  for (const prod of updatedProducts) {
+    if (prod.id && tipMap.has(prod.id)) {
+      prod.smartTip = tipMap.get(prod.id);
+    } else {
+      throw new Error(`상품 '${prod.productName}'에 대한 실시간 스마트 팁 분석 응답이 누락되었습니다.`);
     }
   }
 
