@@ -19,7 +19,7 @@ describe('parseFlyerTsv', () => {
       salePrice: 1980,
       effectiveUnitPrice: 1980,
       unitMeasure: '100g',
-      isPerishable: true
+      isPerishable: true,
     });
     expect(products[1]).toEqual({
       pageIndex: 1,
@@ -27,7 +27,7 @@ describe('parseFlyerTsv', () => {
       salePrice: 7900,
       effectiveUnitPrice: 790,
       unitMeasure: '100ml',
-      isPerishable: false
+      isPerishable: false,
     });
     expect(products[2]).toEqual({
       pageIndex: 2,
@@ -35,7 +35,7 @@ describe('parseFlyerTsv', () => {
       salePrice: 12900,
       effectiveUnitPrice: 860,
       unitMeasure: '100g',
-      isPerishable: true
+      isPerishable: true,
     });
   });
 
@@ -54,6 +54,44 @@ describe('parseFlyerTsv', () => {
     expect(products[1]?.pageIndex).toBe(3);
     expect(products[1]?.productName).toBe('신라면 5개입');
     expect(products[1]?.isPerishable).toBe(false);
+  });
+
+  it('should parse number correctly removing commas and currency text', () => {
+    const rawTsv = `1\t포도 1kg\t15,000 원\t1,500 원\t100g\tY`;
+    const products = parseFlyerTsv(rawTsv);
+
+    expect(products[0]?.salePrice).toBe(15000);
+    expect(products[0]?.effectiveUnitPrice).toBe(1500);
+  });
+
+  it('should fallback effectiveUnitPrice to salePrice when effectiveUnitPrice is 0', () => {
+    const rawTsv = `1\t사과 1봉\t9,900\t0\t1봉\tY`;
+    const products = parseFlyerTsv(rawTsv);
+
+    expect(products[0]?.salePrice).toBe(9900);
+    expect(products[0]?.effectiveUnitPrice).toBe(9900);
+  });
+
+  it('should parse various perishable boolean representations correctly', () => {
+    const rawTsv = `
+1\t상품A\t1000\t1000\t개\ty
+1\t상품B\t1000\t1000\t개\tyes
+1\t상품C\t1000\t1000\t개\ttrue
+1\t상품D\t1000\t1000\t개\t1
+1\t상품E\t1000\t1000\t개\t예
+1\t상품F\t1000\t1000\t개\t신선
+1\t상품G\t1000\t1000\t개\tn
+`;
+    const products = parseFlyerTsv(rawTsv);
+
+    expect(products).toHaveLength(7);
+    expect(products[0]?.isPerishable).toBe(true);
+    expect(products[1]?.isPerishable).toBe(true);
+    expect(products[2]?.isPerishable).toBe(true);
+    expect(products[3]?.isPerishable).toBe(true);
+    expect(products[4]?.isPerishable).toBe(true);
+    expect(products[5]?.isPerishable).toBe(true);
+    expect(products[6]?.isPerishable).toBe(false);
   });
 
   it('should handle empty or whitespace-only input gracefully', () => {
