@@ -25,6 +25,9 @@
 ---
 
 ## 🏗️ 핵심 아키텍처 요약
+- **2-Tier 실행 아키텍처 (Vercel 타임아웃 완전 회피)**:
+  - **주간 공통 전단 배치 (GitHub Actions)**: 매주 목요일 새벽 GitHub Actions 워크플로가 마트 3사 공통 마스터 전단을 일괄 파싱하여 Supabase DB에 캐싱 (실행 시간 6시간 지원으로 Vercel 서버리스 60초 타임아웃 완전 회피).
+  - **지점 전단 실시간 차분 (Vercel Serverless)**: 클라이언트에서 특정 지점 요청 시 `sharp` 픽셀 차분(`compareFlyerPages`)으로 변동 페이지만 Vercel에서 즉시 단일 페이지 재파싱 (단일 페이지는 ~15개 상품이므로 Vercel 60초 제한 이내 완료).
 - **전단 비전 파싱**: Gemini 3.5 Flash-Lite (TSV 포맷으로 출력 토큰 60% 절감)
 - **페이지 차분 & 통교체**: `sharp` 기반 페이지 1:1 픽셀 차분 (`compareFlyerPages`) $\rightarrow$ 변동 페이지만 단일 통재파싱 (`parseSinglePageWithGemini`, 유령 상품 0%)
 - **스마트 팁 큐레이션**: Gemma 4 26B API + 구글 서치 그라운딩 (`generateSmartTipsWithGemma`)
