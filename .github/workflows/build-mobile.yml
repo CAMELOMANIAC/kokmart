@@ -1,6 +1,9 @@
 name: Build Mobile Apps (Android & iOS)
 
 on:
+  push:
+    tags:
+      - 'v*'
   workflow_dispatch:
     inputs:
       build_type:
@@ -94,7 +97,13 @@ jobs:
           NDK_HOME: ${{ env.ANDROID_NDK_HOME }}
           VITE_KAKAO_MAP_API_KEY: ${{ secrets.VITE_KAKAO_MAP_API_KEY }}
         run: |
-          if [ "${{ github.event.inputs.build_type }}" = "release" ]; then
+          BUILD_TYPE="${{ github.event.inputs.build_type }}"
+          if [ "${{ github.event_name }}" = "push" ] || [ -z "$BUILD_TYPE" ]; then
+            BUILD_TYPE="release"
+          fi
+          echo "Building Android with mode: $BUILD_TYPE"
+
+          if [ "$BUILD_TYPE" = "release" ]; then
             pnpm tauri android build --apk --split-per-abi
           else
             pnpm tauri android build --debug --apk
@@ -164,7 +173,13 @@ jobs:
         env:
           VITE_KAKAO_MAP_API_KEY: ${{ secrets.VITE_KAKAO_MAP_API_KEY }}
         run: |
-          if [ "${{ github.event.inputs.build_type }}" = "release" ]; then
+          BUILD_TYPE="${{ github.event.inputs.build_type }}"
+          if [ "${{ github.event_name }}" = "push" ] || [ -z "$BUILD_TYPE" ]; then
+            BUILD_TYPE="release"
+          fi
+          echo "Building iOS with mode: $BUILD_TYPE"
+
+          if [ "$BUILD_TYPE" = "release" ]; then
             pnpm tauri ios build --no-sign
           else
             pnpm tauri ios build --debug --no-sign
