@@ -279,8 +279,9 @@ export async function parseMasterFlyerWithGemini(
 
   const ai = getAiClient();
   const model = process.env.GEMINI_VISION_MODEL || 'gemini-3.5-flash-lite';
+  const startTime = Date.now();
 
-  console.log(`[Gemini Vision] Calling model '${model}' with ${pageBuffers.length} flyer images...`);
+  console.log(`[Gemini Vision] 🚀 Calling model '${model}' with ${pageBuffers.length} flyer images...`);
 
   // 각 페이지 이미지를 base64 inlineData 파트로 구성
   const imageParts = pageBuffers.map((buffer) => ({
@@ -308,6 +309,7 @@ export async function parseMasterFlyerWithGemini(
 4. 단위당가격: 100g, 100ml 또는 1개당 단가 (전단지에 표기된 단가, 숫자만 입력). 표기가 없으면 할인가와 동일하게 입력.
 5. 단위: 단가의 기준 단위 (예: 100g, 100ml, 1개, 1봉, 1박스).
 6. 신선식품여부: 정육, 수산, 채소, 과일, 계란 등 신선식품은 Y, 공산품/생필품/가공식품은 N.
+7. 전수 추출 필수: 메인 대표 상품뿐만 아니라 하단, 측면, 작은 박스에 표기된 소형 상품(채소, 양념, 가공식품, 생필품 등)까지 단 1개도 누락하지 말고 100% 빠짐없이 전수 추출하십시오. 중간에 임의로 생략하거나 요약하지 마십시오.
 `;
 
   try {
@@ -316,14 +318,16 @@ export async function parseMasterFlyerWithGemini(
       contents: [...imageParts, { text: prompt }],
       config: {
         maxOutputTokens: 8192,
-        temperature: 0.1,
+        temperature: 0.0,
       },
     });
 
     const responseText = response.text || '';
-    console.log(`[Gemini Vision] Response received (${responseText.length} chars). Parsing TSV...`);
     const parsedProducts = parseFlyerTsv(responseText, 1);
-    console.log(`[Gemini Vision] Successfully extracted ${parsedProducts.length} products.`);
+    const elapsedSec = ((Date.now() - startTime) / 1000).toFixed(2);
+    console.log(
+      `[Gemini Vision] ⏱️ Completed in ${elapsedSec}s (extracted ${parsedProducts.length} products, ${responseText.length} chars).`
+    );
 
     return parsedProducts.map((p, index) => ({
       ...p,
@@ -332,7 +336,8 @@ export async function parseMasterFlyerWithGemini(
     }));
   } catch (error: unknown) {
     const errorMsg = error instanceof Error ? error.message : String(error);
-    console.error(`[Gemini Vision Error]:`, errorMsg);
+    const elapsedSec = ((Date.now() - startTime) / 1000).toFixed(2);
+    console.error(`[Gemini Vision Error] Failed after ${elapsedSec}s:`, errorMsg);
     throw new Error(`Gemini 마스터 전단 파싱 실패: ${errorMsg}`);
   }
 }

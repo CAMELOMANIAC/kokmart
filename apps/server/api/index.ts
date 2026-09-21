@@ -268,11 +268,26 @@ app.post('/api/flyers/parse-master', upload.array('pages', 5), async (req: Reque
       return;
     }
 
+    const requestStartTime = Date.now();
+    console.log(`\n======================================================`);
+    console.log(`[API /api/flyers/parse-master] 📥 Processing '${martName}' (${pageBuffers.length} flyer page images)...`);
+
     // 1단계: Gemini 3.5 Flash-Lite 고속 비전 TSV 파싱
+    const geminiStartTime = Date.now();
     const rawProducts = await parseMasterFlyerWithGemini(pageBuffers, martName);
+    const geminiDuration = ((Date.now() - geminiStartTime) / 1000).toFixed(2);
 
     // 2단계: Gemma 4 26B + Google Search Grounding 스마트 팁 생성
+    const gemmaStartTime = Date.now();
     const productsWithTips = await generateSmartTipsWithGemma(rawProducts);
+    const gemmaDuration = ((Date.now() - gemmaStartTime) / 1000).toFixed(2);
+
+    const totalDuration = ((Date.now() - requestStartTime) / 1000).toFixed(2);
+    console.log(`[API /api/flyers/parse-master] 📊 Summary Report:`);
+    console.log(`  - 1단계 Gemini Vision OCR : ${geminiDuration}s (${rawProducts.length}개 상품 추출)`);
+    console.log(`  - 2단계 Gemma 팁 그라운딩  : ${gemmaDuration}s (${productsWithTips.length}개 팁 생성)`);
+    console.log(`  - 🏁 전체 총 소요 시간     : ${totalDuration}s`);
+    console.log(`======================================================\n`);
 
     res.json({
       success: true,
@@ -284,6 +299,7 @@ app.post('/api/flyers/parse-master', upload.array('pages', 5), async (req: Reque
     });
   } catch (err: unknown) {
     const errorMessage = err instanceof Error ? err.message : '마스터 전단 파싱 실패';
+    console.error(`[API /api/flyers/parse-master] ❌ Error:`, errorMessage);
     res.status(500).json({ success: false, error: errorMessage });
   }
 });

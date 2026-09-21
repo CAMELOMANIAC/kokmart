@@ -56,7 +56,7 @@ export function generateDefaultTip(product: ParsedProduct): SmartTip {
 export async function generateSmartTipsWithGemma(
   products: ParsedProduct[],
   batchSize = 28,
-  concurrency = 2
+  concurrency = 4
 ): Promise<ParsedProduct[]> {
   if (!products || products.length === 0) {
     return [];
@@ -80,12 +80,18 @@ export async function generateSmartTipsWithGemma(
     chunks.push(products.slice(i, i + batchSize));
   }
 
+  const gemmaStartTime = Date.now();
+  console.log(
+    `[Smart Tips Grounding] 🚀 Starting smart tip generation for ${products.length} products (${chunks.length} chunks, batchSize: ${batchSize}, concurrency: ${concurrency})...`
+  );
+
   // 2. 단일 청크 처리 서브루틴
   async function processChunk(
     chunk: ParsedProduct[],
     chunkNum: number,
     totalChunks: number
   ): Promise<Map<string, SmartTip>> {
+    const chunkStartTime = Date.now();
     const simplifiedList = chunk.map((p) => ({
       id: p.id,
       productName: p.productName,
@@ -97,7 +103,7 @@ export async function generateSmartTipsWithGemma(
     }));
 
     console.log(
-      `[Smart Tips Grounding] Calling '${model}' for chunk ${chunkNum}/${totalChunks} (${chunk.length} products)...`
+      `[Smart Tips Grounding] 🚀 Calling '${model}' for chunk ${chunkNum}/${totalChunks} (${chunk.length} products)...`
     );
 
     const prompt = `
@@ -170,19 +176,35 @@ ${JSON.stringify(simplifiedList, null, 2)}
         }
       }
 
-      console.log(`[Smart Tips Grounding] Chunk ${chunkNum}/${totalChunks} finished (${chunkTipMap.size} tips).`);
+      const chunkElapsedSec = ((Date.now() - chunkStartTime) / 1000).toFixed(2);
+      console.log(
+        `[Smart Tips Grounding] ⏱️ Chunk ${chunkNum}/${totalChunks} finished in ${chunkElapsedSec}s (${chunkTipMap.size} tips).`
+      );
       return chunkTipMap;
     } catch (error: unknown) {
       const errorMsg = error instanceof Error ? error.message : String(error);
-      console.error(`[Smart Tips Grounding Error] Chunk ${chunkNum}/${totalChunks}:`, errorMsg);
+      const chunkElapsedSec = ((Date.now() - chunkStartTime) / 1000).toFixed(2);
+      console.error(
+        `[Smart Tips Grounding Error] Chunk ${chunkNum}/${totalChunks} failed after ${chunkElapsedSec}s:`,
+        errorMsg
+      );
       throw new Error(`Gemma 스마트 팁 생성 실패 (청크 ${chunkNum}/${totalChunks}): ${errorMsg}`);
     }
   }
 
   // 3. Concurrency 단위 병렬 처리 (기본 동시 2개 청크 실행)
   const tipMap = new Map<string, SmartTip>();
+  const totalRounds = Math.ceil(chunks.length / concurrency);
+
   for (let i = 0; i < chunks.length; i += concurrency) {
+    const roundIndex = Math.floor(i / concurrency) + 1;
+    const roundStartTime = Date.now();
     const activeChunks = chunks.slice(i, i + concurrency);
+
+    console.log(
+      `[Smart Tips Grounding] ⚡ Starting Round ${roundIndex}/${totalRounds} (processing ${activeChunks.length} chunks concurrently)...`
+    );
+
     const results = await Promise.all(
       activeChunks.map((chunk, idx) => {
         const chunkNum = i + idx + 1;
@@ -195,6 +217,9 @@ ${JSON.stringify(simplifiedList, null, 2)}
         tipMap.set(id, tip);
       }
     }
+
+    const roundElapsedSec = ((Date.now() - roundStartTime) / 1000).toFixed(2);
+    console.log(`[Smart Tips Grounding] ⏱️ Round ${roundIndex}/${totalRounds} completed in ${roundElapsedSec}s.`);
   }
 
   // 4. 상품 객체에 최종 생성된 스마트 팁 주입
@@ -205,6 +230,11 @@ ${JSON.stringify(simplifiedList, null, 2)}
       throw new Error(`상품 '${prod.productName}'에 대한 실시간 스마트 팁 분석 응답이 누락되었습니다.`);
     }
   }
+
+  const gemmaElapsedSec = ((Date.now() - gemmaStartTime) / 1000).toFixed(2);
+  console.log(
+    `[Smart Tips Grounding] 🏁 All ${chunks.length} chunks completed in ${gemmaElapsedSec}s for ${updatedProducts.length} products.`
+  );
 
   return updatedProducts;
 }
