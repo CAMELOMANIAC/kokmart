@@ -1,181 +1,384 @@
 import React, { useState } from 'react';
-import { motion } from 'framer-motion';
-import { Zap, Upload } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Zap, Sparkles, ShoppingBag, ExternalLink, Check, AlertCircle, Loader2 } from 'lucide-react';
 import { FloatingTopBar } from '../components/FloatingTopBar';
 import { useScrollDirection } from '../hooks/useScrollDirection';
+import { useCartStore } from '../store/useCartStore';
+import { ParsedProduct, TipType } from '@kokmart/shared';
 import * as s from './DdingFlyers.css';
 
+type BrandType = '이마트' | '홈플러스' | '롯데마트';
+type FilterType = 'ALL' | 'MART_ONLY' | 'COUPANG_ONLY';
+
+const SAMPLE_FLYER_IMAGE = 'https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&w=1200&q=80';
+
 export const DdingFlyers: React.FC = () => {
-  // window 스크롤 감지 → useUIStore.isScrollingDown 업데이트 → GNB 자동 축소/펼침
   useScrollDirection();
 
-  const [isParsing, setIsParsing] = useState(false);
-  const [parseMessage, setParseMessage] = useState('');
+  const addToCart = useCartStore((state) => state.addToCart);
 
-  const handleSimulateParse = async () => {
+  const [selectedBrand, setSelectedBrand] = useState<BrandType>('이마트');
+  const [imageUrlInput, setImageUrlInput] = useState(SAMPLE_FLYER_IMAGE);
+  const [isParsing, setIsParsing] = useState(false);
+  const [status, setStatus] = useState<{
+    type: 'idle' | 'loading' | 'success' | 'error';
+    message: string;
+  }>({
+    type: 'idle',
+    message: '',
+  });
+  const [filter, setFilter] = useState<FilterType>('ALL');
+  const [products, setProducts] = useState<ParsedProduct[]>([]);
+  const [addedItemIds, setAddedItemIds] = useState<Set<string>>(new Set());
+
+  const handleApplySampleUrl = () => {
+    setImageUrlInput(SAMPLE_FLYER_IMAGE);
+    setStatus({
+      type: 'idle',
+      message: '샘플 전단지 이미지 링크가 입력되었습니다.',
+    });
+  };
+
+  const handleParseMasterFlyer = async () => {
+    if (!imageUrlInput.trim()) {
+      setStatus({
+        type: 'error',
+        message: '분석할 전단지 이미지 URL을 입력해 주세요.',
+      });
+      return;
+    }
+
     setIsParsing(true);
-    setParseMessage('전단지 이미지 4분할 그리드 크롭 파싱 중...');
-    
+    setStatus({
+      type: 'loading',
+      message: 'Gemini 3.5 Flash-Lite 비전 파싱 및 Gemma 4 실시간 가격 그라운딩 분석 중... (약 15~25초 소요)',
+    });
+
     try {
-      const res = await fetch('/api/flyers/parse', { method: 'POST' });
-      const data = await res.json();
-      setParseMessage(`✅ Gemini 파싱 성공! ${data.products.length}개 상품 파싱 완료.`);
-    } catch {
-      setParseMessage('❌ 파싱 테스트 에러 발생');
+      const response = await fetch('/api/flyers/parse-master', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          martName: selectedBrand,
+          imageUrls: [imageUrlInput.trim()],
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok || !data.success) {
+        throw new Error(data.error || '전단지 파싱 중 오류가 발생했습니다.');
+      }
+
+      const receivedProducts: ParsedProduct[] = data.products || [];
+      setProducts(receivedProducts);
+      setStatus({
+        type: 'success',
+        message: `✅ ${selectedBrand} 전단지 분석 완료! 총 ${receivedProducts.length}개 상품의 실시간 스마트 팁이 생성되었습니다.`,
+      });
+    } catch (err: unknown) {
+      const errorMsg = err instanceof Error ? err.message : '파싱 요청 실패';
+      setProducts([]);
+      setStatus({
+        type: 'error',
+        message: `❌ ${errorMsg}`,
+      });
     } finally {
       setIsParsing(false);
     }
   };
 
-  const getBrandBadgeClass = (brand: string) => {
+  const handleAddToCart = (product: ParsedProduct) => {
+    addToCart(product);
+    const id = product.id || product.productName;
+    setAddedItemIds((prev) => new Set(prev).add(id));
+
+    setTimeout(() => {
+      setAddedItemIds((prev) => {
+        const next = new Set(prev);
+        next.delete(id);
+        return next;
+      });
+    }, 1500);
+  };
+
+  const handleOpenCoupangSearch = (keyword: string) => {
+    const coupangUrl = `https://www.coupang.com/np/search?component=&q=${encodeURIComponent(keyword)}`;
+    window.open(coupangUrl, '_blank', 'noopener,noreferrer');
+  };
+
+  const filteredProducts = products.filter((p) => {
+    const tipType: TipType = p.smartTip?.tipType || 'MART_RECOMMEND';
+    if (filter === 'MART_ONLY') {
+      return tipType === 'MART_BEST' || tipType === 'MART_RECOMMEND';
+    }
+    if (filter === 'COUPANG_ONLY') {
+      return tipType === 'COUPANG_TIP' || tipType === 'COUPANG_BULK';
+    }
+    return true;
+  });
+
+  const getBrandBadgeClass = (brand?: string) => {
     if (brand === '이마트') return s.brandBadge.emart;
     if (brand === '홈플러스') return s.brandBadge.homeplus;
     if (brand === '롯데마트') return s.brandBadge.lotte;
     return s.brandBadge.default;
   };
 
+  const getBrandChipClass = (brand: BrandType) => {
+    if (brand !== selectedBrand) return s.brandChip.unselected;
+    if (brand === '이마트') return s.brandChip.selectedEmart;
+    if (brand === '홈플러스') return s.brandChip.selectedHomeplus;
+    return s.brandChip.selectedLotte;
+  };
+
+  const getTipBadgeClass = (tipType?: TipType) => {
+    switch (tipType) {
+      case 'MART_BEST':
+        return s.tipBadge.MART_BEST;
+      case 'MART_RECOMMEND':
+        return s.tipBadge.MART_RECOMMEND;
+      case 'COUPANG_TIP':
+        return s.tipBadge.COUPANG_TIP;
+      case 'COUPANG_BULK':
+        return s.tipBadge.COUPANG_BULK;
+      default:
+        return s.tipBadge.MART_RECOMMEND;
+    }
+  };
+
+  const getSmartTipBoxClass = (tipType?: TipType) => {
+    switch (tipType) {
+      case 'MART_BEST':
+        return s.smartTipBox.MART_BEST;
+      case 'MART_RECOMMEND':
+        return s.smartTipBox.MART_RECOMMEND;
+      case 'COUPANG_TIP':
+        return s.smartTipBox.COUPANG_TIP;
+      case 'COUPANG_BULK':
+        return s.smartTipBox.COUPANG_BULK;
+      default:
+        return s.smartTipBox.MART_RECOMMEND;
+    }
+  };
+
   return (
     <div className={s.container}>
-      {/* 상단 공통 플로팅 바 (GNB Zap 아이콘 추가) */}
       <FloatingTopBar
         title="띵! 한 핫딜"
         icon={<Zap size={18} color="#FF5E00" />}
       />
 
-      {/* 플로팅 안내 카드 */}
       <div className={s.noticeCard}>
         <div className={s.noticeTitle}>
-          📢 매주 목요일 전단 발행 알림
+          <Sparkles size={16} />
+          매주 목요일 전단 발행 & AI 스마트 비교
         </div>
         <div className={s.noticeDesc}>
-          이마트·홈플러스·롯데마트의 최신 종이 전단지가 4~6분할 AI 파싱으로 자동 업데이트됩니다.
+          Gemini 3.5 Flash-Lite와 Gemma 4 26B의 구글 검색 그라운딩으로 무늬만 전단 특가에 속지 않는 객관적 최저가 팁을 제공합니다.
         </div>
       </div>
 
-      {/* AI 파싱 파이프라인 시뮬레이션 플로팅 카드 */}
-      <div className={s.ocrCard}>
-        <h4 className={s.ocrTitle}>
-          전단지 OCR 파싱 테스트 (Gemini Grid Crop Engine)
-        </h4>
+      <div className={s.controlCard}>
+        <div className={s.controlTitle}>
+          <span>AI 전단지 실시간 파싱 & 스마트 팁</span>
+          <span className={s.modelBadge}>Gemini 3.5 + Gemma 4</span>
+        </div>
 
-        <motion.button
-          whileTap={{ scale: 0.95 }}
-          whileHover={{ scale: 1.02 }}
-          onClick={handleSimulateParse}
+        <div className={s.brandSelectorRow}>
+          {(['이마트', '홈플러스', '롯데마트'] as BrandType[]).map((brand) => (
+            <motion.button
+              key={brand}
+              whileTap={{ scale: 0.96 }}
+              onClick={() => setSelectedBrand(brand)}
+              className={getBrandChipClass(brand)}
+            >
+              {brand}
+            </motion.button>
+          ))}
+        </div>
+
+        <input
+          type="text"
+          className={s.inputField}
+          value={imageUrlInput}
+          onChange={(e) => setImageUrlInput(e.target.value)}
+          placeholder="전단지 이미지 고해상도 웹 URL을 입력하세요"
           disabled={isParsing}
-          className={s.ocrButton}
-        >
-          <Upload size={16} />
-          <span>{isParsing ? '파싱 실행 중...' : '4분할 전단 파싱 테스트 실행'}</span>
-        </motion.button>
+        />
 
-        {parseMessage && (
-          <div className={s.ocrMessage}>
-            {parseMessage}
+        <div className={s.sampleButtonRow}>
+          <button
+            type="button"
+            className={s.sampleTextButton}
+            onClick={handleApplySampleUrl}
+            disabled={isParsing}
+          >
+            샘플 전단지 이미지 링크 자동 채우기
+          </button>
+        </div>
+
+        <div className={s.actionButtonGroup}>
+          <motion.button
+            whileTap={{ scale: 0.98 }}
+            whileHover={{ scale: 1.01 }}
+            className={s.submitButton}
+            onClick={handleParseMasterFlyer}
+            disabled={isParsing}
+          >
+            {isParsing ? (
+              <>
+                <Loader2 size={16} className="animate-spin" />
+                <span>AI 비전 분석 및 팁 큐레이션 중...</span>
+              </>
+            ) : (
+              <>
+                <Sparkles size={16} />
+                <span>{selectedBrand} 전단 AI 실시간 분석 실행</span>
+              </>
+            )}
+          </motion.button>
+        </div>
+
+        {status.message && (
+          <div
+            className={
+              status.type === 'loading'
+                ? s.statusBannerLoading
+                : status.type === 'success'
+                ? s.statusBannerSuccess
+                : s.statusBannerError
+            }
+          >
+            {status.type === 'loading' && <Loader2 size={16} />}
+            {status.type === 'success' && <Check size={16} />}
+            {status.type === 'error' && <AlertCircle size={16} />}
+            <span>{status.message}</span>
           </div>
         )}
       </div>
 
-      {/* 실시간 전단 핫딜 상품 리스트 (자연스러운 스크롤 피드) */}
-      <h3 className={s.sectionTitle}>
-        🔥 이번 주 전단 파격 핫딜
-      </h3>
+      <div className={s.filterRow}>
+        <button
+          className={filter === 'ALL' ? s.filterChip.active : s.filterChip.inactive}
+          onClick={() => setFilter('ALL')}
+        >
+          전체 상품 ({products.length})
+        </button>
+        <button
+          className={filter === 'MART_ONLY' ? s.filterChip.active : s.filterChip.inactive}
+          onClick={() => setFilter('MART_ONLY')}
+        >
+          마트 필구/추천
+        </button>
+        <button
+          className={filter === 'COUPANG_ONLY' ? s.filterChip.active : s.filterChip.inactive}
+          onClick={() => setFilter('COUPANG_ONLY')}
+        >
+          쿠팡 알뜰팁
+        </button>
+      </div>
 
-      <div className={s.dealList}>
-        {[
-          {
-            id: 'd1',
-            brand: '이마트',
-            martName: '이마트 역삼점',
-            productName: '국내산 1등급 삼겹살 (100g)',
-            originalPrice: 2480,
-            salePrice: 1480,
-            discountRate: '40%',
-            unitPrice: '100g당 1,480원',
-            badge: '🔥 초특가'
-          },
-          {
-            id: 'd2',
-            brand: '홈플러스',
-            martName: '홈플러스 강남점',
-            productName: '당당 두마리 옛날통닭 (1+1)',
-            originalPrice: 13990,
-            salePrice: 6990,
-            discountRate: '50%',
-            unitPrice: '1마리당 3,495원',
-            badge: '⚡ 1+1 핫딜'
-          },
-          {
-            id: 'd3',
-            brand: '롯데마트',
-            martName: '롯데마트 서초점',
-            productName: '제주 GAP 하우스 감귤 (1.5kg/박스)',
-            originalPrice: 14900,
-            salePrice: 9900,
-            discountRate: '33%',
-            unitPrice: '100g당 660원',
-            badge: '🍊 산지직송'
-          },
-          {
-            id: 'd4',
-            brand: '이마트',
-            martName: '이마트 역삼점',
-            productName: 'CJ 비비고 왕교자 (1.4kg 패밀리팩)',
-            originalPrice: 12980,
-            salePrice: 8480,
-            discountRate: '35%',
-            unitPrice: '100g당 605원',
-            badge: '🥟 냉동 1등'
-          },
-          {
-            id: 'd5',
-            brand: '홈플러스',
-            martName: '홈플러스 강남점',
-            productName: '무항생제 신선 대란 (30구)',
-            originalPrice: 8990,
-            salePrice: 5990,
-            discountRate: '33%',
-            unitPrice: '1알당 200원',
-            badge: '🍳 장바구니 필수'
-          }
-        ].map((item) => (
-          <motion.div
-            key={item.id}
-            whileHover={{ y: -2 }}
-            className={s.dealItemCard}
-          >
-            <div>
-              <div className={s.brandHeader}>
-                <span className={getBrandBadgeClass(item.brand)}>
-                  {item.martName}
-                </span>
-                <span className={s.dealBadge}>
-                  {item.badge}
-                </span>
-              </div>
-              <div className={s.productName}>
-                {item.productName}
-              </div>
-              <div className={s.unitPrice}>
-                {item.unitPrice}
-              </div>
+      <div className={s.productList}>
+        <AnimatePresence mode="popLayout">
+          {products.length === 0 ? (
+            <div className={s.emptyState}>
+              <div className={s.emptyTitle}>분석된 전단지 상품이 없습니다</div>
+              <div className={s.emptyDesc}>상단 전단지 이미지 링크를 확인하신 후 [전단 AI 실시간 분석 실행] 버튼을 눌러주세요.</div>
             </div>
+          ) : filteredProducts.length === 0 ? (
+            <div className={s.emptyState}>
+              <div className={s.emptyTitle}>선택한 조건의 상품이 없습니다</div>
+              <div className={s.emptyDesc}>다른 필터를 선택하거나 새 전단지를 분석해 보세요.</div>
+            </div>
+          ) : (
+            filteredProducts.map((item) => {
+              const itemId = item.id || item.productName;
+              const isAdded = addedItemIds.has(itemId);
+              const tipType: TipType = item.smartTip?.tipType || 'MART_RECOMMEND';
 
-            <div className={s.priceArea}>
-              <div className={s.originalPrice}>
-                {item.originalPrice.toLocaleString()}원
-              </div>
-              <div className={s.salePriceRow}>
-                <span className={s.discountRate}>
-                  {item.discountRate}
-                </span>
-                <span className={s.salePrice}>
-                  {item.salePrice.toLocaleString()}원
-                </span>
-              </div>
-            </div>
-          </motion.div>
-        ))}
+              return (
+                <motion.div
+                  key={itemId}
+                  layout
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, scale: 0.96 }}
+                  className={s.productCard}
+                >
+                  <div className={s.cardTopRow}>
+                    <div className={s.badgeGroup}>
+                      <span className={getBrandBadgeClass(item.martName || selectedBrand)}>
+                        {item.martName || selectedBrand}
+                      </span>
+                      {item.pageIndex && (
+                        <span className={s.pageNumberBadge}>{item.pageIndex}면 전단</span>
+                      )}
+                    </div>
+
+                    <span className={getTipBadgeClass(tipType)}>
+                      {item.smartTip?.badgeText || '마트 추천'}
+                    </span>
+                  </div>
+
+                  <div className={s.productTitleRow}>
+                    <div className={s.productName}>{item.productName}</div>
+                    <div className={s.priceContainer}>
+                      <div className={s.unitPriceText}>
+                        {item.unitMeasure}당 {item.effectiveUnitPrice.toLocaleString()}원
+                      </div>
+                      <div className={s.salePriceText}>
+                        {item.salePrice.toLocaleString()}원
+                      </div>
+                    </div>
+                  </div>
+
+                  {item.smartTip && (
+                    <div className={getSmartTipBoxClass(tipType)}>
+                      {item.smartTip.tipMessage}
+                    </div>
+                  )}
+
+                  <div className={s.cardActionRow}>
+                    {item.smartTip?.coupangKeyword ? (
+                      <button
+                        type="button"
+                        className={s.coupangSearchButton}
+                        onClick={() => handleOpenCoupangSearch(item.smartTip?.coupangKeyword || item.productName)}
+                      >
+                        <ExternalLink size={13} />
+                        <span>쿠팡 최저가 검색</span>
+                      </button>
+                    ) : (
+                      <div />
+                    )}
+
+                    <motion.button
+                      whileTap={{ scale: 0.95 }}
+                      type="button"
+                      className={s.cartAddButton}
+                      onClick={() => handleAddToCart(item)}
+                    >
+                      {isAdded ? (
+                        <>
+                          <Check size={14} />
+                          <span>담김!</span>
+                        </>
+                      ) : (
+                        <>
+                          <ShoppingBag size={14} />
+                          <span>담기</span>
+                        </>
+                      )}
+                    </motion.button>
+                  </div>
+                </motion.div>
+              );
+            })
+          )}
+        </AnimatePresence>
       </div>
     </div>
   );
