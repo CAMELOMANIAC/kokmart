@@ -64,7 +64,10 @@ export async function generateSmartTipsWithGemma(
 
   const apiKey = process.env.GEMINI_API_KEY || '';
   if (!apiKey) {
-    throw new Error('GEMINI_API_KEY가 환경 변수에 설정되어 있지 않습니다.');
+    return products.map((p) => ({
+      ...p,
+      smartTip: p.smartTip || generateDefaultTip(p),
+    }));
   }
 
   const ai = new GoogleGenAI({ apiKey });
@@ -188,7 +191,13 @@ ${JSON.stringify(simplifiedList, null, 2)}
         `[Smart Tips Grounding Error] Chunk ${chunkNum}/${totalChunks} failed after ${chunkElapsedSec}s:`,
         errorMsg
       );
-      throw new Error(`Gemma 스마트 팁 생성 실패 (청크 ${chunkNum}/${totalChunks}): ${errorMsg}`);
+      const fallbackMap = new Map<string, SmartTip>();
+      for (const prod of chunk) {
+        if (prod.id) {
+          fallbackMap.set(prod.id, generateDefaultTip(prod));
+        }
+      }
+      return fallbackMap;
     }
   }
 
@@ -227,7 +236,7 @@ ${JSON.stringify(simplifiedList, null, 2)}
     if (prod.id && tipMap.has(prod.id)) {
       prod.smartTip = tipMap.get(prod.id);
     } else {
-      throw new Error(`상품 '${prod.productName}'에 대한 실시간 스마트 팁 분석 응답이 누락되었습니다.`);
+      prod.smartTip = prod.smartTip || generateDefaultTip(prod);
     }
   }
 
