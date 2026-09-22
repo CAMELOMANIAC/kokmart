@@ -114,7 +114,19 @@ describe('DdingFlyers Page Component', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     useCartStore.setState({ cart: [] });
-    global.fetch = vi.fn();
+    global.fetch = vi.fn().mockImplementation((url: string | URL | Request) => {
+      const urlStr = typeof url === 'string' ? url : url.toString();
+      if (urlStr.includes('/api/flyers/latest')) {
+        return Promise.resolve({
+          ok: false,
+          json: async () => ({ success: false }),
+        } as Response);
+      }
+      return Promise.resolve({
+        ok: true,
+        json: async () => ({ success: true, products: [] }),
+      } as Response);
+    });
     window.open = vi.fn();
   });
 
@@ -164,9 +176,18 @@ describe('DdingFlyers Page Component', () => {
       },
     ];
 
-    (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
-      ok: true,
-      json: async () => ({ success: true, products: mockProducts }),
+    (global.fetch as ReturnType<typeof vi.fn>).mockImplementation((url: string | URL | Request) => {
+      const urlStr = typeof url === 'string' ? url : url.toString();
+      if (urlStr.includes('/api/flyers/parse-master')) {
+        return Promise.resolve({
+          ok: true,
+          json: async () => ({ success: true, products: mockProducts }),
+        } as Response);
+      }
+      return Promise.resolve({
+        ok: false,
+        json: async () => ({ success: false }),
+      } as Response);
     });
 
     render(<DdingFlyers />);
@@ -189,9 +210,18 @@ describe('DdingFlyers Page Component', () => {
   });
 
   it('전단지 파싱 API 실패 시 에러 상태 메시지가 출력되어야 한다', async () => {
-    (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
-      ok: false,
-      json: async () => ({ success: false, error: '서버 파싱 실패 원인' }),
+    (global.fetch as ReturnType<typeof vi.fn>).mockImplementation((url: string | URL | Request) => {
+      const urlStr = typeof url === 'string' ? url : url.toString();
+      if (urlStr.includes('/api/flyers/parse-master')) {
+        return Promise.resolve({
+          ok: false,
+          json: async () => ({ success: false, error: '서버 파싱 실패 원인' }),
+        } as Response);
+      }
+      return Promise.resolve({
+        ok: false,
+        json: async () => ({ success: false }),
+      } as Response);
     });
 
     render(<DdingFlyers />);
@@ -234,9 +264,18 @@ describe('DdingFlyers Page Component', () => {
       },
     ];
 
-    (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
-      ok: true,
-      json: async () => ({ success: true, products: mockProducts }),
+    (global.fetch as ReturnType<typeof vi.fn>).mockImplementation((url: string | URL | Request) => {
+      const urlStr = typeof url === 'string' ? url : url.toString();
+      if (urlStr.includes('/api/flyers/parse-master')) {
+        return Promise.resolve({
+          ok: true,
+          json: async () => ({ success: true, products: mockProducts }),
+        } as Response);
+      }
+      return Promise.resolve({
+        ok: false,
+        json: async () => ({ success: false }),
+      } as Response);
     });
 
     render(<DdingFlyers />);
@@ -280,9 +319,18 @@ describe('DdingFlyers Page Component', () => {
       },
     ];
 
-    (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
-      ok: true,
-      json: async () => ({ success: true, products: mockProducts }),
+    (global.fetch as ReturnType<typeof vi.fn>).mockImplementation((url: string | URL | Request) => {
+      const urlStr = typeof url === 'string' ? url : url.toString();
+      if (urlStr.includes('/api/flyers/parse-master')) {
+        return Promise.resolve({
+          ok: true,
+          json: async () => ({ success: true, products: mockProducts }),
+        } as Response);
+      }
+      return Promise.resolve({
+        ok: false,
+        json: async () => ({ success: false }),
+      } as Response);
     });
 
     render(<DdingFlyers />);
@@ -317,9 +365,18 @@ describe('DdingFlyers Page Component', () => {
       },
     ];
 
-    (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
-      ok: true,
-      json: async () => ({ success: true, products: mockProducts }),
+    (global.fetch as ReturnType<typeof vi.fn>).mockImplementation((url: string | URL | Request) => {
+      const urlStr = typeof url === 'string' ? url : url.toString();
+      if (urlStr.includes('/api/flyers/parse-master')) {
+        return Promise.resolve({
+          ok: true,
+          json: async () => ({ success: true, products: mockProducts }),
+        } as Response);
+      }
+      return Promise.resolve({
+        ok: false,
+        json: async () => ({ success: false }),
+      } as Response);
     });
 
     render(<DdingFlyers />);
