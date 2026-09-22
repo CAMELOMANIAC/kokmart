@@ -25,11 +25,22 @@ import { generateSmartTipsWithGemma } from '../src/services/gemmaTipService.js';
 import { getLatestFlyerSource } from '../src/services/flyerSourceService.js';
 import { cropBoundingBoxesWithPadding } from '../src/services/cropSimulationService.js';
 import {
+  saveFlyerToSupabase,
+  getLatestFlyerFromSupabase,
+  isSupabaseConfigured
+} from '../src/services/supabaseService.js';
+import {
+  checkIdenticalFlyer,
+  setCachedFlyer,
+  getMemoryCachedFlyer
+} from '../src/services/flyerCacheService.js';
+import {
   FlyerParsingResponse,
   ParsedProduct,
   DetectBoxesResponse,
   ParseCroppedProductResponse,
-  BoundingBox
+  BoundingBox,
+  FlyerDetailResponse
 } from '@kokmart/shared';
 
 const app = express();
@@ -246,6 +257,71 @@ async function fetchImageBuffer(url: string): Promise<Buffer> {
  * Body (JSON): { imageUrls?: string[], martName?: string }
  * or Multipart: pages (File[], 최대 5장)
  */
+/**
+ * 4.5. 최신 캐시된 전단지 및 상품 목록 즉시 조회 (0.05초 소요)
+ * GET /api/flyers/latest?martName=이마트&branchName=공통
+ */
+app.get('/api/flyers/latest', async (req: Request, res: Response) => {
+  try {
+    const martName = (req.query.martName as string) || '이마트';
+    const branchName = (req.query.branchName as string) || '공통';
+
+    // 1. 메모리 캐시 우선 확인 (0초)
+    const memCached = getMemoryCachedFlyer(martName, branchName);
+    if (memCached) {
+      const response: FlyerDetailResponse = {
+        success: true,
+        isCached: true,
+        martName,
+        branchName,
+        totalPages: 1,
+        totalProducts: memCached.products.length,
+        products: memCached.products,
+        parsedAt: memCached.parsedAt,
+      };
+      res.json(response);
+      return;
+    }
+
+    // 2. Supabase DB에서 최신 캐시 조회
+    if (isSupabaseConfigured()) {
+      const dbResult = await getLatestFlyerFromSupabase(martName, branchName);
+      if (dbResult) {
+        // 메모리 캐시 갱신
+        setCachedFlyer(martName, branchName, [], dbResult.flyer.imageUrls, dbResult.products, dbResult.flyer.id);
+
+        const response: FlyerDetailResponse = {
+          success: true,
+          isCached: true,
+          martName,
+          branchName,
+          flyer: dbResult.flyer,
+          totalPages: dbResult.flyer.pageCount,
+          totalProducts: dbResult.products.length,
+          products: dbResult.products,
+          parsedAt: dbResult.flyer.createdAt,
+        };
+        res.json(response);
+        return;
+      }
+    }
+
+    res.status(404).json({
+      success: false,
+      error: `'${martName} (${branchName})'의 저장된 최신 전단지가 없습니다. 상단에서 전단지를 먼저 분석해 주세요.`
+    });
+  } catch (err: unknown) {
+    const errorMessage = err instanceof Error ? err.message : '최신 전단 조회 실패';
+    res.status(500).json({ success: false, error: errorMessage });
+  }
+});
+
+/**
+ * 5. 마스터 전단 1차 파싱 엔드포인트
+ * POST /api/flyers/parse-master
+ * Body (JSON): { imageUrls?: string[], martName?: string }
+ * or Multipart: pages (File[], 최대 5장)
+ */
 app.post('/api/flyers/parse-master', upload.array('pages', 5), async (req: Request, res: Response) => {
   try {
     const martName = (req.body?.martName as string) || '이마트';
@@ -264,6 +340,22 @@ app.post('/api/flyers/parse-master', upload.array('pages', 5), async (req: Reque
       res.status(400).json({
         success: false,
         error: '전단지 이미지 파일(pages) 또는 imageUrls 목록을 제공해야 합니다.'
+      });
+      return;
+    }
+
+    // 0단계: sharp 픽셀 차분으로 기존 마스터 전단과 100% 동일한지 사전 검사 (0초/0토큰 회피)
+    const identicalCache = await checkIdenticalFlyer(martName, '공통', pageBuffers);
+    if (identicalCache) {
+      console.log(`[API /api/flyers/parse-master] ⚡ Returning identical cached flyer in 0.01s (0 AI tokens)`);
+      res.json({
+        success: true,
+        isCached: true,
+        martName,
+        totalPages: pageBuffers.length,
+        totalProducts: identicalCache.products.length,
+        products: identicalCache.products,
+        parsedAt: identicalCache.parsedAt
       });
       return;
     }
@@ -288,6 +380,22 @@ app.post('/api/flyers/parse-master', upload.array('pages', 5), async (req: Reque
     console.log(`  - 2단계 Gemma 팁 그라운딩  : ${gemmaDuration}s (${productsWithTips.length}개 팁 생성)`);
     console.log(`  - 🏁 전체 총 소요 시간     : ${totalDuration}s`);
     console.log(`======================================================\n`);
+
+    // 3단계: Supabase DB 및 인메모리 캐시 갱신
+    setCachedFlyer(martName, '공통', pageBuffers, imageUrls || [], productsWithTips);
+    if (isSupabaseConfigured()) {
+      saveFlyerToSupabase({
+        martName,
+        branchName: '공통',
+        isMaster: true,
+        title: `${martName} 주간 전단`,
+        imageUrls: imageUrls || [],
+        products: productsWithTips,
+      }).catch((err: unknown) => {
+        const msg = err instanceof Error ? err.message : String(err);
+        console.error('[Supabase Background Save Error]:', msg);
+      });
+    }
 
     res.json({
       success: true,

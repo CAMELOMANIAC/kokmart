@@ -55,3 +55,31 @@ export interface FlyerParsingResponse {
   products: ParsedProduct[];
   parsedAt: string;
 }
+
+export interface FlyerRecord {
+  id: string;
+  martName: string;
+  branchName: string;
+  isMaster: boolean;
+  title: string;
+  validStartDate?: string;
+  validEndDate?: string;
+  imageUrls: string[];
+  pageCount: number;
+  createdAt: string;
+  updatedAt?: string;
+}
+
+export interface FlyerDetailResponse {
+  success: boolean;
+  isCached?: boolean;
+  martName: string;
+  branchName?: string;
+  flyer?: FlyerRecord;
+  totalPages: number;
+  totalProducts: number;
+  products: ParsedProduct[];
+  parsedAt: string;
+  error?: string;
+}
+

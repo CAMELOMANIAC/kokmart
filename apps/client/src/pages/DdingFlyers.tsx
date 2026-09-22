@@ -1,10 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Zap, Sparkles, ShoppingBag, ExternalLink, Check, AlertCircle, Loader2 } from 'lucide-react';
 import { FloatingTopBar } from '../components/FloatingTopBar';
 import { useScrollDirection } from '../hooks/useScrollDirection';
 import { useCartStore } from '../store/useCartStore';
-import { ParsedProduct, TipType } from '@kokmart/shared';
+import { ParsedProduct, TipType, FlyerDetailResponse } from '@kokmart/shared';
 import * as s from './DdingFlyers.css';
 
 type BrandType = '이마트' | '홈플러스' | '롯데마트';
@@ -31,6 +31,41 @@ export const DdingFlyers: React.FC = () => {
   const [products, setProducts] = useState<ParsedProduct[]>([]);
   const [addedItemIds, setAddedItemIds] = useState<Set<string>>(new Set());
 
+  // 선택된 브랜드의 최신 캐시 전단지 즉시 조회 (0.05초 로드)
+  useEffect(() => {
+    let isCancelled = false;
+
+    async function loadLatestFlyer() {
+      try {
+        const res = await fetch(`/api/flyers/latest?martName=${encodeURIComponent(selectedBrand)}`);
+        if (!res.ok) {
+          if (!isCancelled) {
+            setProducts([]);
+            setStatus({ type: 'idle', message: '' });
+          }
+          return;
+        }
+
+        const data: FlyerDetailResponse = await res.json();
+        if (!isCancelled && data.success && data.products && data.products.length > 0) {
+          setProducts(data.products);
+          setStatus({
+            type: 'success',
+            message: `⚡ 캐시된 ${selectedBrand} 전단지 데이터를 즉시 불러왔습니다 (${data.products.length}개 상품).`,
+          });
+        }
+      } catch {
+        // 캐시 조회 실패 시 조용히 무시 (신규 분석 대기)
+      }
+    }
+
+    loadLatestFlyer();
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [selectedBrand]);
+
   const handleApplySampleUrl = () => {
     setImageUrlInput(SAMPLE_FLYER_IMAGE);
     setStatus({
@@ -51,7 +86,7 @@ export const DdingFlyers: React.FC = () => {
     setIsParsing(true);
     setStatus({
       type: 'loading',
-      message: 'Gemini 3.5 Flash-Lite 비전 파싱 및 Gemma 4 실시간 가격 그라운딩 분석 중... (약 15~25초 소요)',
+      message: 'Gemini 3.5 Flash-Lite 비전 파싱 및 Gemma 4 실시간 가격 그라운딩 분석 중...',
     });
 
     try {
@@ -74,10 +109,18 @@ export const DdingFlyers: React.FC = () => {
 
       const receivedProducts: ParsedProduct[] = data.products || [];
       setProducts(receivedProducts);
-      setStatus({
-        type: 'success',
-        message: `✅ ${selectedBrand} 전단지 분석 완료! 총 ${receivedProducts.length}개 상품의 실시간 스마트 팁이 생성되었습니다.`,
-      });
+
+      if (data.isCached) {
+        setStatus({
+          type: 'success',
+          message: `⚡ 기존 전단지와 동일하여 0초 만에 캐시 데이터를 반환했습니다! (${receivedProducts.length}개 상품)`,
+        });
+      } else {
+        setStatus({
+          type: 'success',
+          message: `✅ ${selectedBrand} 전단지 분석 완료! 총 ${receivedProducts.length}개 상품의 실시간 스마트 팁이 생성되었습니다.`,
+        });
+      }
     } catch (err: unknown) {
       const errorMsg = err instanceof Error ? err.message : '파싱 요청 실패';
       setProducts([]);

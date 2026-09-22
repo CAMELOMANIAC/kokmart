@@ -1,0 +1,238 @@
+import { createClient, SupabaseClient } from '@supabase/supabase-js';
+import { FlyerRecord, ParsedProduct, SmartTip, TipType } from '@kokmart/shared';
+
+let supabaseInstance: SupabaseClient | null = null;
+
+/**
+ * Supabase 환경 변수가 유효하게 설정되어 있는지 확인
+ */
+export function isSupabaseConfigured(): boolean {
+  const url = process.env.SUPABASE_URL || '';
+  const key = process.env.SUPABASE_ANON_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY || '';
+  return Boolean(url.trim() && key.trim());
+}
+
+/**
+ * Supabase 클라이언트 싱글톤 인스턴스 반환
+ */
+export function getSupabaseClient(): SupabaseClient | null {
+  if (!isSupabaseConfigured()) {
+    return null;
+  }
+
+  if (!supabaseInstance) {
+    const url = process.env.SUPABASE_URL || '';
+    const key = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY || '';
+    supabaseInstance = createClient(url, key, {
+      auth: { persistSession: false },
+    });
+  }
+
+  return supabaseInstance;
+}
+
+export interface SaveFlyerParams {
+  martName: string;
+  branchName?: string;
+  isMaster?: boolean;
+  title?: string;
+  imageUrls: string[];
+  products: ParsedProduct[];
+  validStartDate?: string;
+  validEndDate?: string;
+}
+
+/**
+ * 마스터 또는 지점 전단지 및 상품 목록을 Supabase DB에 일괄 저장
+ */
+export async function saveFlyerToSupabase(params: SaveFlyerParams): Promise<{
+  flyer: FlyerRecord;
+  products: ParsedProduct[];
+} | null> {
+  const client = getSupabaseClient();
+  if (!client) {
+    console.warn('[Supabase] SUPABASE_URL 또는 KEY가 미설정되어 DB 저장을 건너뜁니다.');
+    return null;
+  }
+
+  const {
+    martName,
+    branchName = '공통',
+    isMaster = true,
+    title = `${martName} 주간 전단`,
+    imageUrls,
+    products,
+    validStartDate,
+    validEndDate,
+  } = params;
+
+  console.log(`[Supabase] 💾 Saving flyer to DB (${martName} ${branchName}, ${products.length} products)...`);
+
+  // 1. flyers 테이블 메타데이터 생성
+  const { data: flyerData, error: flyerError } = await client
+    .from('flyers')
+    .insert({
+      mart_name: martName,
+      branch_name: branchName,
+      is_master: isMaster,
+      title,
+      valid_start_date: validStartDate,
+      valid_end_date: validEndDate,
+      image_urls: imageUrls,
+      page_count: imageUrls.length,
+      updated_at: new Date().toISOString(),
+    })
+    .select()
+    .single();
+
+  if (flyerError || !flyerData) {
+    console.error('[Supabase Error] flyers 테이블 insert 실패:', flyerError);
+    throw new Error(`Supabase 전단 메타데이터 저장 실패: ${flyerError?.message}`);
+  }
+
+  const flyerId = flyerData.id as string;
+
+  // 2. flyer_products 테이블 상품 일괄(Bulk) 적재
+  if (products.length > 0) {
+    const productRows = products.map((prod, index) => {
+      const productId = prod.id || `prod-${flyerId}-${prod.pageIndex || 1}-${index}`;
+      return {
+        id: productId,
+        flyer_id: flyerId,
+        page_index: prod.pageIndex || 1,
+        product_name: prod.productName,
+        sale_price: prod.salePrice,
+        effective_unit_price: prod.effectiveUnitPrice,
+        unit_measure: prod.unitMeasure,
+        is_perishable: prod.isPerishable,
+        mart_name: prod.martName || martName,
+        tip_type: prod.smartTip?.tipType || null,
+        badge_text: prod.smartTip?.badgeText || null,
+        tip_message: prod.smartTip?.tipMessage || null,
+        coupang_keyword: prod.smartTip?.coupangKeyword || null,
+        created_at: new Date().toISOString(),
+      };
+    });
+
+    const { error: productsError } = await client.from('flyer_products').insert(productRows);
+
+    if (productsError) {
+      console.error('[Supabase Error] flyer_products insert 실패:', productsError);
+      throw new Error(`Supabase 상품 목록 저장 실패: ${productsError.message}`);
+    }
+  }
+
+  console.log(`[Supabase] ✅ Successfully saved flyer (ID: ${flyerId}) and ${products.length} products to DB.`);
+
+  const flyerRecord: FlyerRecord = {
+    id: flyerId,
+    martName: flyerData.mart_name as string,
+    branchName: flyerData.branch_name as string,
+    isMaster: Boolean(flyerData.is_master),
+    title: flyerData.title as string,
+    validStartDate: flyerData.valid_start_date as string | undefined,
+    validEndDate: flyerData.valid_end_date as string | undefined,
+    imageUrls: (flyerData.image_urls as string[]) || [],
+    pageCount: Number(flyerData.page_count) || 1,
+    createdAt: flyerData.created_at as string,
+    updatedAt: flyerData.updated_at as string,
+  };
+
+  return { flyer: flyerRecord, products };
+}
+
+/**
+ * 특정 마트의 최신 전단 및 상품 목록 조회 (지점 전단 우선, 없으면 마스터 전단으로 fallback)
+ */
+export async function getLatestFlyerFromSupabase(
+  martName: string,
+  branchName = '공통'
+): Promise<{ flyer: FlyerRecord; products: ParsedProduct[] } | null> {
+  const client = getSupabaseClient();
+  if (!client) {
+    return null;
+  }
+
+  // 1. 요청된 지점 전단 조회
+  let { data: flyerData, error: flyerError } = await client
+    .from('flyers')
+    .select('*')
+    .eq('mart_name', martName)
+    .eq('branch_name', branchName)
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  // 지점 전단이 없고 '공통'이 아니었다면 마스터 전단으로 Fallback 조회
+  if (!flyerData && branchName !== '공통') {
+    const fallbackRes = await client
+      .from('flyers')
+      .select('*')
+      .eq('mart_name', martName)
+      .eq('branch_name', '공통')
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    flyerData = fallbackRes.data;
+    flyerError = fallbackRes.error;
+  }
+
+  if (flyerError || !flyerData) {
+    return null;
+  }
+
+  const flyerId = flyerData.id as string;
+
+  // 2. 해당 전단의 상품 목록 조회
+  const { data: productsData, error: productsError } = await client
+    .from('flyer_products')
+    .select('*')
+    .eq('flyer_id', flyerId)
+    .order('page_index', { ascending: true })
+    .order('created_at', { ascending: true });
+
+  if (productsError || !productsData) {
+    console.error('[Supabase Error] 상품 조회 실패:', productsError);
+    return null;
+  }
+
+  const products: ParsedProduct[] = productsData.map((row) => {
+    let smartTip: SmartTip | undefined;
+    if (row.tip_type && row.badge_text && row.tip_message) {
+      smartTip = {
+        tipType: row.tip_type as TipType,
+        badgeText: row.badge_text as string,
+        tipMessage: row.tip_message as string,
+        coupangKeyword: (row.coupang_keyword as string | null) || null,
+      };
+    }
+
+    return {
+      id: row.id as string,
+      pageIndex: Number(row.page_index) || 1,
+      productName: row.product_name as string,
+      salePrice: Number(row.sale_price) || 0,
+      effectiveUnitPrice: Number(row.effective_unit_price) || 0,
+      unitMeasure: row.unit_measure as string,
+      isPerishable: Boolean(row.is_perishable),
+      martName: (row.mart_name as string) || martName,
+      smartTip,
+    };
+  });
+
+  const flyerRecord: FlyerRecord = {
+    id: flyerId,
+    martName: flyerData.mart_name as string,
+    branchName: flyerData.branch_name as string,
+    isMaster: Boolean(flyerData.is_master),
+    title: flyerData.title as string,
+    validStartDate: flyerData.valid_start_date as string | undefined,
+    validEndDate: flyerData.valid_end_date as string | undefined,
+    imageUrls: (flyerData.image_urls as string[]) || [],
+    pageCount: Number(flyerData.page_count) || 1,
+    createdAt: flyerData.created_at as string,
+    updatedAt: flyerData.updated_at as string,
+  };
+
+  return { flyer: flyerRecord, products };
+}
