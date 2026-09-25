@@ -349,11 +349,25 @@ export const tipBadge = styleVariants({
   ],
 });
 
+export const cardContentRow = style({
+  display: 'flex',
+  gap: '12px',
+  alignItems: 'flex-start',
+});
+
+export const productDetailCol = style({
+  display: 'flex',
+  flexDirection: 'column',
+  flex: 1,
+  minWidth: 0,
+  gap: '6px',
+});
+
 export const productTitleRow = style({
   display: 'flex',
   justifyContent: 'space-between',
   alignItems: 'flex-start',
-  gap: '10px',
+  gap: '8px',
 });
 
 export const productName = style({

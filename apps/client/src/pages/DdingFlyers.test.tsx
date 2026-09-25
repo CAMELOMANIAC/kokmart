@@ -57,6 +57,8 @@ vi.mock('./DdingFlyers.css', () => ({
   emptyDesc: 'emptyDesc',
   productCard: 'productCard',
   cardTopRow: 'cardTopRow',
+  cardContentRow: 'cardContentRow',
+  productDetailCol: 'productDetailCol',
   badgeGroup: 'badgeGroup',
   pageNumberBadge: 'pageNumberBadge',
   tipBadge: {
@@ -109,6 +111,24 @@ vi.mock('../hooks/useScrollDirection', () => ({
 vi.mock('../components/FloatingTopBar', () => ({
   FloatingTopBar: ({ title }: { title: string }) => <div data-testid="floating-topbar">{title}</div>,
 }));
+
+vi.mock('../components/FlyerCropThumbnail', () => ({
+  FlyerCropThumbnail: ({ productName }: { productName: string }) => (
+    <div data-testid="flyer-crop-thumbnail">{productName} 이미지</div>
+  ),
+}));
+
+function mockApiResponse(response: { ok: boolean; json: () => Promise<unknown> }) {
+  (global.fetch as ReturnType<typeof vi.fn>).mockImplementation(async (input: RequestInfo | URL) => {
+    if (String(input).startsWith('/api/flyers/latest')) {
+      return {
+        ok: false,
+        json: async () => ({ success: false }),
+      };
+    }
+    return response;
+  });
+}
 
 describe('DdingFlyers Page Component', () => {
   beforeEach(() => {
@@ -164,7 +184,7 @@ describe('DdingFlyers Page Component', () => {
       },
     ];
 
-    (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+    mockApiResponse({
       ok: true,
       json: async () => ({ success: true, products: mockProducts }),
     });
@@ -189,7 +209,7 @@ describe('DdingFlyers Page Component', () => {
   });
 
   it('전단지 파싱 API 실패 시 에러 상태 메시지가 출력되어야 한다', async () => {
-    (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+    mockApiResponse({
       ok: false,
       json: async () => ({ success: false, error: '서버 파싱 실패 원인' }),
     });
@@ -234,7 +254,7 @@ describe('DdingFlyers Page Component', () => {
       },
     ];
 
-    (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+    mockApiResponse({
       ok: true,
       json: async () => ({ success: true, products: mockProducts }),
     });
@@ -280,7 +300,7 @@ describe('DdingFlyers Page Component', () => {
       },
     ];
 
-    (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+    mockApiResponse({
       ok: true,
       json: async () => ({ success: true, products: mockProducts }),
     });
@@ -317,7 +337,7 @@ describe('DdingFlyers Page Component', () => {
       },
     ];
 
-    (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+    mockApiResponse({
       ok: true,
       json: async () => ({ success: true, products: mockProducts }),
     });

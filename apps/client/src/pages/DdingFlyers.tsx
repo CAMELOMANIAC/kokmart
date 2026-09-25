@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Zap, Sparkles, ShoppingBag, ExternalLink, Check, AlertCircle, Loader2 } from 'lucide-react';
 import { FloatingTopBar } from '../components/FloatingTopBar';
+import { FlyerCropThumbnail } from '../components/FlyerCropThumbnail';
 import { useScrollDirection } from '../hooks/useScrollDirection';
 import { useCartStore } from '../store/useCartStore';
 import { ParsedProduct, TipType, FlyerDetailResponse } from '@kokmart/shared';
@@ -19,6 +20,7 @@ export const DdingFlyers: React.FC = () => {
 
   const [selectedBrand, setSelectedBrand] = useState<BrandType>('이마트');
   const [imageUrlInput, setImageUrlInput] = useState(SAMPLE_FLYER_IMAGE);
+  const [flyerImages, setFlyerImages] = useState<string[]>([SAMPLE_FLYER_IMAGE]);
   const [isParsing, setIsParsing] = useState(false);
   const [status, setStatus] = useState<{
     type: 'idle' | 'loading' | 'success' | 'error';
@@ -49,6 +51,11 @@ export const DdingFlyers: React.FC = () => {
         const data: FlyerDetailResponse = await res.json();
         if (!isCancelled && data.success && data.products && data.products.length > 0) {
           setProducts(data.products);
+          if (data.imageUrls && data.imageUrls.length > 0) {
+            setFlyerImages(data.imageUrls);
+          } else if (data.flyer?.imageUrls && data.flyer.imageUrls.length > 0) {
+            setFlyerImages(data.flyer.imageUrls);
+          }
           setStatus({
             type: 'success',
             message: `⚡ 캐시된 ${selectedBrand} 전단지 데이터를 즉시 불러왔습니다 (${data.products.length}개 상품).`,
@@ -65,6 +72,36 @@ export const DdingFlyers: React.FC = () => {
       isCancelled = true;
     };
   }, [selectedBrand]);
+
+  useEffect(() => {
+    const hasPendingTips = products.some((product) =>
+      product.tipStatus === 'pending' ||
+      product.tipStatus === 'processing' ||
+      product.tipStatus === 'retry'
+    );
+    if (!hasPendingTips) return;
+
+    let isCancelled = false;
+    const refreshTips = async () => {
+      try {
+        const params = new URLSearchParams({ martName: selectedBrand, branchName: '공통' });
+        const response = await fetch(`/api/flyers/latest?${params.toString()}`);
+        if (!response.ok) return;
+        const data: FlyerDetailResponse = await response.json();
+        if (!isCancelled && data.success && data.products) {
+          setProducts(data.products);
+        }
+      } catch {
+        // 다음 주기에서 다시 조회합니다.
+      }
+    };
+
+    const timer = window.setInterval(refreshTips, 15_000);
+    return () => {
+      isCancelled = true;
+      window.clearInterval(timer);
+    };
+  }, [products, selectedBrand]);
 
   const handleApplySampleUrl = () => {
     setImageUrlInput(SAMPLE_FLYER_IMAGE);
@@ -86,7 +123,7 @@ export const DdingFlyers: React.FC = () => {
     setIsParsing(true);
     setStatus({
       type: 'loading',
-      message: 'Gemini 3.5 Flash-Lite 비전 파싱 및 Groq GPT-OSS-20B 실시간 가격 그라운딩 분석 중...',
+      message: 'Gemini 3.5 Flash-Lite로 전단 상품을 파싱하고 있습니다...',
     });
 
     try {
@@ -109,6 +146,11 @@ export const DdingFlyers: React.FC = () => {
 
       const receivedProducts: ParsedProduct[] = data.products || [];
       setProducts(receivedProducts);
+      if (data.imageUrls && data.imageUrls.length > 0) {
+        setFlyerImages(data.imageUrls);
+      } else {
+        setFlyerImages([imageUrlInput.trim()]);
+      }
 
       if (data.isCached) {
         setStatus({
@@ -118,7 +160,9 @@ export const DdingFlyers: React.FC = () => {
       } else {
         setStatus({
           type: 'success',
-          message: `✅ ${selectedBrand} 전단지 분석 완료! 총 ${receivedProducts.length}개 상품의 실시간 스마트 팁이 생성되었습니다.`,
+          message: data.tipProcessing
+            ? `✅ ${selectedBrand} 전단 상품 ${receivedProducts.length}개 저장 완료! 실시간 가격 팁은 순차적으로 갱신됩니다.`
+            : `✅ ${selectedBrand} 전단지 분석 완료! 총 ${receivedProducts.length}개 상품을 불러왔습니다.`,
         });
       }
     } catch (err: unknown) {
@@ -131,6 +175,11 @@ export const DdingFlyers: React.FC = () => {
     } finally {
       setIsParsing(false);
     }
+  };
+
+  const getItemImageUrl = (item: ParsedProduct): string => {
+    const pageIdx = (item.pageIndex || 1) - 1;
+    return flyerImages[pageIdx] || flyerImages[0] || imageUrlInput;
   };
 
   const handleAddToCart = (product: ParsedProduct) => {
@@ -220,7 +269,7 @@ export const DdingFlyers: React.FC = () => {
           매주 목요일 전단 발행 & AI 스마트 비교
         </div>
         <div className={s.noticeDesc}>
-          Gemini 3.5 Flash-Lite와 Groq GPT-OSS-20B의 실시간 웹 검색 그라운딩으로 무늬만 전단 특가에 속지 않는 객관적 최저가 팁을 제공합니다.
+          Gemini 3.5 Flash-Lite 파싱과 Groq GPT-OSS-20B 비동기 가격 비교로 무늬만 전단 특가에 속지 않는 객관적 최저가 팁을 제공합니다.
         </div>
       </div>
 
@@ -366,23 +415,36 @@ export const DdingFlyers: React.FC = () => {
                     </span>
                   </div>
 
-                  <div className={s.productTitleRow}>
-                    <div className={s.productName}>{item.productName}</div>
-                    <div className={s.priceContainer}>
-                      <div className={s.unitPriceText}>
-                        {item.unitMeasure}당 {item.effectiveUnitPrice.toLocaleString()}원
+                  <div className={s.cardContentRow}>
+                    <FlyerCropThumbnail
+                      imageUrl={getItemImageUrl(item)}
+                      boundingBox={item.boundingBox}
+                      productName={item.productName}
+                    />
+
+                    <div className={s.productDetailCol}>
+                      <div className={s.productTitleRow}>
+                        <div className={s.productName}>{item.productName}</div>
+                        <div className={s.priceContainer}>
+                          <div className={s.unitPriceText}>
+                            {item.unitMeasure}당 {item.effectiveUnitPrice.toLocaleString()}원
+                          </div>
+                          <div className={s.salePriceText}>
+                            {item.salePrice.toLocaleString()}원
+                          </div>
+                        </div>
                       </div>
-                      <div className={s.salePriceText}>
-                        {item.salePrice.toLocaleString()}원
-                      </div>
+
+                      {item.smartTip && (
+                        <div className={getSmartTipBoxClass(tipType)}>
+                          {(item.tipStatus === 'pending' || item.tipStatus === 'processing' || item.tipStatus === 'retry') && (
+                            <span>가격 비교 대기 중 · </span>
+                          )}
+                          {item.smartTip.tipMessage}
+                        </div>
+                      )}
                     </div>
                   </div>
-
-                  {item.smartTip && (
-                    <div className={getSmartTipBoxClass(tipType)}>
-                      {item.smartTip.tipMessage}
-                    </div>
-                  )}
 
                   <div className={s.cardActionRow}>
                     {item.smartTip?.coupangKeyword ? (
