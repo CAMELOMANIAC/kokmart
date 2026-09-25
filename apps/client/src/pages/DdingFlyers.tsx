@@ -73,35 +73,7 @@ export const DdingFlyers: React.FC = () => {
     };
   }, [selectedBrand]);
 
-  useEffect(() => {
-    const hasPendingTips = products.some((product) =>
-      product.tipStatus === 'pending' ||
-      product.tipStatus === 'processing' ||
-      product.tipStatus === 'retry'
-    );
-    if (!hasPendingTips) return;
 
-    let isCancelled = false;
-    const refreshTips = async () => {
-      try {
-        const params = new URLSearchParams({ martName: selectedBrand, branchName: '공통' });
-        const response = await fetch(`/api/flyers/latest?${params.toString()}`);
-        if (!response.ok) return;
-        const data: FlyerDetailResponse = await response.json();
-        if (!isCancelled && data.success && data.products) {
-          setProducts(data.products);
-        }
-      } catch {
-        // 다음 주기에서 다시 조회합니다.
-      }
-    };
-
-    const timer = window.setInterval(refreshTips, 15_000);
-    return () => {
-      isCancelled = true;
-      window.clearInterval(timer);
-    };
-  }, [products, selectedBrand]);
 
   const handleApplySampleUrl = () => {
     setImageUrlInput(SAMPLE_FLYER_IMAGE);
@@ -424,7 +396,9 @@ export const DdingFlyers: React.FC = () => {
                     </div>
 
                     <span className={getTipBadgeClass(tipType)}>
-                      {item.smartTip?.badgeText || '마트 추천'}
+                      {(item.tipStatus === 'pending' || item.tipStatus === 'processing' || item.tipStatus === 'retry') 
+                        ? 'AI 분석 중' 
+                        : (item.smartTip?.badgeText || '마트 추천')}
                     </span>
                   </div>
 
@@ -448,14 +422,15 @@ export const DdingFlyers: React.FC = () => {
                         </div>
                       </div>
 
-                      {item.smartTip && (
+                      { (item.tipStatus === 'pending' || item.tipStatus === 'processing' || item.tipStatus === 'retry') ? (
+                        <div className={s.smartTipBox.MART_RECOMMEND}>
+                          🤖 AI가 실시간 온라인 최저가를 분석하고 있습니다...
+                        </div>
+                      ) : item.smartTip ? (
                         <div className={getSmartTipBoxClass(tipType)}>
-                          {(item.tipStatus === 'pending' || item.tipStatus === 'processing' || item.tipStatus === 'retry') && (
-                            <span>가격 비교 대기 중 · </span>
-                          )}
                           {item.smartTip.tipMessage}
                         </div>
-                      )}
+                      ) : null }
                     </div>
                   </div>
 
