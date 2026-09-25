@@ -86,7 +86,7 @@ export const DdingFlyers: React.FC = () => {
     setIsParsing(true);
     setStatus({
       type: 'loading',
-      message: 'Gemini 3.5 Flash-Lite 비전 파싱 및 Gemma 4 실시간 가격 그라운딩 분석 중...',
+      message: 'Gemini 3.5 Flash-Lite 비전 파싱 및 Groq GPT-OSS-20B 실시간 가격 그라운딩 분석 중...',
     });
 
     try {
@@ -220,14 +220,14 @@ export const DdingFlyers: React.FC = () => {
           매주 목요일 전단 발행 & AI 스마트 비교
         </div>
         <div className={s.noticeDesc}>
-          Gemini 3.5 Flash-Lite와 Gemma 4 26B의 구글 검색 그라운딩으로 무늬만 전단 특가에 속지 않는 객관적 최저가 팁을 제공합니다.
+          Gemini 3.5 Flash-Lite와 Groq GPT-OSS-20B의 실시간 웹 검색 그라운딩으로 무늬만 전단 특가에 속지 않는 객관적 최저가 팁을 제공합니다.
         </div>
       </div>
 
       <div className={s.controlCard}>
         <div className={s.controlTitle}>
           <span>AI 전단지 실시간 파싱 & 스마트 팁</span>
-          <span className={s.modelBadge}>Gemini 3.5 + Gemma 4</span>
+          <span className={s.modelBadge}>Gemini 3.5 + Groq</span>
         </div>
 
         <div className={s.brandSelectorRow}>

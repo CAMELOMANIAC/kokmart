@@ -300,25 +300,35 @@ export async function parseMasterFlyerWithGemini(
 마크다운 코드블록이나 불필요한 설명 없이 탭으로 구분된 텍스트만 출력하십시오.
 
 [출력 TSV 헤더 형식]
-페이지번호\t상품명\t할인가\t단위당가격\t단위\t신선식품여부(Y/N)
+페이지번호\t상품명\t할인가\t단위당가격\t단위\t신선식품여부(Y/N)\tymin\txmin\tymax\txmax
 
 [작성 규칙]
-1. 페이지번호: 이미지가 속한 페이지 번호 (1부터 시작하는 정수).
-2. 상품명: 전단지에 표기된 구체적인 브랜드 및 상품명(용량/수량 포함).
-3. 할인가: 실제 소비자가 구매하는 행사가격 (숫자만 입력, 쉼표나 '원' 제외).
-4. 단위당가격: 100g, 100ml 또는 1개당 단가 (전단지에 표기된 단가, 숫자만 입력). 표기가 없으면 할인가와 동일하게 입력.
-5. 단위: 단가의 기준 단위 (예: 100g, 100ml, 1개, 1봉, 1박스).
-6. 신선식품여부: 정육, 수산, 채소, 과일, 계란 등 신선식품은 Y, 공산품/생필품/가공식품은 N.
-7. 전수 추출 필수: 메인 대표 상품뿐만 아니라 하단, 측면, 작은 박스에 표기된 소형 상품(채소, 양념, 가공식품, 생필품 등)까지 단 1개도 누락하지 말고 100% 빠짐없이 전수 추출하십시오. 중간에 임의로 생략하거나 요약하지 마십시오.
+1. 헤더 다음 행부터 전단지에 있는 모든 상품을 한 행씩 순서대로 작성하십시오. 절대 헤더만 출력하고 멈추지 마십시오.
+2. 페이지번호: 이미지가 속한 페이지 번호 (1부터 시작하는 정수).
+3. 상품명: 전단지에 표기된 구체적인 브랜드 및 상품명(용량/수량 포함).
+4. 할인가: 실제 소비자가 구매하는 행사가격 (숫자만 입력, 쉼표나 '원' 제외).
+5. 단위당가격: 100g, 100ml 또는 1개당 단가 (전단지에 표기된 단가, 숫자만 입력). 표기가 없으면 할인가와 동일하게 입력.
+6. 단위: 단가의 기준 단위 (예: 100g, 100ml, 1개, 1봉, 1박스).
+7. 신선식품여부: 정육, 수산, 채소, 과일, 계란 등 신선식품은 Y, 공산품/생필품/가공식품은 N.
+8. 전수 추출 필수: 메인 대표 상품뿐만 아니라 하단, 측면, 작은 박스에 표기된 소형 상품(채소, 양념, 가공식품, 생필품 등)까지 단 1개도 누락하지 말고 100% 빠짐없이 전수 추출하십시오. 중간에 임의로 생략하거나 요약하지 마십시오.
+9. ymin, xmin, ymax, xmax: 해당 상품 영역(상품 사진 및 가격표를 포함하는 사각형 구역)의 0부터 1000 사이 정규화 정수 좌표.
 `;
 
   try {
     const response = await ai.models.generateContent({
       model,
-      contents: [...imageParts, { text: prompt }],
+      contents: [
+        {
+          role: 'user',
+          parts: [
+            ...imageParts,
+            { text: prompt },
+          ],
+        },
+      ],
       config: {
         maxOutputTokens: 8192,
-        temperature: 0.0,
+        temperature: 0.1,
       },
     });
 
@@ -328,6 +338,10 @@ export async function parseMasterFlyerWithGemini(
     console.log(
       `[Gemini Vision] ⏱️ Completed in ${elapsedSec}s (extracted ${parsedProducts.length} products, ${responseText.length} chars).`
     );
+
+    if (parsedProducts.length === 0) {
+      console.warn(`[Gemini Vision Warning] 0 products parsed! Raw response (${responseText.length} chars):`, responseText);
+    }
 
     return parsedProducts.map((p, index) => ({
       ...p,
@@ -366,15 +380,18 @@ export async function parseSinglePageWithGemini(
 마크다운 코드블록이나 불필요한 설명 없이 순수 TSV 텍스트만 출력하십시오.
 
 [출력 TSV 헤더 형식]
-페이지번호\t상품명\t할인가\t단위당가격\t단위\t신선식품여부(Y/N)
+페이지번호\t상품명\t할인가\t단위당가격\t단위\t신선식품여부(Y/N)\tymin\txmin\tymax\txmax
 
 [작성 규칙]
-1. 페이지번호: ${pageIndex}
-2. 상품명: 구체적인 상품명 및 규격
-3. 할인가: 숫자만 입력
-4. 단위당가격: 100g/100ml/개당 단가 (숫자만)
-5. 단위: 기준 단위 (100g, 100ml, 개 등)
-6. 신선식품여부: 신선식품(정육/수산/채소/과일/계란)은 Y, 그 외 가공/공산품은 N
+1. 헤더 다음 행부터 페이지에 있는 모든 상품을 한 행씩 순서대로 작성하십시오. 절대 헤더만 출력하고 멈추지 마십시오.
+2. 페이지번호: ${pageIndex}
+3. 상품명: 구체적인 상품명 및 규격
+4. 할인가: 숫자만 입력
+5. 단위당가격: 100g/100ml/개당 단가 (숫자만)
+6. 단위: 기준 단위 (100g, 100ml, 개 등)
+7. 신선식품여부: 신선식품(정육/수산/채소/과일/계란)은 Y, 그 외 가공/공산품은 N
+8. 전수 추출 필수: 메인 대표 상품뿐만 아니라 하단, 측면, 작은 박스에 표기된 소형 상품(채소, 양념, 가공식품, 생필품 등)까지 단 1개도 누락하지 말고 빠짐없이 전수 추출하십시오. 임의 생략이나 요약 금지.
+9. ymin, xmin, ymax, xmax: 해당 상품 영역(상품 사진 및 가격표를 포함하는 사각형 구역)의 0부터 1000 사이 정규화 정수 좌표.
 `;
 
   try {
@@ -382,12 +399,17 @@ export async function parseSinglePageWithGemini(
       model,
       contents: [
         {
-          inlineData: {
-            mimeType: 'image/jpeg',
-            data: base64Image,
-          },
+          role: 'user',
+          parts: [
+            {
+              inlineData: {
+                mimeType: 'image/jpeg',
+                data: base64Image,
+              },
+            },
+            { text: prompt },
+          ],
         },
-        { text: prompt },
       ],
       config: {
         maxOutputTokens: 8192,
@@ -397,6 +419,10 @@ export async function parseSinglePageWithGemini(
 
     const responseText = response.text || '';
     const parsedProducts = parseFlyerTsv(responseText, pageIndex);
+
+    if (parsedProducts.length === 0) {
+      console.warn(`[Gemini Vision Warning] 0 products parsed for page ${pageIndex}! Raw response (${responseText.length} chars):`, responseText);
+    }
 
     return parsedProducts.map((p, index) => ({
       ...p,

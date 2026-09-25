@@ -50,7 +50,7 @@ GET http://localhost:4000/api/products/compare
 
 ###
 
-### 7. [신규] 마스터 전단 1차 파싱 (Gemini 3.5 Flash-Lite TSV + Gemma 4 26B Grounding 팁)
+### 7. [신규] 마스터 전단 1차 파싱 (Gemini 3.5 Flash-Lite TSV + Groq GPT-OSS-20B Grounding 팁)
 POST http://localhost:4000/api/flyers/parse-master
 Content-Type: application/json
 

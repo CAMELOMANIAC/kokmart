@@ -21,7 +21,7 @@ import {
   parseSinglePageWithGemini
 } from '../src/services/geminiService.js';
 import { compareFlyerPages } from '../src/services/pageDiffService.js';
-import { generateSmartTipsWithGemma } from '../src/services/gemmaTipService.js';
+import { generateSmartTips } from '../src/services/smartTipService.js';
 import { getLatestFlyerSource } from '../src/services/flyerSourceService.js';
 import { cropBoundingBoxesWithPadding } from '../src/services/cropSimulationService.js';
 import {
@@ -369,15 +369,15 @@ app.post('/api/flyers/parse-master', upload.array('pages', 5), async (req: Reque
     const rawProducts = await parseMasterFlyerWithGemini(pageBuffers, martName);
     const geminiDuration = ((Date.now() - geminiStartTime) / 1000).toFixed(2);
 
-    // 2단계: Gemma 4 26B + Google Search Grounding 스마트 팁 생성
-    const gemmaStartTime = Date.now();
-    const productsWithTips = await generateSmartTipsWithGemma(rawProducts);
-    const gemmaDuration = ((Date.now() - gemmaStartTime) / 1000).toFixed(2);
+    // 2단계: Groq GPT-OSS-20B + browser_search 스마트 팁 생성
+    const tipStartTime = Date.now();
+    const productsWithTips = await generateSmartTips(rawProducts);
+    const tipDuration = ((Date.now() - tipStartTime) / 1000).toFixed(2);
 
     const totalDuration = ((Date.now() - requestStartTime) / 1000).toFixed(2);
     console.log(`[API /api/flyers/parse-master] 📊 Summary Report:`);
     console.log(`  - 1단계 Gemini Vision OCR : ${geminiDuration}s (${rawProducts.length}개 상품 추출)`);
-    console.log(`  - 2단계 Gemma 팁 그라운딩  : ${gemmaDuration}s (${productsWithTips.length}개 팁 생성)`);
+    console.log(`  - 2단계 Groq 팁 그라운딩   : ${tipDuration}s (${productsWithTips.length}개 팁 생성)`);
     console.log(`  - 🏁 전체 총 소요 시간     : ${totalDuration}s`);
     console.log(`======================================================\n`);
 
@@ -474,7 +474,7 @@ app.post('/api/flyers/sync-branch', async (req: Request, res: Response) => {
         replacedPages.push(p);
 
         const newPageProducts = await parseSinglePageWithGemini(branchBuffer, p, martName);
-        const newProductsWithTips = await generateSmartTipsWithGemma(newPageProducts);
+        const newProductsWithTips = await generateSmartTips(newPageProducts);
 
         // 해당 페이지 전체 교체
         finalProductsByPage.set(p, newProductsWithTips);
