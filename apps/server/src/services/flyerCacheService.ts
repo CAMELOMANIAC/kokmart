@@ -92,11 +92,12 @@ export function setCachedFlyer(
   flyerId?: string
 ): void {
   const key = getCacheKey(martName, branchName);
+  const existing = memoryCache.get(key);
   memoryCache.set(key, {
     martName,
     branchName,
-    imageBuffers,
-    imageUrls,
+    imageBuffers: imageBuffers.length > 0 ? imageBuffers : (existing?.imageBuffers || []),
+    imageUrls: imageUrls.length > 0 ? imageUrls : (existing?.imageUrls || []),
     products,
     parsedAt: new Date().toISOString(),
     flyerId,
@@ -110,7 +111,7 @@ export function setCachedFlyer(
 export function getMemoryCachedFlyer(
   martName: string,
   branchName = '공통'
-): { products: ParsedProduct[]; parsedAt: string; flyerId?: string } | null {
+): { products: ParsedProduct[]; parsedAt: string; flyerId?: string; imageUrls?: string[] } | null {
   const key = getCacheKey(martName, branchName);
   const cached = memoryCache.get(key) || (branchName !== '공통' ? memoryCache.get(getCacheKey(martName, '공통')) : null);
   if (!cached) return null;
@@ -118,5 +119,6 @@ export function getMemoryCachedFlyer(
     products: cached.products,
     parsedAt: cached.parsedAt,
     flyerId: cached.flyerId,
+    imageUrls: cached.imageUrls,
   };
 }

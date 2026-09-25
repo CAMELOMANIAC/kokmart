@@ -113,9 +113,36 @@ pnpm build
 1. GitHub 저장소에 코드를 push 합니다.
 2. Vercel 대시보드에서 저장소를 임포트합니다.
 3. `vercel.json` 설정으로 `apps/server/api/index.ts` 가 **Vercel Serverless Function**으로 자동 내보내기 배포됩니다.
-4. Vercel 대시보드 환경 변수에 `GEMINI_API_KEY`를 등록합니다.
+4. Vercel 대시보드에 다음 환경 변수를 등록합니다.
 
-### 2. 클라이언트 앱 배포 (Tauri v2 Cross-Platform)
+   - `GEMINI_API_KEY`
+   - `GROQ_API_KEY`
+   - `SUPABASE_URL`
+   - `SUPABASE_SERVICE_ROLE_KEY`
+   - `TIP_WORKER_SECRET`: 충분히 긴 임의 문자열
+   - `TIP_WORKER_BATCH_SIZE`: 선택값, 기본 `4`
+   - `TIP_WORKER_MAX_ATTEMPTS`: 선택값, 기본 `5`
+
+### 2. Supabase 비동기 스마트 팁 Worker
+
+전단 파싱 요청은 Gemini 결과를 `tip_status=pending`으로 DB에 먼저 저장한 뒤 즉시 반환합니다. Groq 가격 팁은 Supabase Cron이 Vercel의 보호된 worker API를 호출해 소량씩 생성합니다.
+
+1. Supabase SQL Editor에서 [`apps/server/scripts/schema.sql`](apps/server/scripts/schema.sql)을 실행합니다.
+2. [`apps/server/scripts/setup-tip-worker-cron.sql`](apps/server/scripts/setup-tip-worker-cron.sql)의 production URL과 secret 예시를 실제 값으로 바꿔 실행합니다.
+3. SQL의 `tip_worker_secret`과 Vercel의 `TIP_WORKER_SECRET`은 반드시 같은 값을 사용합니다.
+
+Cron은 매분 큐 상태를 확인하지만, `pending`, 실행 시점이 된 `retry`, 또는 15분 이상 멈춘 `processing` 상품이 있을 때만 Vercel worker를 호출합니다. worker는 한 번에 최대 4개 상품을 처리하며, 429 응답이 오면 함수 안에서 기다리지 않고 `tip_next_attempt_at` 이후로 작업을 연기합니다. 클라이언트는 처리 중인 상품이 있을 때 15초마다 최신 DB 값을 조회합니다.
+
+로컬에서 worker를 수동 실행하려면 다음과 같이 호출할 수 있습니다.
+
+```bash
+curl -X POST http://localhost:4000/api/internal/tip-worker \
+  -H "Authorization: Bearer YOUR_TIP_WORKER_SECRET" \
+  -H "Content-Type: application/json" \
+  -d '{"source":"manual"}'
+```
+
+### 3. 클라이언트 앱 배포 (Tauri v2 Cross-Platform)
 ```bash
 cd apps/client
 

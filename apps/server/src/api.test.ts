@@ -1,21 +1,5 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import app from '../api/index.js';
-import type { Request, Response } from 'express';
-
-// 샌드박스 환경(TCP 포트 바인딩 제한)에서 안전하게 Express 라우터를 검증하는 헬퍼
-function createMockRes() {
-  const res: Partial<Response> = {};
-  res.statusCode = 200;
-  res.status = vi.fn().mockImplementation((code: number) => {
-    res.statusCode = code;
-    return res;
-  });
-  res.json = vi.fn().mockImplementation((data: unknown) => {
-    res.locals = { data };
-    return res;
-  });
-  return res as Response & { statusCode: number; locals: { data: unknown } };
-}
 
 describe('Server Route Handlers (Sandbox-safe)', () => {
   it('GET /api/health 라우트가 등록되어 있어야 한다', () => {
@@ -40,5 +24,13 @@ describe('Server Route Handlers (Sandbox-safe)', () => {
     );
     expect(syncBranchRoute).toBeDefined();
     expect(syncBranchRoute?.route?.methods?.post).toBe(true);
+  });
+
+  it('POST /api/internal/tip-worker 라우트가 등록되어 있어야 한다', () => {
+    const workerRoute = app._router.stack.find(
+      (layer: { route?: { path?: string } }) => layer.route?.path === '/api/internal/tip-worker'
+    );
+    expect(workerRoute).toBeDefined();
+    expect(workerRoute?.route?.methods?.post).toBe(true);
   });
 });

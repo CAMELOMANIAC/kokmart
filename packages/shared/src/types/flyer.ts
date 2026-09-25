@@ -1,5 +1,8 @@
 import { SmartTip } from './tip.js';
 
+export type TipProcessingStatus = 'pending' | 'processing' | 'complete' | 'retry' | 'failed';
+export type TipSource = 'fallback' | 'groq_grounded';
+
 export interface BoundingBox {
   id: string;
   ymin: number; // 0 ~ 1000 정규화 좌표
@@ -33,6 +36,9 @@ export interface ParsedProduct {
   isPerishable: boolean;
   martName?: '이마트' | '홈플러스' | '롯데마트' | string;
   smartTip?: SmartTip;
+  tipStatus?: TipProcessingStatus;
+  tipSource?: TipSource;
+  boundingBox?: BoundingBox;
 }
 
 export interface DetectBoxesResponse {
@@ -76,10 +82,11 @@ export interface FlyerDetailResponse {
   martName: string;
   branchName?: string;
   flyer?: FlyerRecord;
+  imageUrls?: string[];
   totalPages: number;
   totalProducts: number;
   products: ParsedProduct[];
+  tipProcessing?: boolean;
   parsedAt: string;
   error?: string;
 }
-

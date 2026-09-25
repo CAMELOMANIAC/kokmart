@@ -1,6 +1,7 @@
 import dotenv from 'dotenv';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { timingSafeEqual } from 'crypto';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -21,7 +22,8 @@ import {
   parseSinglePageWithGemini
 } from '../src/services/geminiService.js';
 import { compareFlyerPages } from '../src/services/pageDiffService.js';
-import { generateSmartTips } from '../src/services/smartTipService.js';
+import { generateDefaultTip } from '../src/services/smartTipService.js';
+import { runSmartTipWorker } from '../src/services/smartTipWorkerService.js';
 import { getLatestFlyerSource } from '../src/services/flyerSourceService.js';
 import { cropBoundingBoxesWithPadding } from '../src/services/cropSimulationService.js';
 import {
@@ -50,10 +52,37 @@ app.use(cors());
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
+function hasValidWorkerSecret(req: Request): boolean {
+  const secret = process.env.TIP_WORKER_SECRET || process.env.CRON_SECRET || '';
+  const authorization = req.get('authorization') || '';
+  const expected = `Bearer ${secret}`;
+  if (!secret || authorization.length !== expected.length) return false;
+  return timingSafeEqual(Buffer.from(authorization), Buffer.from(expected));
+}
+
 // 헬스체크 엔드포인트
 app.get('/api/health', (req: Request, res: Response) => {
   res.json({ status: 'ok', service: 'Kokmart API Server', timestamp: new Date().toISOString() });
 });
+
+async function handleSmartTipWorker(req: Request, res: Response): Promise<void> {
+  if (!hasValidWorkerSecret(req)) {
+    res.status(401).json({ success: false, error: 'Invalid worker authorization.' });
+    return;
+  }
+
+  try {
+    const result = await runSmartTipWorker();
+    res.json({ success: true, ...result, processedAt: new Date().toISOString() });
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    console.error('[Smart Tip Worker Error]:', errorMessage);
+    res.status(500).json({ success: false, error: errorMessage });
+  }
+}
+
+app.post('/api/internal/tip-worker', handleSmartTipWorker);
+app.get('/api/internal/tip-worker', handleSmartTipWorker);
 
 /**
  * 1. 사용자가 특정 마트 최신 전단 정보 요청 (1순위: 공식 전단 CDN/웹 기반 엔드포인트)
@@ -266,24 +295,7 @@ app.get('/api/flyers/latest', async (req: Request, res: Response) => {
     const martName = (req.query.martName as string) || '이마트';
     const branchName = (req.query.branchName as string) || '공통';
 
-    // 1. 메모리 캐시 우선 확인 (0초)
-    const memCached = getMemoryCachedFlyer(martName, branchName);
-    if (memCached) {
-      const response: FlyerDetailResponse = {
-        success: true,
-        isCached: true,
-        martName,
-        branchName,
-        totalPages: 1,
-        totalProducts: memCached.products.length,
-        products: memCached.products,
-        parsedAt: memCached.parsedAt,
-      };
-      res.json(response);
-      return;
-    }
-
-    // 2. Supabase DB에서 최신 캐시 조회
+    // 1. worker가 갱신한 최신 팁을 반영하기 위해 Supabase를 최종 기준으로 사용합니다.
     if (isSupabaseConfigured()) {
       const dbResult = await getLatestFlyerFromSupabase(martName, branchName);
       if (dbResult) {
@@ -296,6 +308,7 @@ app.get('/api/flyers/latest', async (req: Request, res: Response) => {
           martName,
           branchName,
           flyer: dbResult.flyer,
+          imageUrls: dbResult.flyer.imageUrls || [],
           totalPages: dbResult.flyer.pageCount,
           totalProducts: dbResult.products.length,
           products: dbResult.products,
@@ -304,6 +317,34 @@ app.get('/api/flyers/latest', async (req: Request, res: Response) => {
         res.json(response);
         return;
       }
+    }
+
+    // 2. Supabase 미설정 또는 DB 조회 실패 시에만 인메모리 캐시를 사용합니다.
+    const memCached = getMemoryCachedFlyer(martName, branchName);
+    if (memCached) {
+      const response: FlyerDetailResponse = {
+        success: true,
+        isCached: true,
+        martName,
+        branchName,
+        imageUrls: memCached.imageUrls || [],
+        flyer: {
+          id: memCached.flyerId || 'cached',
+          martName,
+          branchName,
+          isMaster: true,
+          title: `${martName} 주간 전단`,
+          imageUrls: memCached.imageUrls || [],
+          pageCount: memCached.imageUrls?.length || 1,
+          createdAt: memCached.parsedAt,
+        },
+        totalPages: memCached.imageUrls?.length || 1,
+        totalProducts: memCached.products.length,
+        products: memCached.products,
+        parsedAt: memCached.parsedAt,
+      };
+      res.json(response);
+      return;
     }
 
     res.status(404).json({
@@ -347,14 +388,19 @@ app.post('/api/flyers/parse-master', upload.array('pages', 5), async (req: Reque
     // 0단계: sharp 픽셀 차분으로 기존 마스터 전단과 100% 동일한지 사전 검사 (0초/0토큰 회피)
     const identicalCache = await checkIdenticalFlyer(martName, '공통', pageBuffers);
     if (identicalCache) {
+      const dbResult = isSupabaseConfigured()
+        ? await getLatestFlyerFromSupabase(martName, '공통')
+        : null;
+      const cachedProducts = dbResult?.products || identicalCache.products;
       console.log(`[API /api/flyers/parse-master] ⚡ Returning identical cached flyer in 0.01s (0 AI tokens)`);
       res.json({
         success: true,
         isCached: true,
         martName,
+        imageUrls: imageUrls || [],
         totalPages: pageBuffers.length,
-        totalProducts: identicalCache.products.length,
-        products: identicalCache.products,
+        totalProducts: cachedProducts.length,
+        products: cachedProducts,
         parsedAt: identicalCache.parsedAt
       });
       return;
@@ -369,40 +415,45 @@ app.post('/api/flyers/parse-master', upload.array('pages', 5), async (req: Reque
     const rawProducts = await parseMasterFlyerWithGemini(pageBuffers, martName);
     const geminiDuration = ((Date.now() - geminiStartTime) / 1000).toFixed(2);
 
-    // 2단계: Groq GPT-OSS-20B + browser_search 스마트 팁 생성
-    const tipStartTime = Date.now();
-    const productsWithTips = await generateSmartTips(rawProducts);
-    const tipDuration = ((Date.now() - tipStartTime) / 1000).toFixed(2);
+    // 2단계: 즉시 표시할 fallback을 붙이고 Groq 작업은 DB worker 큐로 넘깁니다.
+    const queueEnabled = isSupabaseConfigured();
+    const queuedProducts: ParsedProduct[] = rawProducts.map((product) => ({
+      ...product,
+      smartTip: generateDefaultTip(product),
+      tipStatus: queueEnabled ? 'pending' : 'failed',
+      tipSource: 'fallback',
+    }));
+
+    // 응답 전에 저장을 완료해야 서버리스 종료로 큐 작업이 유실되지 않습니다.
+    const saved = queueEnabled
+      ? await saveFlyerToSupabase({
+          martName,
+          branchName: '공통',
+          isMaster: true,
+          title: `${martName} 주간 전단`,
+          imageUrls: imageUrls || [],
+          products: queuedProducts,
+        })
+      : null;
 
     const totalDuration = ((Date.now() - requestStartTime) / 1000).toFixed(2);
     console.log(`[API /api/flyers/parse-master] 📊 Summary Report:`);
     console.log(`  - 1단계 Gemini Vision OCR : ${geminiDuration}s (${rawProducts.length}개 상품 추출)`);
-    console.log(`  - 2단계 Groq 팁 그라운딩   : ${tipDuration}s (${productsWithTips.length}개 팁 생성)`);
+    console.log(`  - 2단계 DB 팁 작업 등록    : ${queuedProducts.length}개 ${queueEnabled ? 'pending' : 'fallback'}`);
     console.log(`  - 🏁 전체 총 소요 시간     : ${totalDuration}s`);
     console.log(`======================================================\n`);
 
-    // 3단계: Supabase DB 및 인메모리 캐시 갱신
-    setCachedFlyer(martName, '공통', pageBuffers, imageUrls || [], productsWithTips);
-    if (isSupabaseConfigured()) {
-      saveFlyerToSupabase({
-        martName,
-        branchName: '공통',
-        isMaster: true,
-        title: `${martName} 주간 전단`,
-        imageUrls: imageUrls || [],
-        products: productsWithTips,
-      }).catch((err: unknown) => {
-        const msg = err instanceof Error ? err.message : String(err);
-        console.error('[Supabase Background Save Error]:', msg);
-      });
-    }
+    // 3단계: 이미지 차분용 캐시만 갱신합니다. 최신 팁 조회는 DB가 우선입니다.
+    setCachedFlyer(martName, '공통', pageBuffers, imageUrls || [], queuedProducts, saved?.flyer.id);
 
     res.json({
       success: true,
       martName,
+      imageUrls: imageUrls || [],
       totalPages: pageBuffers.length,
-      totalProducts: productsWithTips.length,
-      products: productsWithTips,
+      totalProducts: queuedProducts.length,
+      products: queuedProducts,
+      tipProcessing: queueEnabled,
       parsedAt: new Date().toISOString()
     });
   } catch (err: unknown) {
@@ -474,7 +525,12 @@ app.post('/api/flyers/sync-branch', async (req: Request, res: Response) => {
         replacedPages.push(p);
 
         const newPageProducts = await parseSinglePageWithGemini(branchBuffer, p, martName);
-        const newProductsWithTips = await generateSmartTips(newPageProducts);
+        const newProductsWithTips: ParsedProduct[] = newPageProducts.map((product) => ({
+          ...product,
+          smartTip: generateDefaultTip(product),
+          tipStatus: isSupabaseConfigured() ? 'pending' : 'failed',
+          tipSource: 'fallback',
+        }));
 
         // 해당 페이지 전체 교체
         finalProductsByPage.set(p, newProductsWithTips);
@@ -488,6 +544,18 @@ app.post('/api/flyers/sync-branch', async (req: Request, res: Response) => {
       allFinalProducts.push(...pageItems);
     }
 
+    // 지점 전단도 먼저 저장하고, 새로 파싱한 상품의 팁은 동일 worker 큐에서 처리합니다.
+    if (isSupabaseConfigured()) {
+      await saveFlyerToSupabase({
+        martName,
+        branchName,
+        isMaster: false,
+        title: `${martName} ${branchName} 전단`,
+        imageUrls: branchPageUrls,
+        products: allFinalProducts,
+      });
+    }
+
     res.json({
       success: true,
       martName,
@@ -497,6 +565,9 @@ app.post('/api/flyers/sync-branch', async (req: Request, res: Response) => {
       replacedPages,
       totalProducts: allFinalProducts.length,
       products: allFinalProducts,
+      tipProcessing: isSupabaseConfigured() && allFinalProducts.some((product) =>
+        product.tipStatus === 'pending' || product.tipStatus === 'retry'
+      ),
       syncedAt: new Date().toISOString()
     });
   } catch (err: unknown) {

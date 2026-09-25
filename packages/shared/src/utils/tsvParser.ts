@@ -60,8 +60,10 @@ function isHeaderLine(line: string): boolean {
  * Gemini TSV 출력 텍스트를 ParsedProduct 배열로 안전하게 변환
  *
  * 지원 포맷:
- * 1) 6개 컬럼: 페이지번호\t상품명\t할인가\t단위당가격\t단위\t신선식품여부(Y/N)
- * 2) 5개 컬럼: 상품명\t할인가\t단위당가격\t단위\t신선식품여부(Y/N) (단일 페이지 파싱 시)
+ * 1) 10개 컬럼: 페이지번호\t상품명\t할인가\t단위당가격\t단위\t신선식품여부(Y/N)\tymin\txmin\tymax\txmax
+ * 2) 9개 컬럼: 상품명\t할인가\t단위당가격\t단위\t신선식품여부(Y/N)\tymin\txmin\tymax\txmax
+ * 3) 6개 컬럼: 페이지번호\t상품명\t할인가\t단위당가격\t단위\t신선식품여부(Y/N)
+ * 4) 5개 컬럼: 상품명\t할인가\t단위당가격\t단위\t신선식품여부(Y/N)
  */
 export function parseFlyerTsv(rawText: string, defaultPageIndex = 1): ParsedProduct[] {
   if (!rawText || !rawText.trim()) {
@@ -82,8 +84,14 @@ export function parseFlyerTsv(rawText: string, defaultPageIndex = 1): ParsedProd
       continue;
     }
 
-    // 탭 구분자 분리
-    const cols = rawLine.split('\t').map(c => c.trim());
+    // 탭 구분자 분리 (탭 누락 시 | 또는 2칸 이상 연속 공백으로 유연하게 분리)
+    let cols = rawLine.split('\t').map(c => c.trim());
+    if (cols.length < 5 && rawLine.includes('|')) {
+      cols = rawLine.split('|').map(c => c.trim()).filter(Boolean);
+    }
+    if (cols.length < 5) {
+      cols = rawLine.split(/\s{2,}/).map(c => c.trim());
+    }
 
     if (cols.length < 5) {
       continue;
@@ -95,8 +103,36 @@ export function parseFlyerTsv(rawText: string, defaultPageIndex = 1): ParsedProd
     let unitPriceStr = '';
     let unitMeasure = '';
     let isPerishableStr = '';
+    let yminStr = '';
+    let xminStr = '';
+    let ymaxStr = '';
+    let xmaxStr = '';
 
-    if (cols.length >= 6) {
+    if (cols.length >= 10) {
+      // [페이지번호, 상품명, 할인가, 단위당가격, 단위, 신선식품여부, ymin, xmin, ymax, xmax]
+      const parsedPage = parseInt(cols[0] || '1', 10);
+      pageIndex = isNaN(parsedPage) ? defaultPageIndex : parsedPage;
+      productName = cols[1] || '';
+      salePriceStr = cols[2] || '0';
+      unitPriceStr = cols[3] || '0';
+      unitMeasure = cols[4] || '';
+      isPerishableStr = cols[5] || 'N';
+      yminStr = cols[6] || '';
+      xminStr = cols[7] || '';
+      ymaxStr = cols[8] || '';
+      xmaxStr = cols[9] || '';
+    } else if (cols.length === 9) {
+      // [상품명, 할인가, 단위당가격, 단위, 신선식품여부, ymin, xmin, ymax, xmax]
+      productName = cols[0] || '';
+      salePriceStr = cols[1] || '0';
+      unitPriceStr = cols[2] || '0';
+      unitMeasure = cols[3] || '';
+      isPerishableStr = cols[4] || 'N';
+      yminStr = cols[5] || '';
+      xminStr = cols[6] || '';
+      ymaxStr = cols[7] || '';
+      xmaxStr = cols[8] || '';
+    } else if (cols.length >= 6) {
       // [페이지번호, 상품명, 할인가, 단위당가격, 단위, 신선식품여부]
       const parsedPage = parseInt(cols[0] || '1', 10);
       pageIndex = isNaN(parsedPage) ? defaultPageIndex : parsedPage;
@@ -124,13 +160,33 @@ export function parseFlyerTsv(rawText: string, defaultPageIndex = 1): ParsedProd
       effectiveUnitPrice = salePrice;
     }
 
+    let boundingBox: ParsedProduct['boundingBox'];
+    if (yminStr && xminStr && ymaxStr && xmaxStr) {
+      const ymin = Math.max(0, Math.min(1000, cleanNumber(yminStr)));
+      const xmin = Math.max(0, Math.min(1000, cleanNumber(xminStr)));
+      const ymax = Math.max(0, Math.min(1000, cleanNumber(ymaxStr)));
+      const xmax = Math.max(0, Math.min(1000, cleanNumber(xmaxStr)));
+
+      if (ymax > ymin && xmax > xmin) {
+        boundingBox = {
+          id: `box-${pageIndex}-${i}`,
+          ymin,
+          xmin,
+          ymax,
+          xmax,
+          labelHint: productName,
+        };
+      }
+    }
+
     products.push({
       pageIndex,
       productName,
       salePrice,
       effectiveUnitPrice,
       unitMeasure: unitMeasure || '개',
-      isPerishable: parseIsPerishable(isPerishableStr)
+      isPerishable: parseIsPerishable(isPerishableStr),
+      ...(boundingBox ? { boundingBox } : {}),
     });
   }
 
