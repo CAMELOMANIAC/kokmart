@@ -12,7 +12,8 @@
     "build:server": "pnpm --filter @kokmart/server build",
     "lint": "eslint \"{apps,packages}/**/*.{ts,tsx}\"",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "postinstall": "pnpm build:shared"
   },
   "devDependencies": {
     "@testing-library/react": "^16.3.3",
