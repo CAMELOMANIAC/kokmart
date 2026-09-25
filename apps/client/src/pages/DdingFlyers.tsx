@@ -138,10 +138,23 @@ export const DdingFlyers: React.FC = () => {
         }),
       });
 
-      const data = await response.json();
+      const responseText = await response.text();
+      let data: FlyerDetailResponse | null = null;
+      try {
+        data = JSON.parse(responseText) as FlyerDetailResponse;
+      } catch {
+        // 응답 본문이 JSON이 아닌 경우 (Vercel 404/504 HTML 에러 등)
+      }
 
-      if (!response.ok || !data.success) {
-        throw new Error(data.error || '전단지 파싱 중 오류가 발생했습니다.');
+      if (!response.ok || !data || !data.success) {
+        if (response.status === 404) {
+          throw new Error('서버 API 엔드포인트를 찾을 수 없습니다 (404 Not Found). 배포 라우팅 설정을 확인해 주세요.');
+        }
+        if (response.status === 504) {
+          throw new Error('서버 처리 시간이 초과되었습니다 (504 Gateway Timeout).');
+        }
+        const errorMsg = data?.error || `서버 오류가 발생했습니다 (${response.status}: ${response.statusText || responseText.slice(0, 80)})`;
+        throw new Error(errorMsg);
       }
 
       const receivedProducts: ParsedProduct[] = data.products || [];

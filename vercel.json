@@ -11,13 +11,16 @@
     },
     {
       "src": "apps/server/api/index.ts",
-      "use": "@vercel/node"
+      "use": "@vercel/node",
+      "config": {
+        "maxDuration": 60
+      }
     }
   ],
   "routes": [
     {
       "src": "/api/(.*)",
-      "dest": "apps/server/api/index.ts"
+      "dest": "/apps/server/api/index.ts"
     },
     {
       "handle": "filesystem"
