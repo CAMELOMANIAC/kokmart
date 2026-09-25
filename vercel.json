@@ -1,33 +1,17 @@
 {
   "version": 2,
-  "buildCommand": "pnpm build",
-  "builds": [
-    {
-      "src": "apps/client/package.json",
-      "use": "@vercel/static-build",
-      "config": {
-        "distDir": "dist"
-      }
-    },
-    {
-      "src": "apps/server/api/index.ts",
-      "use": "@vercel/node",
-      "config": {
-        "maxDuration": 60
-      }
-    }
-  ],
   "routes": [
-    {
-      "src": "/api/(.*)",
-      "dest": "/apps/server/api/index.ts"
-    },
     {
       "handle": "filesystem"
     },
     {
       "src": "/(.*)",
-      "dest": "apps/client/index.html"
+      "dest": "/index.html"
     }
-  ]
+  ],
+  "functions": {
+    "api/**/*.ts": {
+      "maxDuration": 60
+    }
+  }
 }
