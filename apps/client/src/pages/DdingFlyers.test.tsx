@@ -123,10 +123,21 @@ function mockApiResponse(response: { ok: boolean; json: () => Promise<unknown> }
     if (String(input).startsWith('/api/flyers/latest')) {
       return {
         ok: false,
+        status: 404,
+        statusText: 'Not Found',
         json: async () => ({ success: false }),
+        text: async () => JSON.stringify({ success: false }),
       };
     }
-    return response;
+
+    const payload = await response.json();
+    return {
+      ...response,
+      status: response.ok ? 200 : 500,
+      statusText: response.ok ? 'OK' : 'Internal Server Error',
+      json: async () => payload,
+      text: async () => JSON.stringify(payload),
+    };
   });
 }
 
