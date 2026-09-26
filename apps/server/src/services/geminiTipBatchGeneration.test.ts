@@ -65,7 +65,7 @@ describe('generateGeminiTipBatch', () => {
         model: 'gemini-3.8-flash',
         tools: [{ type: 'google_search' }],
         generation_config: expect.objectContaining({
-          thinking_level: 'low',
+          thinking_level: 'medium',
           max_output_tokens: 4096,
         }),
         input: expect.stringContaining('출처URL\t구매조언'),
@@ -130,6 +130,25 @@ describe('generateGeminiTipBatch', () => {
     expect(result.products).toHaveLength(1);
     expect(result.products[0]?.tipSource).toBe('gemini_advice');
     expect(result.products[0]?.smartTip?.tipMessage).toBe('필요한 양만 고르기 좋아요.');
+  });
+
+  it('판매처와 URL이 없어도 평균 프로모션 가격 판정을 보존한다', async () => {
+    mockCreateInteraction.mockResolvedValueOnce({
+      output_text: [
+        'id\t비교등급\t비교상품총가격\t마트기준환산단가\t판매처\t비교상품명\t상품특성\t가격조건\t비교근거\t출처URL\t구매조언\t대략가격판정',
+        'product-1\tCATEGORY\t0\t0\t-\t동급 파티세트\tREADY_TO_EAT\t평균 행사 가격대\t유사 구성의 행사 가격대를 검색함\t-\t필요한 수량을 기준으로 구매하기 좋아요.\tMART_GOOD',
+      ].join('\n'),
+      steps: [{ type: 'google_search_call', arguments: { queries: ['파티세트 평균 행사 가격'] } }],
+    });
+
+    const result = await generateGeminiTipBatch([product]);
+
+    expect(result.rejected).toHaveLength(0);
+    expect(result.products).toHaveLength(1);
+    expect(result.products[0]?.tipSource).toBe('gemini_advice');
+    expect(result.products[0]?.smartTip?.tipMessage).toBe(
+      '평균적인 프로모션 가격대와 비교해 구매하기 적합한 가격이에요.'
+    );
   });
 
   it('CLOSE 냉동 상품의 보관·조리 문구는 구매 판단 문구로 대체한다', async () => {

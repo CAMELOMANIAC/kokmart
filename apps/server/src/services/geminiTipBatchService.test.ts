@@ -212,6 +212,27 @@ describe('buildGroundedSmartTip', () => {
     expect(tip.tipMessage).not.toContain('%');
     expect(tip.tipMessage).toContain('온라인 묶음 구성');
   });
+
+  it('URL과 단위 가격이 없어도 평균 프로모션 가격 판정으로 완료한다', () => {
+    const tip = buildGroundedSmartTip(product({ effectiveUnitPrice: 0, unitMeasure: '' }), {
+      id: 'product-1',
+      comparisonLevel: 'CATEGORY',
+      onlinePrice: 0,
+      onlineUnitPrice: 0,
+      retailer: '온라인 판매처',
+      matchedProduct: '동급 파티세트',
+      insightType: 'STANDARD',
+      productTrait: 'READY_TO_EAT',
+      reason: '유사 구성의 행사 가격대를 검색함',
+      sourceUrl: '',
+      approximatePriceVerdict: 'MART_GOOD',
+    });
+
+    expect(tip.tipType).toBe('MART_RECOMMEND');
+    expect(tip.badgeText).toBe('프로모션 가격대 적정');
+    expect(tip.tipMessage).toBe('평균적인 프로모션 가격대와 비교해 구매하기 적합한 가격이에요.');
+    expect(tip.tipMessage).not.toContain('%');
+  });
 });
 
 describe('buildVisionOnlySmartTip', () => {

@@ -10,6 +10,7 @@ type ShoppingInsightType =
   | 'STANDARD';
 
 type ComparisonLevel = 'EXACT' | 'CLOSE' | 'CATEGORY' | 'NONE';
+type ApproximatePriceVerdict = 'MART_GOOD' | 'SIMILAR' | 'ONLINE_GOOD' | 'UNKNOWN';
 type ProductTrait =
   | 'FROZEN'
   | 'LONG_KEEPING'
@@ -31,6 +32,7 @@ export interface OnlinePriceEvidence {
   priceCondition?: string;
   reason: string;
   sourceUrl: string;
+  approximatePriceVerdict?: ApproximatePriceVerdict;
   /** 가격 판단을 제외하고 Gemini가 작성한 상품별 구매 조언 한 문장 */
   tipCopy?: string;
 }
@@ -129,6 +131,7 @@ function parseEvidenceTsv(rawText: string): Map<string, OnlinePriceEvidence> {
         rawReason,
         sourceUrl,
         rawTipCopy,
+        rawApproximatePriceVerdict,
       ] = columns;
       if (!id || !rawReason) continue;
 
@@ -148,6 +151,15 @@ function parseEvidenceTsv(rawText: string): Map<string, OnlinePriceEvidence> {
         : 'STANDARD';
       const reason = rawReason.replace(/[\t\r\n]+/g, ' ').slice(0, 80);
       const tipCopy = parseSafeTipCopy(rawTipCopy);
+      const normalizedVerdict = (rawApproximatePriceVerdict || '').toUpperCase() as ApproximatePriceVerdict;
+      const approximatePriceVerdict: ApproximatePriceVerdict = [
+        'MART_GOOD',
+        'SIMILAR',
+        'ONLINE_GOOD',
+        'UNKNOWN',
+      ].includes(normalizedVerdict)
+        ? normalizedVerdict
+        : 'UNKNOWN';
 
       if (comparisonLevel === 'NONE') {
         result.set(id, {
@@ -163,6 +175,7 @@ function parseEvidenceTsv(rawText: string): Map<string, OnlinePriceEvidence> {
           reason,
           sourceUrl: '',
           tipCopy,
+          approximatePriceVerdict,
         });
         continue;
       }
@@ -170,15 +183,17 @@ function parseEvidenceTsv(rawText: string): Map<string, OnlinePriceEvidence> {
       const onlinePrice = parsePositivePrice(rawOnlinePrice || '');
       const onlineUnitPrice = parsePositivePrice(rawOnlineUnitPrice || '');
       const normalizedSourceUrl = parseSourceUrl(sourceUrl || '');
-      if (!onlinePrice || !normalizedSourceUrl || !retailer || !matchedProduct) continue;
+      // 검색은 됐지만 판매처명·URL·환산단가가 빠진 행도 대략 가격대 판단으로 보존합니다.
+      // 정확한 할인율은 아래 빌더에서 URL과 비교 가능한 가격이 모두 있을 때만 계산합니다.
+      if (!onlinePrice && approximatePriceVerdict === 'UNKNOWN') continue;
 
       const evidence: OnlinePriceEvidence = {
         id,
         comparisonLevel,
-        onlinePrice,
+        onlinePrice: onlinePrice || 0,
         onlineUnitPrice: onlineUnitPrice || 0,
-        retailer,
-        matchedProduct,
+        retailer: retailer && retailer !== '-' ? retailer : '온라인 판매처',
+        matchedProduct: matchedProduct && matchedProduct !== '-' ? matchedProduct : '동급 상품',
         insightType: productTrait === 'SMALL_PACK'
           ? 'SMALL_PACK'
           : productTrait === 'BULK'
@@ -189,13 +204,24 @@ function parseEvidenceTsv(rawText: string): Map<string, OnlinePriceEvidence> {
         productTrait,
         priceCondition: (rawPriceCondition || '').replace(/[\t\r\n]+/g, ' ').slice(0, 80),
         reason,
-        sourceUrl: normalizedSourceUrl,
+        sourceUrl: normalizedSourceUrl || '',
         tipCopy,
+        approximatePriceVerdict,
       };
       const existing = result.get(id);
-      const evidencePrice = evidence.onlineUnitPrice || evidence.onlinePrice;
+      const evidencePrice = evidence.onlineUnitPrice || evidence.onlinePrice || Number.POSITIVE_INFINITY;
       const existingPrice = existing?.onlineUnitPrice || existing?.onlinePrice || Number.POSITIVE_INFINITY;
-      if (!existing || evidencePrice < existingPrice) result.set(id, evidence);
+      const evidenceQuality = (evidence.sourceUrl ? 2 : 0) + (evidence.onlineUnitPrice > 0 ? 1 : 0);
+      const existingQuality = existing
+        ? (existing.sourceUrl ? 2 : 0) + (existing.onlineUnitPrice > 0 ? 1 : 0)
+        : -1;
+      if (
+        !existing
+        || evidenceQuality > existingQuality
+        || (evidenceQuality === existingQuality && evidencePrice < existingPrice)
+      ) {
+        result.set(id, evidence);
+      }
       continue;
     }
 
@@ -312,6 +338,40 @@ function buildUnpricedAiTip(product: ParsedProduct, evidence: OnlinePriceEvidenc
   };
 }
 
+/** 출처나 환산단가가 부족한 검색 결과는 수치 없이 평균 프로모션 가격대만 안내합니다. */
+function buildApproximatePromotionTip(product: ParsedProduct, evidence: OnlinePriceEvidence): SmartTip {
+  if (evidence.approximatePriceVerdict === 'MART_GOOD') {
+    return {
+      tipType: 'MART_RECOMMEND',
+      badgeText: '프로모션 가격대 적정',
+      tipMessage: '평균적인 프로모션 가격대와 비교해 구매하기 적합한 가격이에요.',
+      coupangKeyword: null,
+    };
+  }
+
+  if (evidence.approximatePriceVerdict === 'SIMILAR') {
+    return {
+      tipType: 'MART_RECOMMEND',
+      badgeText: '프로모션 가격대 비슷',
+      tipMessage: '평균적인 프로모션 가격대와 비슷해 필요한 시점에 마트에서 구매하기 좋아요.',
+      coupangKeyword: null,
+    };
+  }
+
+  if (evidence.approximatePriceVerdict === 'ONLINE_GOOD') {
+    return {
+      tipType: evidence.sourceUrl ? 'COUPANG_TIP' : 'MART_RECOMMEND',
+      badgeText: '온라인 가격대 참고',
+      tipMessage: evidence.sourceUrl
+        ? '평균적인 온라인 프로모션 가격대가 더 낮은 편이라 필요한 용량을 확인한 뒤 온라인 구매를 비교하기 좋아요.'
+        : '온라인 프로모션 가격대가 더 낮은 편이지만 판매처를 특정할 수 없어 구매 전 실제 판매가를 확인하는 게 좋아요.',
+      coupangKeyword: evidence.sourceUrl ? product.productName : null,
+    };
+  }
+
+  return buildUnpricedAiTip(product, evidence);
+}
+
 export function buildGroundedSmartTip(
   product: ParsedProduct,
   evidence: OnlinePriceEvidence
@@ -323,8 +383,9 @@ export function buildGroundedSmartTip(
   const canCompareExactPackage = comparisonLevel === 'EXACT'
     && product.salePrice > 0
     && evidence.onlinePrice > 0;
-  if (!hasNormalizedPrices && !canCompareExactPackage) {
-    return buildUnpricedAiTip(product, evidence);
+  const hasVerifiableSource = Boolean(evidence.sourceUrl);
+  if (!hasVerifiableSource || (!hasNormalizedPrices && !canCompareExactPackage)) {
+    return buildApproximatePromotionTip(product, evidence);
   }
 
   const martUnitPrice = Math.round(hasNormalizedPrices ? product.effectiveUnitPrice : product.salePrice);
@@ -528,7 +589,7 @@ ${rows}
 [출력]
 입력 상품마다 반드시 한 행씩, 입력 순서대로 반환하십시오. 상품을 생략하지 마십시오.
 오직 다음 TSV만 출력하고 설명이나 마크다운을 추가하지 마십시오.
-id\t비교등급\t비교상품총가격\t마트기준환산단가\t판매처\t비교상품명\t상품특성\t가격조건\t비교근거\t출처URL\t구매조언
+id\t비교등급\t비교상품총가격\t마트기준환산단가\t판매처\t비교상품명\t상품특성\t가격조건\t비교근거\t출처URL\t구매조언\t대략가격판정
 
 [비교등급]
 - EXACT: 같은 브랜드와 같은 상품. 용량만 달라도 같은 제품군이면 EXACT
@@ -547,8 +608,11 @@ FROZEN, LONG_KEEPING, FRESH, SMALL_PACK, BULK, READY_TO_EAT, STANDARD 중 하나
 - 현재 판매 페이지나 검색 결과에서 확인한 가격만 사용하고 추정하지 마십시오.
 - 공개 행사·회원가·카드가 등 조건이 있으면 배제하지 말고 가격조건에 짧게 적으십시오.
 - 품절·중고·해외배송은 제외하고, 확인되는 배송비는 총가격에 포함하십시오.
-- EXACT/CLOSE/CATEGORY는 실제 http 또는 https 출처URL을 넣으십시오.
-- NONE은 가격 두 칸에 0, 판매처·비교상품명·가격조건·출처URL에 하이픈(-)을 넣으십시오.
+- EXACT/CLOSE/CATEGORY는 가능하면 실제 http 또는 https 출처URL을 넣으십시오.
+- 검색은 했지만 판매처명이나 URL을 특정하기 어려워도 행을 생략하지 말고 하이픈(-)을 넣으십시오.
+- 환산단가를 계산하지 못해도 평균적인 현재 프로모션 가격대를 바탕으로 대략가격판정을 작성하십시오.
+- 대략가격판정은 MART_GOOD, SIMILAR, ONLINE_GOOD, UNKNOWN 중 하나만 사용하십시오. 마트 전단가가 평균적인 프로모션 가격대보다 좋거나 구매하기 적합하면 MART_GOOD를 사용하십시오.
+- NONE은 가격 두 칸에 0, 판매처·비교상품명·가격조건·출처URL에 하이픈(-)을 넣고 대략가격판정은 UNKNOWN으로 작성하십시오.
 - 비교근거에는 왜 동일하거나 동급인지 50자 이내로 작성하십시오.
 - 구매조언은 어디서 살지, 필요한 수량만 살지, 묶음 구매가 나은지, 매장에서 상태를 확인할지 같은 구매 결정만 다루십시오.
 - 세척, 손질, 조리, 보관 방법, 냉장·냉동 방법, 해동, 섭취기한이나 섭취 방법은 절대 작성하지 마십시오.
@@ -584,7 +648,7 @@ export async function generateGeminiTipBatch(
     input: buildPrompt(products),
     tools: [{ type: 'google_search' }],
     generation_config: {
-      thinking_level: 'low',
+      thinking_level: 'medium',
       max_output_tokens: 4096,
     },
     stream: false,
@@ -644,7 +708,9 @@ export async function generateGeminiTipBatch(
         ...product,
         smartTip: buildGroundedSmartTip(product, evidence),
         tipStatus: 'complete',
-        tipSource: evidence.comparisonLevel === 'NONE' ? 'gemini_advice' : 'gemini_grounded',
+        tipSource: evidence.comparisonLevel === 'NONE' || !evidence.sourceUrl
+          ? 'gemini_advice'
+          : 'gemini_grounded',
         tipProcessor: 'gemini_batch',
       });
     } catch (error: unknown) {
