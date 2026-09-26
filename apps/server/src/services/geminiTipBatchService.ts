@@ -48,6 +48,12 @@ function parsePositivePrice(raw: string): number | null {
   return Math.round(parsed);
 }
 
+function parseSourceUrl(raw: string): string | null {
+  const markdownUrl = raw.match(/\]\((https?:\/\/[^)\s]+)\)/i)?.[1];
+  const plainUrl = raw.match(/https?:\/\/[^\s)\]]+/i)?.[0];
+  return (markdownUrl || plainUrl || '').replace(/[.,;]+$/, '') || null;
+}
+
 function parseEvidenceTsv(rawText: string): Map<string, OnlinePriceEvidence> {
   const result = new Map<string, OnlinePriceEvidence>();
   const lines = stripMarkdownFences(rawText).split(/\r?\n/);
@@ -74,8 +80,9 @@ function parseEvidenceTsv(rawText: string): Map<string, OnlinePriceEvidence> {
 
     const onlinePrice = parsePositivePrice(rawOnlinePrice || '');
     const onlineUnitPrice = parsePositivePrice(rawOnlineUnitPrice || '');
+    const normalizedSourceUrl = parseSourceUrl(sourceUrl);
     if (!onlinePrice || !onlineUnitPrice) continue;
-    if (!/^https?:\/\//i.test(sourceUrl)) continue;
+    if (!normalizedSourceUrl) continue;
 
     const allowedInsightTypes: ShoppingInsightType[] = [
       'PRICE',
@@ -98,7 +105,7 @@ function parseEvidenceTsv(rawText: string): Map<string, OnlinePriceEvidence> {
       matchedProduct,
       insightType,
       reason,
-      sourceUrl,
+      sourceUrl: normalizedSourceUrl,
     });
   }
 
@@ -259,6 +266,7 @@ id\t온라인총가격\t마트단위로환산한온라인단위가격\t판매처
 
 [검증 규칙]
 - 입력의 모든 상품을 개별 검색하고, 입력 id를 한 글자도 바꾸지 마십시오.
+- 상품 하나당 Google Search 쿼리는 최대 3회만 수행하십시오. 첫 검색에서 동일 규격을 찾으면 추가 검색하지 마십시오.
 - 쿠팡 검색 결과를 우선하되 찾을 수 없으면 신뢰할 수 있는 국내 온라인 판매처를 사용하십시오.
 - 품절, 중고, 해외배송, 회원 전용 쿠폰가는 제외하십시오.
 - 배송비는 가격에 포함하십시오.
@@ -308,17 +316,27 @@ export async function generateGeminiTipBatch(
   const { searchQueries, citations } = countInteractionGrounding(
     interaction.steps as Array<{ type: string; [key: string]: unknown }> | undefined
   );
-  if (searchQueries === 0 || citations === 0) {
+  if (searchQueries === 0) {
     console.warn(
       `[Gemini Batch] Grounding 검증 실패: searchQueries=${searchQueries}, citations=${citations}, response=${responseText.slice(0, 500)}`
     );
-    throw new Error(
-      `Gemini Google Search 근거가 부족합니다. searchQueries=${searchQueries}, citations=${citations}`
+    throw new Error('Gemini가 Google Search를 실행하지 않았습니다.');
+  }
+
+  const evidenceById = parseEvidenceTsv(responseText);
+  if (evidenceById.size === 0) {
+    console.warn(
+      `[Gemini Batch] 유효한 출처 URL이 없습니다: searchQueries=${searchQueries}, citations=${citations}, response=${responseText.slice(0, 500)}`
+    );
+    throw new Error('Gemini 검색 결과에 검증 가능한 출처 URL이 없습니다.');
+  }
+  if (citations === 0) {
+    console.warn(
+      `[Gemini Batch] URL citation annotation은 없지만 검색 실행과 TSV 출처 URL을 확인했습니다: searchQueries=${searchQueries}, urls=${evidenceById.size}`
     );
   }
 
-  const groundingSources = citations;
-  const evidenceById = parseEvidenceTsv(responseText);
+  const groundingSources = citations || evidenceById.size;
   const completed: ParsedProduct[] = [];
   const rejected: RejectedGeminiTipProduct[] = [];
 
