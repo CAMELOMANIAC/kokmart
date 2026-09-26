@@ -29,7 +29,7 @@ describe('buildGroundedSmartTip', () => {
     });
 
     expect(tip.tipType).toBe('MART_BEST');
-    expect(tip.tipMessage).toContain('마트가 쿠팡보다');
+    expect(tip.tipMessage).toContain('마트가 확인된 비교 최저가(쿠팡)보다');
     expect(tip.tipMessage).toContain('70.3% 저렴');
     expect(tip.coupangKeyword).toBeNull();
   });
@@ -47,11 +47,11 @@ describe('buildGroundedSmartTip', () => {
     });
 
     expect(tip.tipType).toBe('COUPANG_TIP');
-    expect(tip.tipMessage).toContain('쿠팡 쪽이 20.0% 더 저렴');
+    expect(tip.tipMessage).toContain('확인된 최저가(쿠팡)가 마트보다 20.0% 저렴');
     expect(tip.coupangKeyword).toBe('피자 파티세트');
   });
 
-  it('단위 가격 차이가 5% 미만이면 비슷한 가격으로 처리한다', () => {
+  it('단위 가격 차이가 10% 미만이면 비슷한 가격과 즉시 구매 장점을 안내한다', () => {
     const tip = buildGroundedSmartTip(product({ effectiveUnitPrice: 10_000 }), {
       id: 'product-1',
       onlinePrice: 10_300,
@@ -64,7 +64,8 @@ describe('buildGroundedSmartTip', () => {
     });
 
     expect(tip.tipType).toBe('MART_RECOMMEND');
-    expect(tip.tipMessage).toContain('단가 차이가 크지 않아');
+    expect(tip.tipMessage).toContain('2.9% 차이로 비슷');
+    expect(tip.tipMessage).toContain('바로 구매');
   });
 
   it('프리미엄 근거가 있으면 가격 대신 제품 가치를 설명한다', () => {
@@ -81,7 +82,8 @@ describe('buildGroundedSmartTip', () => {
 
     expect(tip.tipType).toBe('MART_RECOMMEND');
     expect(tip.badgeText).toBe('프리미엄 선택');
-    expect(tip.tipMessage).toContain('단가가 높더라도');
+    expect(tip.tipMessage).toContain('온라인 최저가가 25.0% 저렴하지만');
+    expect(tip.tipMessage).toContain('가격보다 제품 특색');
     expect(tip.tipMessage).toContain('고급 치즈와 숙성 도우 사용');
   });
 
@@ -98,8 +100,8 @@ describe('buildGroundedSmartTip', () => {
     });
 
     expect(tip.tipType).toBe('COUPANG_TIP');
-    expect(tip.badgeText).toBe('온라인 가격 메리트');
-    expect(tip.tipMessage).toContain('오늘 바로 먹을 소용량이 필요할 때만');
+    expect(tip.badgeText).toBe('온라인 최저가 유리');
+    expect(tip.tipMessage).toContain('오늘 바로 필요한 소용량이 아니라면');
   });
 
   it('소용량이고 온라인 가격 차이가 10% 미만이면 마트 편의를 추천한다', () => {
@@ -116,7 +118,47 @@ describe('buildGroundedSmartTip', () => {
 
     expect(tip.tipType).toBe('MART_RECOMMEND');
     expect(tip.badgeText).toBe('소용량 간편 선택');
-    expect(tip.tipMessage).toContain('바로 먹기 좋아요');
+    expect(tip.tipMessage).toContain('필요한 만큼 바로 구매');
+  });
+
+  it('냉동식품의 온라인 최저가가 10% 이상 싸면 보관 장점과 함께 온라인을 추천한다', () => {
+    const tip = buildGroundedSmartTip(product({
+      productName: '하림 냉동 닭가슴살 찹스테이크 600g',
+      effectiveUnitPrice: 8_990,
+      unitMeasure: '1',
+    }), {
+      id: 'product-1',
+      onlinePrice: 6_280,
+      onlineUnitPrice: 6_280,
+      retailer: '온라인 행사몰',
+      matchedProduct: '하림 닭가슴살 찹스테이크 600g',
+      insightType: 'STANDARD',
+      reason: '현재 공개 프로모션 가격',
+      sourceUrl: 'https://example.com/product',
+    });
+
+    expect(tip.tipType).toBe('COUPANG_TIP');
+    expect(tip.tipMessage).toContain('확인된 최저가(온라인 행사몰)');
+    expect(tip.tipMessage).toContain('냉동 보관 가능한 상품');
+    expect(tip.tipMessage).not.toContain('1당');
+  });
+
+  it('검증된 Gemini 구매 조언을 서버가 계산한 가격 문장 뒤에 붙인다', () => {
+    const tip = buildGroundedSmartTip(product({ effectiveUnitPrice: 10_000 }), {
+      id: 'product-1',
+      onlinePrice: 8_000,
+      onlineUnitPrice: 8_000,
+      retailer: '행사몰',
+      matchedProduct: '피자 파티세트 1세트',
+      insightType: 'STANDARD',
+      reason: '동일 규격 상품',
+      sourceUrl: 'https://example.com/product',
+      tipCopy: '여럿이 나눠 먹는 간편한 식사로 활용하기 좋아요.',
+    });
+
+    expect(tip.tipMessage).toContain('행사몰');
+    expect(tip.tipMessage).toContain('20.0% 저렴');
+    expect(tip.tipMessage).toContain('여럿이 나눠 먹는 간편한 식사로 활용하기 좋아요.');
   });
 });
 

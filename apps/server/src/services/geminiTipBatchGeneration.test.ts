@@ -38,6 +38,7 @@ describe('generateGeminiTipBatch', () => {
       output_text: [
         'id\t온라인총가격\t마트단위로환산한온라인단위가격\t판매처\t검색결과상품명\t구매특성\t근거요약\t출처URL',
         'product-1\t26900\t26900\t쿠팡\t피자 파티세트 1세트\tPRICE\t동일 규격 가격 확인\t[상품](https://example.com/product)',
+        'product-1\t6900\t6900\t행사몰\t피자 파티세트 1세트\tPRICE\t현재 공개 행사가\thttps://example.com/sale\t여럿이 나눠 먹는 간편한 식사로 활용하기 좋아요.',
       ].join('\n'),
       steps: [
         {
@@ -67,11 +68,15 @@ describe('generateGeminiTipBatch', () => {
           thinking_level: 'low',
           max_output_tokens: 4096,
         }),
+        input: expect.stringContaining('출처URL\t구매조언'),
       })
     );
     expect(result.groundingSources).toBe(1);
     expect(result.products).toHaveLength(1);
     expect(result.products[0]?.tipStatus).toBe('complete');
+    expect(result.products[0]?.smartTip?.tipType).toBe('COUPANG_TIP');
+    expect(result.products[0]?.smartTip?.tipMessage).toContain('행사몰');
+    expect(result.products[0]?.smartTip?.tipMessage).toContain('여럿이 나눠 먹는 간편한 식사');
   });
 
   it('검색은 실행됐지만 결과 행이 없으면 예외 대신 비전 재검증 대상으로 반환한다', async () => {
@@ -90,5 +95,22 @@ describe('generateGeminiTipBatch', () => {
     expect(result.products).toHaveLength(0);
     expect(result.rejected).toHaveLength(1);
     expect(result.rejected[0]?.product.id).toBe('product-1');
+  });
+
+  it('TSV 구매 조언은 안전한 문장만 사용하고 가격 판단 표현은 폴백한다', async () => {
+    mockCreateInteraction.mockResolvedValueOnce({
+      output_text: [
+        'id\t온라인총가격\t마트단위로환산한온라인단위가격\t판매처\t검색결과상품명\t구매특성\t근거요약\t출처URL\t구매조언',
+        'product-1\t6900\t6900\t행사몰\t피자 파티세트 1세트\tSTANDARD\t현재 공개 행사가\thttps://example.com/sale\t마트가 더 저렴하니 추천해요',
+      ].join('\n'),
+      steps: [{ type: 'google_search_call', arguments: { queries: ['피자 파티세트 행사'] } }],
+    });
+
+    const result = await generateGeminiTipBatch([product]);
+
+    expect(result.products).toHaveLength(1);
+    expect(result.products[0]?.smartTip?.tipMessage).toContain('행사몰');
+    expect(result.products[0]?.smartTip?.tipMessage).toContain('온라인 주문이 유리');
+    expect(result.products[0]?.smartTip?.tipMessage).not.toContain('마트가 더 저렴하니 추천');
   });
 });
