@@ -121,7 +121,7 @@ async function repairRejectedProducts(
 }
 
 async function main(): Promise<void> {
-  const batchSize = readPositiveInt('GEMINI_TIP_BATCH_SIZE', 12, 15);
+  const batchSize = readPositiveInt('GEMINI_TIP_BATCH_SIZE', 6, 15);
   const maxBatches = readPositiveInt('GEMINI_TIP_MAX_BATCHES', 16, 20);
   const maxAttempts = readPositiveInt('GEMINI_TIP_MAX_ATTEMPTS', 2, 5);
   let completed = 0;

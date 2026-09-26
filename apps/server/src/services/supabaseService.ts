@@ -438,7 +438,7 @@ export async function completeTipProducts(products: ParsedProduct[], model: stri
   }
 }
 
-/** Gemini 검색 근거 또는 비전 재검증을 통과한 마스터 팁을 저장합니다. */
+/** Gemini 검색 근거, 비가격 조언 또는 비전 재검증을 통과한 마스터 팁을 저장합니다. */
 export async function completeGeminiTipProducts(products: ParsedProduct[], model: string): Promise<void> {
   const client = getSupabaseClient();
   if (!client) throw new Error('Supabase가 설정되지 않았습니다.');
@@ -449,8 +449,12 @@ export async function completeGeminiTipProducts(products: ParsedProduct[], model
       if (!product.id || !product.smartTip) {
         throw new Error('완료할 상품 ID 또는 smartTip이 없습니다.');
       }
-      if (product.tipSource !== 'gemini_grounded' && product.tipSource !== 'gemini_vision') {
-        throw new Error(`Gemini 검색/비전 검증을 통과하지 않은 상품은 완료할 수 없습니다: ${product.id}`);
+      if (
+        product.tipSource !== 'gemini_grounded'
+        && product.tipSource !== 'gemini_advice'
+        && product.tipSource !== 'gemini_vision'
+      ) {
+        throw new Error(`Gemini 검색/조언/비전 검증을 통과하지 않은 상품은 완료할 수 없습니다: ${product.id}`);
       }
 
       return client

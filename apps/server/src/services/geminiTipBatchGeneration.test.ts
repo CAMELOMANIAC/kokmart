@@ -113,4 +113,38 @@ describe('generateGeminiTipBatch', () => {
     expect(result.products[0]?.smartTip?.tipMessage).toContain('온라인 주문이 유리');
     expect(result.products[0]?.smartTip?.tipMessage).not.toContain('마트가 더 저렴하니 추천');
   });
+
+  it('가격 비교가 없어도 NONE 행의 AI 구매조언으로 완료한다', async () => {
+    mockCreateInteraction.mockResolvedValueOnce({
+      output_text: [
+        'id\t비교등급\t비교상품총가격\t마트기준환산단가\t판매처\t비교상품명\t상품특성\t가격조건\t비교근거\t출처URL\t구매조언',
+        'product-1\tNONE\t0\t0\t-\t-\tREADY_TO_EAT\t-\t매장 자체 구성 상품\t-\t여럿이 바로 나눠 먹기 편한 구성이에요.',
+      ].join('\n'),
+      steps: [{ type: 'google_search_call', arguments: { queries: ['피자 파티세트'] } }],
+    });
+
+    const result = await generateGeminiTipBatch([product]);
+
+    expect(result.rejected).toHaveLength(0);
+    expect(result.products).toHaveLength(1);
+    expect(result.products[0]?.tipSource).toBe('gemini_advice');
+    expect(result.products[0]?.smartTip?.tipMessage).toContain('여럿이 바로 나눠 먹기 편한 구성');
+  });
+
+  it('CLOSE 냉동 상품은 동급 가격과 보관성을 함께 반영한다', async () => {
+    mockCreateInteraction.mockResolvedValueOnce({
+      output_text: [
+        'id\t비교등급\t비교상품총가격\t마트기준환산단가\t판매처\t비교상품명\t상품특성\t가격조건\t비교근거\t출처URL\t구매조언',
+        'product-1\tCLOSE\t6000\t6000\t온라인몰\t동급 냉동 피자세트\tFROZEN\t공개 판매가\t같은 용도의 냉동 간편식\thttps://example.com/frozen\t냉동실에 두고 필요한 때 조리하기 편해요.',
+      ].join('\n'),
+      steps: [{ type: 'google_search_call', arguments: { queries: ['냉동 피자세트'] } }],
+    });
+
+    const result = await generateGeminiTipBatch([product]);
+
+    expect(result.rejected).toHaveLength(0);
+    expect(result.products[0]?.smartTip?.tipType).toBe('COUPANG_TIP');
+    expect(result.products[0]?.smartTip?.tipMessage).toContain('동급 비교상품(온라인몰)');
+    expect(result.products[0]?.smartTip?.tipMessage).toContain('냉동실에 두고 필요한 때 조리하기 편해요.');
+  });
 });

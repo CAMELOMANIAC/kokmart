@@ -29,7 +29,7 @@ describe('buildGroundedSmartTip', () => {
     });
 
     expect(tip.tipType).toBe('MART_BEST');
-    expect(tip.tipMessage).toContain('마트가 확인된 비교 최저가(쿠팡)보다');
+    expect(tip.tipMessage).toContain('마트가 동일 상품 판매가(쿠팡)보다');
     expect(tip.tipMessage).toContain('70.3% 저렴');
     expect(tip.coupangKeyword).toBeNull();
   });
@@ -47,7 +47,7 @@ describe('buildGroundedSmartTip', () => {
     });
 
     expect(tip.tipType).toBe('COUPANG_TIP');
-    expect(tip.tipMessage).toContain('확인된 최저가(쿠팡)가 마트보다 20.0% 저렴');
+    expect(tip.tipMessage).toContain('동일 상품 판매가(쿠팡)가 마트보다 20.0% 저렴');
     expect(tip.coupangKeyword).toBe('피자 파티세트');
   });
 
@@ -138,7 +138,7 @@ describe('buildGroundedSmartTip', () => {
     });
 
     expect(tip.tipType).toBe('COUPANG_TIP');
-    expect(tip.tipMessage).toContain('확인된 최저가(온라인 행사몰)');
+    expect(tip.tipMessage).toContain('동일 상품 판매가(온라인 행사몰)');
     expect(tip.tipMessage).toContain('냉동 보관 가능한 상품');
     expect(tip.tipMessage).not.toContain('1당');
   });
@@ -159,6 +159,55 @@ describe('buildGroundedSmartTip', () => {
     expect(tip.tipMessage).toContain('행사몰');
     expect(tip.tipMessage).toContain('20.0% 저렴');
     expect(tip.tipMessage).toContain('여럿이 나눠 먹는 간편한 식사로 활용하기 좋아요.');
+  });
+
+  it('동급 냉동 상품이 더 저렴하면 보관 장점과 함께 온라인을 추천한다', () => {
+    const tip = buildGroundedSmartTip(product({
+      productName: '냉동 닭가슴살 찹스테이크',
+      effectiveUnitPrice: 1_500,
+      unitMeasure: '100g',
+    }), {
+      id: 'product-1',
+      comparisonLevel: 'CLOSE',
+      onlinePrice: 6_000,
+      onlineUnitPrice: 1_000,
+      retailer: '온라인몰',
+      matchedProduct: '동급 냉동 닭가슴살 600g',
+      insightType: 'STANDARD',
+      productTrait: 'FROZEN',
+      reason: '같은 용도의 냉동 닭가슴살 제품',
+      sourceUrl: 'https://example.com/product',
+      tipCopy: '냉동실에 두고 필요한 만큼 조리하기 편해요.',
+    });
+
+    expect(tip.tipType).toBe('COUPANG_TIP');
+    expect(tip.tipMessage).toContain('동급 비교상품(온라인몰)');
+    expect(tip.tipMessage).toContain('33.3% 저렴');
+    expect(tip.tipMessage).toContain('냉동실에 두고 필요한 만큼 조리하기 편해요.');
+  });
+
+  it('CATEGORY 비교는 정밀 할인율을 노출하지 않는다', () => {
+    const tip = buildGroundedSmartTip(product({
+      productName: '국산콩 양조간장',
+      effectiveUnitPrice: 900,
+      unitMeasure: '100ml',
+    }), {
+      id: 'product-1',
+      comparisonLevel: 'CATEGORY',
+      onlinePrice: 7_000,
+      onlineUnitPrice: 700,
+      retailer: '온라인몰',
+      matchedProduct: '프리미엄 양조간장',
+      insightType: 'STANDARD',
+      productTrait: 'LONG_KEEPING',
+      reason: '같은 용도의 프리미엄 양조간장',
+      sourceUrl: 'https://example.com/product',
+    });
+
+    expect(tip.tipType).toBe('COUPANG_TIP');
+    expect(tip.tipMessage).toContain('동급 비교상품');
+    expect(tip.tipMessage).not.toContain('%');
+    expect(tip.tipMessage).toContain('보관이 쉬운 상품');
   });
 });
 

@@ -54,6 +54,7 @@ jobs:
           GEMINI_TIP_MODEL: gemini-3.8-flash
           GEMINI_VISION_API_KEY: ${{ secrets.GEMINI_VISION_API_KEY }}
           GEMINI_VISION_MODEL: gemini-3.5-flash-lite
-          GEMINI_TIP_BATCH_SIZE: '12'
+          # 한 요청에 너무 많은 상품을 넣으면 검색을 일부만 수행하므로 6개씩 처리합니다.
+          GEMINI_TIP_BATCH_SIZE: '6'
           GEMINI_TIP_MAX_BATCHES: ${{ github.event.inputs.max_batches || '16' }}
           GEMINI_TIP_MAX_ATTEMPTS: '2'

@@ -9,13 +9,26 @@ type ShoppingInsightType =
   | 'BULK_ONLINE'
   | 'STANDARD';
 
+type ComparisonLevel = 'EXACT' | 'CLOSE' | 'CATEGORY' | 'NONE';
+type ProductTrait =
+  | 'FROZEN'
+  | 'LONG_KEEPING'
+  | 'FRESH'
+  | 'SMALL_PACK'
+  | 'BULK'
+  | 'READY_TO_EAT'
+  | 'STANDARD';
+
 export interface OnlinePriceEvidence {
   id: string;
+  comparisonLevel?: ComparisonLevel;
   onlinePrice: number;
   onlineUnitPrice: number;
   retailer: string;
   matchedProduct: string;
   insightType: ShoppingInsightType;
+  productTrait?: ProductTrait;
+  priceCondition?: string;
   reason: string;
   sourceUrl: string;
   /** 가격 판단을 제외하고 Gemini가 작성한 상품별 구매 조언 한 문장 */
@@ -87,6 +100,91 @@ function parseEvidenceTsv(rawText: string): Map<string, OnlinePriceEvidence> {
     if (columns[0]?.toLowerCase() === 'id') continue;
     if (columns.length < 8) continue;
 
+    const normalizedComparisonLevel = (columns[1] || '').toUpperCase();
+    const isRelaxedFormat = ['EXACT', 'CLOSE', 'CATEGORY', 'NONE'].includes(normalizedComparisonLevel);
+    if (isRelaxedFormat) {
+      const [
+        id,
+        rawComparisonLevel,
+        rawOnlinePrice,
+        rawOnlineUnitPrice,
+        retailer,
+        matchedProduct,
+        rawProductTrait,
+        rawPriceCondition,
+        rawReason,
+        sourceUrl,
+        rawTipCopy,
+      ] = columns;
+      if (!id || !rawReason) continue;
+
+      const comparisonLevel = rawComparisonLevel.toUpperCase() as ComparisonLevel;
+      const allowedTraits: ProductTrait[] = [
+        'FROZEN',
+        'LONG_KEEPING',
+        'FRESH',
+        'SMALL_PACK',
+        'BULK',
+        'READY_TO_EAT',
+        'STANDARD',
+      ];
+      const normalizedProductTrait = (rawProductTrait || '').toUpperCase() as ProductTrait;
+      const productTrait = allowedTraits.includes(normalizedProductTrait)
+        ? normalizedProductTrait
+        : 'STANDARD';
+      const reason = rawReason.replace(/[\t\r\n]+/g, ' ').slice(0, 80);
+      const tipCopy = parseSafeTipCopy(rawTipCopy);
+
+      if (comparisonLevel === 'NONE') {
+        result.set(id, {
+          id,
+          comparisonLevel,
+          onlinePrice: 0,
+          onlineUnitPrice: 0,
+          retailer: '',
+          matchedProduct: '',
+          insightType: 'STANDARD',
+          productTrait,
+          priceCondition: '',
+          reason,
+          sourceUrl: '',
+          tipCopy,
+        });
+        continue;
+      }
+
+      const onlinePrice = parsePositivePrice(rawOnlinePrice || '');
+      const onlineUnitPrice = parsePositivePrice(rawOnlineUnitPrice || '');
+      const normalizedSourceUrl = parseSourceUrl(sourceUrl || '');
+      if (!onlinePrice || !normalizedSourceUrl || !retailer || !matchedProduct) continue;
+
+      const evidence: OnlinePriceEvidence = {
+        id,
+        comparisonLevel,
+        onlinePrice,
+        onlineUnitPrice: onlineUnitPrice || 0,
+        retailer,
+        matchedProduct,
+        insightType: productTrait === 'SMALL_PACK'
+          ? 'SMALL_PACK'
+          : productTrait === 'BULK'
+            ? 'BULK_ONLINE'
+            : productTrait === 'FRESH'
+              ? 'FRESHNESS'
+              : 'STANDARD',
+        productTrait,
+        priceCondition: (rawPriceCondition || '').replace(/[\t\r\n]+/g, ' ').slice(0, 80),
+        reason,
+        sourceUrl: normalizedSourceUrl,
+        tipCopy,
+      };
+      const existing = result.get(id);
+      const evidencePrice = evidence.onlineUnitPrice || evidence.onlinePrice;
+      const existingPrice = existing?.onlineUnitPrice || existing?.onlinePrice || Number.POSITIVE_INFINITY;
+      if (!existing || evidencePrice < existingPrice) result.set(id, evidence);
+      continue;
+    }
+
     const [
       id,
       rawOnlinePrice,
@@ -121,11 +219,19 @@ function parseEvidenceTsv(rawText: string): Map<string, OnlinePriceEvidence> {
 
     const evidence: OnlinePriceEvidence = {
       id,
+      comparisonLevel: 'EXACT',
       onlinePrice,
       onlineUnitPrice,
       retailer,
       matchedProduct,
       insightType,
+      productTrait: insightType === 'FRESHNESS'
+        ? 'FRESH'
+        : insightType === 'SMALL_PACK'
+          ? 'SMALL_PACK'
+          : insightType === 'BULK_ONLINE'
+            ? 'BULK'
+            : 'STANDARD',
       reason,
       sourceUrl: normalizedSourceUrl,
       tipCopy: parseSafeTipCopy(rawTipCopy),
@@ -170,15 +276,43 @@ function countInteractionGrounding(steps: Array<{ type: string; [key: string]: u
 /**
  * 모델 문장을 신뢰하지 않고 검색 가격과 DB 가격으로 추천 방향/차액/할인율을 계산합니다.
  */
+function buildUnpricedAiTip(product: ParsedProduct, evidence: OnlinePriceEvidence): SmartTip {
+  const safeTipCopy = parseSafeTipCopy(evidence.tipCopy);
+  const trait = evidence.productTrait || 'STANDARD';
+  const fallback = trait === 'FROZEN'
+    ? '냉동 보관 공간과 필요한 수량을 먼저 확인해 보세요.'
+    : trait === 'LONG_KEEPING'
+      ? '보관 기간이 길어 사용량에 맞춰 여유 있게 준비하기 좋아요.'
+      : trait === 'FRESH' || product.isPerishable
+        ? '매장에서 상태와 신선도를 직접 확인해 보세요.'
+        : trait === 'SMALL_PACK'
+          ? '필요한 양만 간편하게 챙기기 좋은 구성입니다.'
+          : '전단의 구성과 필요한 수량을 확인해 보세요.';
+  return {
+    tipType: 'MART_RECOMMEND',
+    badgeText: trait === 'FRESH' || product.isPerishable ? '신선 장보기' : '상품별 구매 팁',
+    tipMessage: `${product.productName}: ${safeTipCopy || fallback}`,
+    coupangKeyword: null,
+  };
+}
+
 export function buildGroundedSmartTip(
   product: ParsedProduct,
   evidence: OnlinePriceEvidence
 ): SmartTip {
-  const martUnitPrice = Math.round(Number(product.effectiveUnitPrice));
-  const onlineUnitPrice = Math.round(evidence.onlineUnitPrice);
-  if (!Number.isFinite(martUnitPrice) || martUnitPrice <= 0) {
-    throw new Error(`'${product.productName}'의 마트 단위 가격이 올바르지 않습니다.`);
+  const comparisonLevel = evidence.comparisonLevel || 'EXACT';
+  if (comparisonLevel === 'NONE') return buildUnpricedAiTip(product, evidence);
+
+  const hasNormalizedPrices = product.effectiveUnitPrice > 0 && evidence.onlineUnitPrice > 0;
+  const canCompareExactPackage = comparisonLevel === 'EXACT'
+    && product.salePrice > 0
+    && evidence.onlinePrice > 0;
+  if (!hasNormalizedPrices && !canCompareExactPackage) {
+    return buildUnpricedAiTip(product, evidence);
   }
+
+  const martUnitPrice = Math.round(hasNormalizedPrices ? product.effectiveUnitPrice : product.salePrice);
+  const onlineUnitPrice = Math.round(hasNormalizedPrices ? evidence.onlineUnitPrice : evidence.onlinePrice);
 
   const ratio = onlineUnitPrice / martUnitPrice;
   if (ratio < 0.02 || ratio > 50) {
@@ -192,32 +326,76 @@ export function buildGroundedSmartTip(
   const martCheaper = martUnitPrice < onlineUnitPrice && !similar;
   const onlineCheaper = onlineUnitPrice < martUnitPrice && !similar;
   const rawUnit = (product.unitMeasure || '').trim();
-  const priceBasis = !rawUnit || /^(1|개|1개)$/.test(rawUnit)
-    ? '동일 규격 기준'
+  const priceBasis = !hasNormalizedPrices
+    ? '동일 상품·규격 기준'
+    : !rawUnit || /^(1|개|1개)$/.test(rawUnit)
+      ? '1개당'
     : rawUnit.endsWith('당')
       ? `${rawUnit} 기준`
       : `${rawUnit}당`;
   const percentage = percent.toFixed(1);
-  const isFrozen = /냉동|아이스크림|냉동실/i.test(product.productName);
+  const trait = evidence.productTrait || 'STANDARD';
+  const isFrozen = trait === 'FROZEN' || /냉동|아이스크림|냉동실/i.test(product.productName);
+  const longKeeping = trait === 'LONG_KEEPING' || trait === 'BULK';
+  const isFresh = trait === 'FRESH' || product.isPerishable || evidence.insightType === 'FRESHNESS';
   const safeTipCopy = parseSafeTipCopy(evidence.tipCopy);
   const advice = (fallback: string): string => safeTipCopy || fallback;
+  const referenceLabel = comparisonLevel === 'EXACT'
+    ? `동일 상품 판매가(${evidence.retailer})`
+    : `동급 비교상품(${evidence.retailer})`;
+
+  // CATEGORY는 대략적인 동급 비교이므로 정밀 할인율을 주장하지 않습니다.
+  if (comparisonLevel === 'CATEGORY') {
+    if (onlineCheaper && (isFrozen || longKeeping)) {
+      return {
+        tipType: trait === 'BULK' ? 'COUPANG_BULK' : 'COUPANG_TIP',
+        badgeText: trait === 'BULK' ? '온라인 대용량 참고' : '온라인 가격대 참고',
+        tipMessage: `${product.productName}: ${priceBasis} ${referenceLabel}의 환산단가가 더 낮게 확인됐어요. ${advice(isFrozen ? '냉동 보관이 가능해 온라인 묶음 구매도 고려할 만해요.' : '보관이 쉬운 상품이라 사용량이 많다면 온라인 구성도 살펴보세요.')}`,
+        coupangKeyword: trait === 'BULK' ? `${product.productName} 대용량` : product.productName,
+      };
+    }
+    if (onlineCheaper && isFresh) {
+      return {
+        tipType: 'MART_RECOMMEND',
+        badgeText: '가격대·신선도 비교',
+        tipMessage: `${product.productName}: ${referenceLabel}의 환산단가가 더 낮게 확인됐어요. ${advice('동급 가격대를 참고하되 매장에서 상태와 신선도를 직접 확인해 보세요.')}`,
+        coupangKeyword: null,
+      };
+    }
+    if (onlineCheaper) {
+      return {
+        tipType: 'COUPANG_TIP',
+        badgeText: '온라인 가격대 참고',
+        tipMessage: `${product.productName}: ${priceBasis} ${referenceLabel}의 환산단가가 더 낮게 확인됐어요. ${advice('용량과 구성이 필요한 조건에 맞는지 확인해 보세요.')}`,
+        coupangKeyword: product.productName,
+      };
+    }
+    return {
+      tipType: 'MART_RECOMMEND',
+      badgeText: martCheaper ? '마트 가격대 우위' : '동급 가격대 비슷',
+      tipMessage: martCheaper
+        ? `${product.productName}: ${priceBasis} 마트 전단가가 ${referenceLabel}보다 낮게 확인됐어요. ${advice('상품 특성과 구성이 마음에 든다면 전단 행사를 활용하기 좋아요.')}`
+        : `${product.productName}: ${referenceLabel}와 환산단가 차이가 크지 않아요. ${advice('필요한 시점과 구매 편의를 기준으로 선택해 보세요.')}`,
+      coupangKeyword: null,
+    };
+  }
 
   // 여러 현재 판매가 중 가장 낮은 비교 가격보다 마트가 쌀 때만 전단 가격 우위를 주장합니다.
   if (martCheaper) {
     return {
       tipType: percent >= 20 ? 'MART_BEST' : 'MART_RECOMMEND',
       badgeText: percent >= 20 ? '마트 필구 특가' : '마트 가격 메리트',
-      tipMessage: `${product.productName}: ${priceBasis} 마트가 확인된 비교 최저가(${evidence.retailer})보다 ${percentage}% 저렴해 전단 행사 메리트가 확실해요.${safeTipCopy ? ` ${safeTipCopy}` : ''}`,
+      tipMessage: `${product.productName}: ${priceBasis} 마트가 ${referenceLabel}보다 ${percentage}% 저렴해 전단 행사 메리트가 확실해요.${safeTipCopy ? ` ${safeTipCopy}` : ''}`,
       coupangKeyword: null,
     };
   }
 
   if (similar) {
-    if (product.isPerishable || evidence.insightType === 'FRESHNESS') {
+    if (isFresh) {
       return {
         tipType: 'MART_RECOMMEND',
         badgeText: '가격 비슷·신선 확인',
-        tipMessage: `${product.productName}: 확인된 비교 최저가(${evidence.retailer})와 ${percentage}% 차이로 비슷해요. ${advice('신선도를 직접 확인하고 바로 구매하기 좋습니다.')}`,
+        tipMessage: `${product.productName}: ${referenceLabel}와 ${percentage}% 차이로 비슷해요. ${advice('신선도를 직접 확인하고 바로 구매하기 좋습니다.')}`,
         coupangKeyword: null,
       };
     }
@@ -226,7 +404,7 @@ export function buildGroundedSmartTip(
       return {
         tipType: 'MART_RECOMMEND',
         badgeText: '가격 비슷·바로 구매',
-        tipMessage: `${product.productName}: 확인된 비교 최저가(${evidence.retailer})와 ${percentage}% 차이로 비슷해요. ${advice('마트에서 바로 사고 냉동 보관해 두기 좋습니다.')}`,
+        tipMessage: `${product.productName}: ${referenceLabel}와 ${percentage}% 차이로 비슷해요. ${advice('마트에서 바로 사고 냉동 보관해 두기 좋습니다.')}`,
         coupangKeyword: null,
       };
     }
@@ -243,25 +421,25 @@ export function buildGroundedSmartTip(
     return {
       tipType: 'MART_RECOMMEND',
       badgeText: '가격 비슷·바로 구매',
-      tipMessage: `${product.productName}: 확인된 비교 최저가(${evidence.retailer})와 ${percentage}% 차이로 비슷해요. ${advice('배송을 기다리지 않고 바로 구매할 수 있습니다.')}`,
+      tipMessage: `${product.productName}: ${referenceLabel}와 ${percentage}% 차이로 비슷해요. ${advice('배송을 기다리지 않고 바로 구매할 수 있습니다.')}`,
       coupangKeyword: null,
     };
   }
 
-  if (onlineCheaper && isFrozen) {
+  if (onlineCheaper && (isFrozen || longKeeping)) {
     return {
       tipType: 'COUPANG_TIP',
       badgeText: '온라인 최저가 유리',
-      tipMessage: `${product.productName}: ${priceBasis} 확인된 최저가(${evidence.retailer})가 마트보다 ${percentage}% 저렴해 온라인 주문이 유리해요. ${advice('냉동 보관 가능한 상품이라 온라인으로 여유 있게 주문하기 좋습니다.')}`,
+      tipMessage: `${product.productName}: ${priceBasis} ${referenceLabel}가 마트보다 ${percentage}% 저렴해 온라인 주문이 유리해요. ${advice(isFrozen ? '냉동 보관 가능한 상품이라 온라인으로 여유 있게 주문하기 좋습니다.' : '보관 기간이 길어 온라인으로 여유 있게 주문하기 좋습니다.')}`,
       coupangKeyword: product.productName,
     };
   }
 
-  if (onlineCheaper && (product.isPerishable || evidence.insightType === 'FRESHNESS')) {
+  if (onlineCheaper && isFresh) {
     return {
       tipType: 'COUPANG_TIP',
       badgeText: '가격과 신선도 비교',
-      tipMessage: `${product.productName}: 확인된 최저가(${evidence.retailer})가 ${percentage}% 저렴해요. 가격을 우선하면 온라인, 상태 확인과 당일 구매가 중요하면 마트가 적합합니다.${safeTipCopy ? ` ${safeTipCopy}` : ''}`,
+      tipMessage: `${product.productName}: ${referenceLabel}가 ${percentage}% 저렴해요. 가격을 우선하면 온라인, 상태 확인과 당일 구매가 중요하면 마트가 적합합니다.${safeTipCopy ? ` ${safeTipCopy}` : ''}`,
       coupangKeyword: product.productName,
     };
   }
@@ -280,8 +458,8 @@ export function buildGroundedSmartTip(
       tipType: evidence.insightType === 'BULK_ONLINE' ? 'COUPANG_BULK' : 'COUPANG_TIP',
       badgeText: evidence.insightType === 'BULK_ONLINE' ? '온라인 대용량 유리' : '온라인 최저가 유리',
       tipMessage: evidence.insightType === 'SMALL_PACK'
-        ? `${product.productName}: ${priceBasis} 확인된 최저가(${evidence.retailer})가 ${percentage}% 저렴해 온라인 주문이 유리해요. ${advice('오늘 바로 필요한 소용량이 아니라면 온라인 구매가 경제적입니다.')}`
-        : `${product.productName}: ${priceBasis} 확인된 최저가(${evidence.retailer})가 마트보다 ${percentage}% 저렴해 온라인 주문이 유리해요. ${advice('보관 공간과 필요한 수량을 확인한 뒤 주문하세요.')}`,
+        ? `${product.productName}: ${priceBasis} ${referenceLabel}가 ${percentage}% 저렴해 온라인 주문이 유리해요. ${advice('오늘 바로 필요한 소용량이 아니라면 온라인 구매가 경제적입니다.')}`
+        : `${product.productName}: ${priceBasis} ${referenceLabel}가 마트보다 ${percentage}% 저렴해 온라인 주문이 유리해요. ${advice('보관 공간과 필요한 수량을 확인한 뒤 주문하세요.')}`,
       coupangKeyword: evidence.insightType === 'BULK_ONLINE'
         ? `${product.productName} 대용량`
         : product.productName,
@@ -326,40 +504,41 @@ function buildPrompt(products: ParsedProduct[]): string {
     ].join('\t')
   ).join('\n');
 
-  return `아래 한국 마트 전단 상품 각각에 대해 Google Search를 실제로 수행하여 현재 누구나 구매 가능한 최저 판매가를 찾으십시오.
-온라인몰뿐 아니라 쿠팡, 네이버쇼핑에 노출된 판매처, 이마트몰/롯데마트몰/홈플러스몰 등 다른 대형마트의 현재 공개 행사가도 비교하십시오.
-상품의 용량/수량/규격이 다르면 반드시 마트의 단위 기준으로 환산하십시오. 검색 결과가 없거나 규격을 확실히 맞출 수 없으면 그 상품은 출력하지 마십시오.
+  return `아래 마트 전단 상품마다 Google Search를 수행해 소비자가 실제 대안으로 살 만한 현재 판매 상품 하나를 찾으십시오.
+정확히 같은 상품을 우선하되, 없으면 같은 용도와 품질대의 타 브랜드 상품까지 비교 범위를 넓히십시오.
+가격이 비슷하다는 이유로 비교 상품을 고르지 말고, 상품 특성이 유사한 대안을 먼저 고른 뒤 가격을 비교하십시오.
 
 [입력]
 id\t마트\t상품명\t포장규격\t마트총가격\t마트환산단가\t환산기준
 ${rows}
 
 [출력]
-오직 다음 TSV만 출력하십시오. 설명, 마크다운, 탭이 포함된 문장을 추가하지 마십시오.
-id\t온라인총가격\t마트단위로환산한온라인단위가격\t판매처\t검색결과상품명\t구매특성\t근거요약\t출처URL\t구매조언
+입력 상품마다 반드시 한 행씩, 입력 순서대로 반환하십시오. 상품을 생략하지 마십시오.
+오직 다음 TSV만 출력하고 설명이나 마크다운을 추가하지 마십시오.
+id\t비교등급\t비교상품총가격\t마트기준환산단가\t판매처\t비교상품명\t상품특성\t가격조건\t비교근거\t출처URL\t구매조언
 
-[검증 규칙]
-- 입력의 모든 상품을 개별 검색하고, 입력 id를 한 글자도 바꾸지 마십시오.
-- 마트환산단가가 비어 있으면 판매가를 환산단가로 간주하지 말고 가격 할인율도 만들지 마십시오.
-- 상품 하나당 Google Search 쿼리는 최대 3회만 수행하십시오. '상품명 용량 최저가', '상품명 용량 행사', '상품명 용량 마트몰'처럼 현재 행사 가격을 우선 탐색하십시오.
-- 검색 결과와 판매 페이지에서 확인한 가격들을 비교한 뒤, 현재 누구나 적용받을 수 있는 공개 판매가 중 단위 가격이 가장 낮은 결과 하나만 출력하십시오.
-- 정상가와 공개 행사가가 함께 보이면 반드시 현재 적용 중인 공개 행사가를 사용하고 정상가는 출력하지 마십시오.
-- 별도 로그인이 없어도 누구나 받을 수 있는 즉시 할인·공개 프로모션은 포함하십시오.
-- 특정 카드, 멤버십, 앱 전용, 정기구독, 첫 구매, 회원 전용 쿠폰가는 제외하십시오.
-- 품절, 중고, 해외배송 상품은 제외하고 배송비는 총가격에 포함하십시오.
-- 검색 요약에 과거 행사가만 보이고 판매 페이지에서 현재 가격을 확인할 수 없으면 제외하십시오.
-- 입력 상품명이 '2종/3종/택1' 또는 슬래시로 묶인 행사라면, 실제 구성 중 하나와 브랜드·맛·용량이 정확히 일치하는 후보만 출력하고 근거요약에 비교한 종류를 명시하십시오.
-- 현재 최저가를 확정할 근거가 부족하면 정상가나 추정 가격으로 대신하지 말고 해당 상품을 출력하지 마십시오.
-- 온라인총가격과 온라인단위가격은 쉼표나 원 기호 없는 양의 정수로 쓰십시오.
-- 구매특성은 PRICE, PREMIUM, SMALL_PACK, FRESHNESS, BULK_ONLINE, STANDARD 중 하나만 쓰십시오.
-- PREMIUM은 원재료, 품종, 제조법 등 확인 가능한 프리미엄 특성이 있을 때만 사용하십시오.
-- SMALL_PACK은 온라인 비교 상품보다 실제 포장량이 작아 보관·즉시 섭취에 유리할 때만 사용하십시오.
-- BULK_ONLINE은 온라인 상품이 더 큰 묶음이고 동일 단위 가격도 더 저렴할 때만 사용하십시오.
-- 근거요약은 검색이나 상품명에서 확인한 객관적 특성 하나만 40자 이내로 작성하십시오. 막연한 품질 칭찬은 금지합니다.
-- 출처URL은 실제 검색 결과의 http 또는 https URL이어야 합니다.
-- 구매조언은 검색 결과, 상품명, 구매특성을 바탕으로 해당 상품에 어울리게 자연스러운 한국어 한 문장으로 작성하십시오.
-- 구매조언에는 상품명, 가격, 숫자, 할인율, 판매처, 마트/온라인 중 어디가 유리한지에 대한 판단을 절대 넣지 마십시오. 가격 비교와 구매 방향은 서버가 계산합니다.
-- 구매조언은 보관성, 신선도 확인, 소용량 편의, 대용량 활용, 조리·섭취 상황처럼 소비자가 실제로 활용할 수 있는 내용만 60자 이내로 쓰십시오. 모든 상품에 통용되는 막연한 칭찬은 금지합니다.`;
+[비교등급]
+- EXACT: 같은 브랜드와 같은 상품. 용량만 달라도 같은 제품군이면 EXACT
+- CLOSE: 브랜드가 달라도 원재료, 등급, 용도와 품질대가 거의 같은 대안
+- CATEGORY: 정확한 대체품은 아니지만 소비자가 같은 용도로 고를 만한 동급 상품
+- NONE: 검색해도 합리적인 비교 상품이나 현재 판매 가격을 찾지 못함
+
+[상품특성]
+FROZEN, LONG_KEEPING, FRESH, SMALL_PACK, BULK, READY_TO_EAT, STANDARD 중 하나만 사용하십시오.
+
+[규칙]
+- 동일 상품이 없다고 바로 NONE으로 만들지 말고 CLOSE, 그다음 CATEGORY 순서로 대안을 찾으십시오.
+- 예: '100% 국산콩 양조간장'이 없으면 다른 브랜드의 국산콩 양조간장, 그다음 동급 프리미엄 양조간장을 찾으십시오. 진간장이나 업소용 간장은 제외하십시오.
+- 용량이 다르면 입력의 환산기준과 같은 기준으로 계산하십시오. 계산할 수 없으면 환산단가는 0으로 쓰십시오.
+- 마트환산단가가 비어 있더라도 EXACT 상품의 총가격은 찾을 수 있습니다.
+- 현재 판매 페이지나 검색 결과에서 확인한 가격만 사용하고 추정하지 마십시오.
+- 공개 행사·회원가·카드가 등 조건이 있으면 배제하지 말고 가격조건에 짧게 적으십시오.
+- 품절·중고·해외배송은 제외하고, 확인되는 배송비는 총가격에 포함하십시오.
+- EXACT/CLOSE/CATEGORY는 실제 http 또는 https 출처URL을 넣으십시오.
+- NONE은 가격 두 칸에 0, 판매처·비교상품명·가격조건·출처URL에 하이픈(-)을 넣으십시오.
+- 비교근거에는 왜 동일하거나 동급인지 50자 이내로 작성하십시오.
+- 구매조언은 보관, 신선도, 용량, 조리와 사용 상황에 관한 자연스러운 한 문장으로 작성하십시오.
+- 구매조언에는 가격, 숫자, 할인율, 판매처 또는 마트/온라인 중 어디가 유리한지에 대한 판단을 넣지 마십시오. 구매 방향과 할인율은 서버가 계산합니다.`;
 }
 
 /** Gemini 3.8 Flash + Google Search로 한 페이지 분량의 마스터 팁을 생성합니다. */
@@ -407,18 +586,32 @@ export async function generateGeminiTipBatch(
   }
 
   const evidenceById = parseEvidenceTsv(responseText);
+  const pricedEvidenceCount = [...evidenceById.values()].filter(
+    (evidence) => evidence.comparisonLevel !== 'NONE' && Boolean(evidence.sourceUrl)
+  ).length;
   if (evidenceById.size === 0) {
     console.warn(
       `[Gemini Batch] 유효한 출처 URL이 없습니다: searchQueries=${searchQueries}, citations=${citations}, response=${responseText.slice(0, 500)}`
     );
   }
-  if (citations === 0 && evidenceById.size > 0) {
+  if (citations === 0 && pricedEvidenceCount > 0) {
     console.warn(
-      `[Gemini Batch] URL citation annotation은 없지만 검색 실행과 TSV 출처 URL을 확인했습니다: searchQueries=${searchQueries}, urls=${evidenceById.size}`
+      `[Gemini Batch] URL citation annotation은 없지만 검색 실행과 TSV 출처 URL을 확인했습니다: searchQueries=${searchQueries}, urls=${pricedEvidenceCount}`
     );
   }
 
-  const groundingSources = citations || evidenceById.size;
+  const comparisonCounts = [...evidenceById.values()].reduce<Record<ComparisonLevel, number>>(
+    (counts, evidence) => {
+      counts[evidence.comparisonLevel || 'EXACT'] += 1;
+      return counts;
+    },
+    { EXACT: 0, CLOSE: 0, CATEGORY: 0, NONE: 0 }
+  );
+  console.log(
+    `[Gemini Batch] 비교 결과: EXACT=${comparisonCounts.EXACT}, CLOSE=${comparisonCounts.CLOSE}, CATEGORY=${comparisonCounts.CATEGORY}, NONE=${comparisonCounts.NONE}`
+  );
+
+  const groundingSources = citations || pricedEvidenceCount;
   const completed: ParsedProduct[] = [];
   const rejected: RejectedGeminiTipProduct[] = [];
 
@@ -434,7 +627,7 @@ export async function generateGeminiTipBatch(
         ...product,
         smartTip: buildGroundedSmartTip(product, evidence),
         tipStatus: 'complete',
-        tipSource: 'gemini_grounded',
+        tipSource: evidence.comparisonLevel === 'NONE' ? 'gemini_advice' : 'gemini_grounded',
         tipProcessor: 'gemini_batch',
       });
     } catch (error: unknown) {
