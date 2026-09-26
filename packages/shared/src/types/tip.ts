@@ -5,5 +5,4 @@ export interface SmartTip {
   badgeText: string;
   tipMessage: string;
   coupangKeyword: string | null;
-  referenceUrl?: string | null;
 }

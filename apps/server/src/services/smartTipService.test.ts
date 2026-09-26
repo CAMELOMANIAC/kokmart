@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { validateGroundedTip, validateSearchEvidence } from './smartTipService.js';
+import { validateGroundedTip } from './smartTipService.js';
 
 const product = {
   id: 'product-1',
@@ -66,20 +66,4 @@ describe('validateGroundedTip', () => {
     ).toThrow('동일하게 복사');
   });
 
-  it('실제 검색 결과에 포함된 근거 URL만 허용한다', () => {
-    const tip = {
-      tipType: 'MART_BEST' as const,
-      badgeText: '마트 필구 특가',
-      tipMessage: '마트 가격 1,000원은 쿠팡 최저가 1,400원보다 400원 저렴합니다.',
-      coupangKeyword: null,
-      referenceUrl: 'https://example.com/product/1',
-    };
-
-    expect(() =>
-      validateSearchEvidence(product, tip, new Set(['https://example.com/product/1']))
-    ).not.toThrow();
-    expect(() =>
-      validateSearchEvidence(product, tip, new Set(['https://example.com/product/2']))
-    ).toThrow('검색 근거 URL');
-  });
 });

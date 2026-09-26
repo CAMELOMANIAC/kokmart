@@ -47,6 +47,15 @@ describe('smartTipWorkerService', () => {
     expect(mocks.generateSmartTipBatchStrict).not.toHaveBeenCalled();
   });
 
+  it('환경변수 값과 관계없이 한 번에 한 상품만 선점한다', async () => {
+    process.env.TIP_WORKER_BATCH_SIZE = '8';
+    mocks.claimPendingTipProducts.mockResolvedValue([]);
+
+    await runSmartTipWorker();
+
+    expect(mocks.claimPendingTipProducts).toHaveBeenCalledWith(1);
+  });
+
   it('생성된 팁을 완료 상태로 저장한다', async () => {
     const completedProduct = {
       ...product,

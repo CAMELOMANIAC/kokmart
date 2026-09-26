@@ -120,7 +120,7 @@ pnpm build
    - `SUPABASE_URL`
    - `SUPABASE_SERVICE_ROLE_KEY`
    - `TIP_WORKER_SECRET`: 충분히 긴 임의 문자열
-   - `TIP_WORKER_BATCH_SIZE`: 선택값, 기본 `4`
+   - `TIP_WORKER_BATCH_SIZE`: 선택값, 검색 결과를 상품별로 검증하기 위해 현재 `1`로 제한
    - `TIP_WORKER_MAX_ATTEMPTS`: 선택값, 기본 `5`
 
 ### 2. Supabase 비동기 스마트 팁 Worker

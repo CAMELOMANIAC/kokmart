@@ -61,6 +61,12 @@ SELECT cron.schedule(
       tip_status = 'processing'
       AND tip_locked_at < timezone('utc'::text, now()) - interval '15 minutes'
     )
+  )
+  AND NOT EXISTS (
+    SELECT 1
+    FROM public.flyer_products
+    WHERE tip_status = 'processing'
+      AND tip_locked_at >= timezone('utc'::text, now()) - interval '15 minutes'
   );
   $$
 );

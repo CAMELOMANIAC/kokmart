@@ -31,7 +31,6 @@ SET
   badge_text = NULL,
   tip_message = NULL,
   coupang_keyword = NULL,
-  tip_reference_url = NULL,
   tip_status = 'pending',
   tip_source = NULL,
   tip_attempts = 0,

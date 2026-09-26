@@ -34,7 +34,6 @@ CREATE TABLE IF NOT EXISTS flyer_products (
     badge_text VARCHAR(100),                           -- 뱃지 문구 ('마트 필구 특가', '쿠팡 신선 알뜰' 등)
     tip_message TEXT,                                  -- 실시간 가격 비교 팁 메시지
     coupang_keyword VARCHAR(255),                      -- 쿠팡 최저가 검색어 (null 가능)
-    tip_reference_url TEXT,                            -- browser_search에서 실제 조회한 가격 근거 URL
     tip_status VARCHAR(20) NOT NULL DEFAULT 'pending', -- pending/processing/complete/retry/failed
     tip_source VARCHAR(30),                            -- fallback/groq_grounded
     tip_attempts INTEGER NOT NULL DEFAULT 0,
@@ -63,7 +62,6 @@ ALTER TABLE flyer_products ADD COLUMN IF NOT EXISTS tip_next_attempt_at TIMESTAM
 ALTER TABLE flyer_products ADD COLUMN IF NOT EXISTS tip_last_error TEXT;
 ALTER TABLE flyer_products ADD COLUMN IF NOT EXISTS tip_model VARCHAR(100);
 ALTER TABLE flyer_products ADD COLUMN IF NOT EXISTS tip_updated_at TIMESTAMPTZ;
-ALTER TABLE flyer_products ADD COLUMN IF NOT EXISTS tip_reference_url TEXT;
 
 -- 기존 팁 필드가 있다는 이유만으로 완료 처리하지 않습니다.
 -- complete 상태는 Groq 검증과 저장을 모두 통과한 worker만 설정합니다.
@@ -84,16 +82,29 @@ SECURITY DEFINER
 SET search_path = public
 AS $$
 BEGIN
+  -- 동시에 여러 worker 요청이 들어와도 선점 트랜잭션은 하나만 통과시킵니다.
+  IF NOT pg_try_advisory_xact_lock(hashtext('claim_pending_tip_products')) THEN
+    RETURN;
+  END IF;
+
   RETURN QUERY
   WITH candidates AS (
     SELECT fp.id
     FROM flyer_products AS fp
     WHERE (
-      fp.tip_status IN ('pending', 'retry')
-      AND fp.tip_next_attempt_at <= timezone('utc'::text, now())
-    ) OR (
-      fp.tip_status = 'processing'
-      AND fp.tip_locked_at < timezone('utc'::text, now()) - interval '15 minutes'
+      (
+        fp.tip_status IN ('pending', 'retry')
+        AND fp.tip_next_attempt_at <= timezone('utc'::text, now())
+      ) OR (
+        fp.tip_status = 'processing'
+        AND fp.tip_locked_at < timezone('utc'::text, now()) - interval '15 minutes'
+      )
+    )
+    AND NOT EXISTS (
+      SELECT 1
+      FROM flyer_products AS active
+      WHERE active.tip_status = 'processing'
+        AND active.tip_locked_at >= timezone('utc'::text, now()) - interval '15 minutes'
     )
     -- 새 전단의 사용자 경험을 우선하고 오래된 작업은 뒤에서 천천히 처리합니다.
     ORDER BY fp.created_at DESC

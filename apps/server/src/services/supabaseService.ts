@@ -70,7 +70,6 @@ function mapProductRow(row: Record<string, unknown>, fallbackMartName = '마트'
       badgeText: row.badge_text as string,
       tipMessage: row.tip_message as string,
       coupangKeyword: (row.coupang_keyword as string | null) || null,
-      referenceUrl: (row.tip_reference_url as string | null) || null,
     };
   }
 
@@ -180,7 +179,6 @@ export async function saveFlyerToSupabase(params: SaveFlyerParams): Promise<{
         badge_text: prod.smartTip?.badgeText || null,
         tip_message: prod.smartTip?.tipMessage || null,
         coupang_keyword: prod.smartTip?.coupangKeyword || null,
-        tip_reference_url: prod.smartTip?.referenceUrl || null,
         tip_status: tipStatus,
         tip_source: prod.tipSource || (prod.smartTip ? 'fallback' : null),
         tip_attempts: 0,
@@ -339,7 +337,6 @@ export async function completeTipProducts(products: ParsedProduct[], model: stri
           badge_text: product.smartTip.badgeText,
           tip_message: product.smartTip.tipMessage,
           coupang_keyword: product.smartTip.coupangKeyword,
-          tip_reference_url: product.smartTip.referenceUrl || null,
           tip_status: 'complete',
           tip_source: 'groq_grounded',
           tip_model: model,
