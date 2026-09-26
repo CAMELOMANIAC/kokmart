@@ -34,6 +34,7 @@ CREATE TABLE IF NOT EXISTS flyer_products (
     badge_text VARCHAR(100),                           -- 뱃지 문구 ('마트 필구 특가', '쿠팡 신선 알뜰' 등)
     tip_message TEXT,                                  -- 실시간 가격 비교 팁 메시지
     coupang_keyword VARCHAR(255),                      -- 쿠팡 최저가 검색어 (null 가능)
+    tip_reference_url TEXT,                            -- browser_search에서 실제 조회한 가격 근거 URL
     tip_status VARCHAR(20) NOT NULL DEFAULT 'pending', -- pending/processing/complete/retry/failed
     tip_source VARCHAR(30),                            -- fallback/groq_grounded
     tip_attempts INTEGER NOT NULL DEFAULT 0,
@@ -62,18 +63,10 @@ ALTER TABLE flyer_products ADD COLUMN IF NOT EXISTS tip_next_attempt_at TIMESTAM
 ALTER TABLE flyer_products ADD COLUMN IF NOT EXISTS tip_last_error TEXT;
 ALTER TABLE flyer_products ADD COLUMN IF NOT EXISTS tip_model VARCHAR(100);
 ALTER TABLE flyer_products ADD COLUMN IF NOT EXISTS tip_updated_at TIMESTAMPTZ;
+ALTER TABLE flyer_products ADD COLUMN IF NOT EXISTS tip_reference_url TEXT;
 
--- 기존 팁 데이터는 완료 상태로 승격하고, 팁이 없는 행만 pending으로 유지합니다.
-UPDATE flyer_products
-SET
-    tip_status = 'complete',
-    tip_source = COALESCE(tip_source, 'fallback'),
-    tip_updated_at = COALESCE(tip_updated_at, created_at)
-WHERE tip_type IS NOT NULL
-  AND badge_text IS NOT NULL
-  AND tip_message IS NOT NULL
-  AND tip_status = 'pending'
-  AND tip_source IS NULL;
+-- 기존 팁 필드가 있다는 이유만으로 완료 처리하지 않습니다.
+-- complete 상태는 Groq 검증과 저장을 모두 통과한 worker만 설정합니다.
 
 -- 4. 고속 조회 및 캐시 조회를 위한 인덱스
 CREATE INDEX IF NOT EXISTS idx_flyers_mart_branch ON flyers(mart_name, branch_name, created_at DESC);

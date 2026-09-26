@@ -73,7 +73,12 @@ async function handleSmartTipWorker(req: Request, res: Response): Promise<void> 
 
   try {
     const result = await runSmartTipWorker();
-    res.json({ success: true, ...result, processedAt: new Date().toISOString() });
+    const processedAt = new Date().toISOString();
+    if (result.error) {
+      res.status(503).json({ success: false, ...result, processedAt });
+      return;
+    }
+    res.json({ success: true, ...result, processedAt });
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : String(error);
     console.error('[Smart Tip Worker Error]:', errorMessage);
@@ -415,13 +420,14 @@ app.post('/api/flyers/parse-master', upload.array('pages', 5), async (req: Reque
     const rawProducts = await parseMasterFlyerWithGemini(pageBuffers, martName);
     const geminiDuration = ((Date.now() - geminiStartTime) / 1000).toFixed(2);
 
-    // 2단계: 즉시 표시할 fallback을 붙이고 Groq 작업은 DB worker 큐로 넘깁니다.
+    // 2단계: DB 사용 시 팁 없이 pending으로 저장하고 Groq worker 큐로 넘깁니다.
+    // DB를 사용할 수 없을 때만 화면용 fallback을 생성합니다.
     const queueEnabled = isSupabaseConfigured();
     const queuedProducts: ParsedProduct[] = rawProducts.map((product) => ({
       ...product,
-      smartTip: generateDefaultTip(product),
+      smartTip: queueEnabled ? undefined : generateDefaultTip(product),
       tipStatus: queueEnabled ? 'pending' : 'failed',
-      tipSource: 'fallback',
+      tipSource: queueEnabled ? undefined : 'fallback',
     }));
 
     // 응답 전에 저장을 완료해야 서버리스 종료로 큐 작업이 유실되지 않습니다.
@@ -527,9 +533,9 @@ app.post('/api/flyers/sync-branch', async (req: Request, res: Response) => {
         const newPageProducts = await parseSinglePageWithGemini(branchBuffer, p, martName);
         const newProductsWithTips: ParsedProduct[] = newPageProducts.map((product) => ({
           ...product,
-          smartTip: generateDefaultTip(product),
+          smartTip: isSupabaseConfigured() ? undefined : generateDefaultTip(product),
           tipStatus: isSupabaseConfigured() ? 'pending' : 'failed',
-          tipSource: 'fallback',
+          tipSource: isSupabaseConfigured() ? undefined : 'fallback',
         }));
 
         // 해당 페이지 전체 교체

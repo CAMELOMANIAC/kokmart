@@ -1,4 +1,4 @@
--- Supabase SQL Editor에서 schema.sql 적용 후 한 번만 실행하세요.
+-- Supabase SQL Editor에서 schema.sql 적용 후 실행하세요. 설정 변경 시 다시 실행해도 됩니다.
 -- 아래 두 값은 예시이므로 실제 production URL과 TIP_WORKER_SECRET으로 교체해야 합니다.
 
 CREATE EXTENSION IF NOT EXISTS pg_cron;
@@ -9,13 +9,22 @@ CREATE EXTENSION IF NOT EXISTS supabase_vault WITH SCHEMA vault;
 SELECT vault.create_secret(
   'https://YOUR_PRODUCTION_DOMAIN/api/internal/tip-worker',
   'tip_worker_url'
+)
+WHERE NOT EXISTS (
+  SELECT 1 FROM vault.decrypted_secrets WHERE name = 'tip_worker_url'
 );
-SELECT vault.create_secret('REPLACE_WITH_A_LONG_RANDOM_SECRET', 'tip_worker_secret');
+SELECT vault.create_secret('REPLACE_WITH_A_LONG_RANDOM_SECRET', 'tip_worker_secret')
+WHERE NOT EXISTS (
+  SELECT 1 FROM vault.decrypted_secrets WHERE name = 'tip_worker_secret'
+);
 
 -- 재실행 시 기존 스케줄을 제거합니다.
 SELECT cron.unschedule(jobid)
 FROM cron.job
-WHERE jobname = 'process-pending-smart-tips';
+WHERE jobname IN (
+  'process-pending-smart-tips',
+  'cleanup-tip-worker-cron-history'
+);
 
 SELECT cron.schedule(
   'process-pending-smart-tips',
@@ -38,7 +47,9 @@ SELECT cron.schedule(
         LIMIT 1
       )
     ),
-    body := jsonb_build_object('source', 'supabase-cron')
+    body := jsonb_build_object('source', 'supabase-cron'),
+    -- Vercel 함수 최대 실행시간(300초)보다 조금 길게 기다립니다.
+    timeout_milliseconds := 305000
   )
   WHERE EXISTS (
     SELECT 1
@@ -51,5 +62,15 @@ SELECT cron.schedule(
       AND tip_locked_at < timezone('utc'::text, now()) - interval '15 minutes'
     )
   );
+  $$
+);
+
+-- 매일 한국시간 03:00(UTC 18:00)에 7일이 지난 Cron 실행 기록을 정리합니다.
+SELECT cron.schedule(
+  'cleanup-tip-worker-cron-history',
+  '0 18 * * *',
+  $$
+  DELETE FROM cron.job_run_details
+  WHERE end_time < timezone('utc'::text, now()) - interval '7 days';
   $$
 );

@@ -99,7 +99,7 @@ export function generateDefaultTip(product: ParsedProduct): SmartTip {
  */
 /**
  * TSV 텍스트를 SmartTip 맵으로 파싱
- * 헤더: id\ttipType\tbadgeText\ttipMessage\tcoupangKeyword
+ * 헤더: id\ttipType\tbadgeText\ttipMessage\tcoupangKeyword\treferenceUrl
  */
 function parseTipTsv(rawText: string): Map<string, SmartTip> {
   const result = new Map<string, SmartTip>();
@@ -125,29 +125,83 @@ function parseTipTsv(rawText: string): Map<string, SmartTip> {
     const badgeText = cols[2];
     const tipMessage = cols[3];
     const coupangKeyword = cols[4] || null;
+    const referenceUrl = cols[5] || null;
 
-    let tipType: TipType = 'MART_RECOMMEND';
     if (
-      rawTipType === 'MART_BEST' ||
-      rawTipType === 'MART_RECOMMEND' ||
-      rawTipType === 'COUPANG_TIP' ||
-      rawTipType === 'COUPANG_BULK'
-    ) {
-      tipType = rawTipType;
-    }
+      rawTipType !== 'MART_BEST' &&
+      rawTipType !== 'MART_RECOMMEND' &&
+      rawTipType !== 'COUPANG_TIP' &&
+      rawTipType !== 'COUPANG_BULK'
+    ) continue;
+    const tipType: TipType = rawTipType;
 
-    if (id && tipMessage) {
+    if (id && badgeText && tipMessage) {
       result.set(id, {
         tipType,
-        badgeText: badgeText || (tipType === 'MART_BEST' ? '마트 필구 특가' : '마트 추천'),
+        badgeText,
         tipMessage,
         coupangKeyword:
           coupangKeyword && coupangKeyword !== 'null' && coupangKeyword !== '-' ? coupangKeyword : null,
+        referenceUrl:
+          referenceUrl && referenceUrl !== 'null' && referenceUrl !== '-' ? referenceUrl : null,
       });
     }
   }
 
   return result;
+}
+
+const FALLBACK_MESSAGE_FRAGMENTS = [
+  '신선도가 중요한 상품이에요',
+  '직접 보고 골라 담는 마트 구매를 추천합니다',
+  '쿠팡 가격과 비교해 보세요',
+  '쿠팡 대용량 묶음이 단가 기준 더 저렴할 수 있어요',
+  '온라인 최저가와 비교해 보세요',
+];
+
+/** Groq 검색 결과가 실제 가격 비교 결과인지 저장 전에 검증합니다. */
+export function validateGroundedTip(product: ParsedProduct, tip: SmartTip): void {
+  if (FALLBACK_MESSAGE_FRAGMENTS.some((fragment) => tip.tipMessage.includes(fragment))) {
+    throw new Error(`Groq가 '${product.productName}'에 폴백 문구를 반환했습니다.`);
+  }
+
+  const wonAmounts = Array.from(tip.tipMessage.matchAll(/([0-9][0-9,]*)\s*원/g), (match) =>
+    Number(match[1]?.replaceAll(',', ''))
+  ).filter(Number.isFinite);
+
+  if (wonAmounts.length < 2) {
+    throw new Error(`Groq의 '${product.productName}' 팁에 비교 가격이 2개 이상 포함되지 않았습니다.`);
+  }
+
+  const salePrice = Math.round(Number(product.salePrice));
+  if (!wonAmounts.includes(salePrice)) {
+    throw new Error(`Groq의 '${product.productName}' 팁에 마트 행사가 ${salePrice}원이 포함되지 않았습니다.`);
+  }
+  if (wonAmounts.every((amount) => amount === salePrice)) {
+    throw new Error(`Groq가 '${product.productName}'의 온라인 가격을 마트 행사가와 동일하게 복사했습니다.`);
+  }
+}
+
+function normalizeEvidenceUrl(rawUrl: string): string | null {
+  try {
+    const parsed = new URL(rawUrl.trim());
+    if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') return null;
+    parsed.hash = '';
+    return parsed.toString().replace(/\/$/, '');
+  } catch {
+    return null;
+  }
+}
+
+export function validateSearchEvidence(
+  product: ParsedProduct,
+  tip: SmartTip,
+  evidenceUrls: ReadonlySet<string>
+): void {
+  const referenceUrl = tip.referenceUrl ? normalizeEvidenceUrl(tip.referenceUrl) : null;
+  if (!referenceUrl || !evidenceUrls.has(referenceUrl)) {
+    throw new Error(`Groq의 '${product.productName}' 팁에 검증 가능한 검색 근거 URL이 없습니다.`);
+  }
 }
 
 /**
@@ -166,9 +220,10 @@ const SYSTEM_PROMPT = `당신은 마트 vs 쿠팡/온라인 실시간 최저가 
    - 쿠팡이 쌀 때: "쿠팡 가격 {쿠팡가}원이 마트 행사가 {마트가}원보다 {차액}원({할인율}%) 더 저렴합니다."
    - 가격이 비슷할 때: "마트 가격 {마트가}원은 온라인 최저가({온라인가}원)와 유사한 수준입니다."
    절대 "오래 쓰는 공산품은...", "소량 신선 구매는..." 같은 추상적 멘트를 쓰지 마십시오!
+4. referenceUrl에는 해당 온라인 가격을 확인한 browser_search 결과의 실제 URL을 그대로 넣으십시오. 검색 근거가 없으면 행을 생성하지 마십시오.
 
 [TSV 헤더]
-id\ttipType\tbadgeText\ttipMessage\tcoupangKeyword
+id\ttipType\tbadgeText\ttipMessage\tcoupangKeyword\treferenceUrl
 
 [tipType 4대 분류 기준]
 - MART_BEST: 마트 가격이 온라인/쿠팡보다 20% 이상 확실히 저렴한 파격 특가 (badgeText: "마트 필구 특가", coupangKeyword: null)
@@ -195,7 +250,11 @@ function buildProductPrompt(products: ParsedProduct[]): string {
   return `id\t마트\t상품명\t행사가\t단가\t구분\n${productLines}`;
 }
 
-function mapStrictTips(products: ParsedProduct[], responseText: string): ParsedProduct[] {
+function mapStrictTips(
+  products: ParsedProduct[],
+  responseText: string,
+  evidenceUrls: ReadonlySet<string>
+): ParsedProduct[] {
   const tipMap = parseTipTsv(responseText);
 
   return products.map((product) => {
@@ -206,6 +265,8 @@ function mapStrictTips(products: ParsedProduct[], responseText: string): ParsedP
     if (!tip) {
       throw new Error(`Groq 응답에서 '${product.productName}' 팁이 누락되었습니다.`);
     }
+    validateGroundedTip(product, tip);
+    validateSearchEvidence(product, tip, evidenceUrls);
     return {
       ...product,
       smartTip: tip,
@@ -258,6 +319,27 @@ export async function generateSmartTipBatchStrict(products: ParsedProduct[]): Pr
   const responseText = choice.message?.content || '';
   if (!responseText.trim()) throw new Error('Groq가 빈 팁 응답을 반환했습니다.');
 
+  const executedTools = choice.message?.executed_tools || [];
+  const searchEvidenceCount = executedTools.reduce(
+    (count, tool) =>
+      count + (tool.browser_results?.length || 0) + (tool.search_results?.results?.length || 0),
+    0
+  );
+  if (searchEvidenceCount === 0) {
+    throw new Error('Groq browser_search가 검증 가능한 검색 결과를 반환하지 않았습니다.');
+  }
+  const evidenceUrls = new Set<string>();
+  for (const tool of executedTools) {
+    for (const result of tool.browser_results || []) {
+      const normalized = normalizeEvidenceUrl(result.url);
+      if (normalized) evidenceUrls.add(normalized);
+    }
+    for (const result of tool.search_results?.results || []) {
+      const normalized = result.url ? normalizeEvidenceUrl(result.url) : null;
+      if (normalized) evidenceUrls.add(normalized);
+    }
+  }
+
   const usage = completion.usage;
   const cachedTokens = usage?.prompt_tokens_details?.cached_tokens || 0;
   const reasoningTokens = usage?.completion_tokens_details?.reasoning_tokens || 0;
@@ -266,11 +348,11 @@ export async function generateSmartTipBatchStrict(products: ParsedProduct[]): Pr
   const resetTokens = response.headers.get('x-ratelimit-reset-tokens') || undefined;
 
   console.log(
-    `[Smart Tip Worker] model=${model} products=${products.length} total=${usage?.total_tokens ?? 'unknown'} reasoning=${reasoningTokens} cached=${cachedTokens} remaining=${remainingTokens ?? 'unknown'} reset=${resetTokens ?? 'unknown'}`
+    `[Smart Tip Worker] model=${model} products=${products.length} searchEvidence=${searchEvidenceCount} total=${usage?.total_tokens ?? 'unknown'} reasoning=${reasoningTokens} cached=${cachedTokens} remaining=${remainingTokens ?? 'unknown'} reset=${resetTokens ?? 'unknown'}`
   );
 
   return {
-    products: mapStrictTips(products, responseText),
+    products: mapStrictTips(products, responseText, evidenceUrls),
     model,
     remainingTokens: Number.isFinite(remainingTokens) ? remainingTokens : undefined,
     resetTokens,
