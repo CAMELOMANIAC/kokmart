@@ -76,6 +76,11 @@ function parseSafeTipCopy(raw: string | undefined): string | undefined {
     .replace(/[\t\r\n]+/g, ' ')
     .replace(/^['"“”]+|['"“”]+$/g, '')
     .replace(/\s+/g, ' ')
+    .replace(/할 수 있습니다(?=[.!?]?($|\s))/g, '할 수 있어요')
+    .replace(/좋습니다(?=[.!?]?($|\s))/g, '좋아요')
+    .replace(/적합합니다(?=[.!?]?($|\s))/g, '적합해요')
+    .replace(/유리합니다(?=[.!?]?($|\s))/g, '유리해요')
+    .replace(/필요합니다(?=[.!?]?($|\s))/g, '필요해요')
     .trim();
   if (normalized.length < 8 || normalized.length > 120) return undefined;
 
@@ -85,7 +90,16 @@ function parseSafeTipCopy(raw: string | undefined): string | undefined {
     return undefined;
   }
 
-  return /[.!?요다]$/.test(normalized) ? normalized : `${normalized}.`;
+  // 행 자체를 거부하지 않고, 구매 결정과 무관한 문장만 서버의 구매 팁으로 교체합니다.
+  if (/세척|씻|손질|조리|끓|데우|랩으로|밀폐|해동|섭취|냉장|냉동실|보관하|보관해|보관하고|보관하는/i.test(normalized)) {
+    return undefined;
+  }
+  if (/하십시오|하세요|보세요|드세요|두세요|마세요|습니다|십시오|하시오|시오/i.test(normalized)) {
+    return undefined;
+  }
+
+  const withoutPunctuation = normalized.replace(/[.!?]+$/, '');
+  return `${withoutPunctuation}.`;
 }
 
 function parseEvidenceTsv(rawText: string): Map<string, OnlinePriceEvidence> {
@@ -280,18 +294,20 @@ function buildUnpricedAiTip(product: ParsedProduct, evidence: OnlinePriceEvidenc
   const safeTipCopy = parseSafeTipCopy(evidence.tipCopy);
   const trait = evidence.productTrait || 'STANDARD';
   const fallback = trait === 'FROZEN'
-    ? '냉동 보관 공간과 필요한 수량을 먼저 확인해 보세요.'
+    ? '자주 먹는 상품이라면 필요한 수량을 따져 온라인 묶음과 마트 낱개를 비교하기 좋아요.'
     : trait === 'LONG_KEEPING'
-      ? '보관 기간이 길어 사용량에 맞춰 여유 있게 준비하기 좋아요.'
+      ? '오래 두고 쓰는 상품이라 사용량이 많다면 온라인 묶음 구성도 비교할 만해요.'
       : trait === 'FRESH' || product.isPerishable
-        ? '매장에서 상태와 신선도를 직접 확인해 보세요.'
+        ? '필요한 만큼 사고 상태와 신선도를 직접 확인할 수 있는 마트 구매가 좋아요.'
         : trait === 'SMALL_PACK'
-          ? '필요한 양만 간편하게 챙기기 좋은 구성입니다.'
-          : '전단의 구성과 필요한 수량을 확인해 보세요.';
+          ? '많이 필요하지 않다면 필요한 양만 마트에서 바로 사기 좋아요.'
+          : trait === 'READY_TO_EAT'
+            ? '바로 먹을 양만 필요하면 마트에서 구성을 보고 사기 좋아요.'
+            : '필요한 수량과 묶음 구성을 비교해서 구매하는 게 좋아요.';
   return {
     tipType: 'MART_RECOMMEND',
     badgeText: trait === 'FRESH' || product.isPerishable ? '신선 장보기' : '상품별 구매 팁',
-    tipMessage: `${product.productName}: ${safeTipCopy || fallback}`,
+    tipMessage: safeTipCopy || fallback,
     coupangKeyword: null,
   };
 }
@@ -350,7 +366,7 @@ export function buildGroundedSmartTip(
       return {
         tipType: trait === 'BULK' ? 'COUPANG_BULK' : 'COUPANG_TIP',
         badgeText: trait === 'BULK' ? '온라인 대용량 참고' : '온라인 가격대 참고',
-        tipMessage: `${product.productName}: ${priceBasis} ${referenceLabel}의 환산단가가 더 낮게 확인됐어요. ${advice(isFrozen ? '냉동 보관이 가능해 온라인 묶음 구매도 고려할 만해요.' : '보관이 쉬운 상품이라 사용량이 많다면 온라인 구성도 살펴보세요.')}`,
+        tipMessage: `${priceBasis} ${referenceLabel}의 환산단가가 더 낮게 확인됐어요. ${advice(isFrozen ? '자주 먹는 상품이라면 온라인 묶음 구매도 고려할 만해요.' : '사용량이 많다면 온라인 묶음 구성도 비교할 만해요.')}`,
         coupangKeyword: trait === 'BULK' ? `${product.productName} 대용량` : product.productName,
       };
     }
@@ -358,7 +374,7 @@ export function buildGroundedSmartTip(
       return {
         tipType: 'MART_RECOMMEND',
         badgeText: '가격대·신선도 비교',
-        tipMessage: `${product.productName}: ${referenceLabel}의 환산단가가 더 낮게 확인됐어요. ${advice('동급 가격대를 참고하되 매장에서 상태와 신선도를 직접 확인해 보세요.')}`,
+        tipMessage: `${referenceLabel}의 환산단가가 더 낮게 확인됐어요. ${advice('동급 가격대를 참고하되 상태와 신선도를 직접 확인할 수 있는 마트 구매가 좋아요.')}`,
         coupangKeyword: null,
       };
     }
@@ -366,7 +382,7 @@ export function buildGroundedSmartTip(
       return {
         tipType: 'COUPANG_TIP',
         badgeText: '온라인 가격대 참고',
-        tipMessage: `${product.productName}: ${priceBasis} ${referenceLabel}의 환산단가가 더 낮게 확인됐어요. ${advice('용량과 구성이 필요한 조건에 맞는지 확인해 보세요.')}`,
+        tipMessage: `${priceBasis} ${referenceLabel}의 환산단가가 더 낮게 확인됐어요. ${advice('용량과 구성이 필요한 조건에 맞는지 따져보는 게 좋아요.')}`,
         coupangKeyword: product.productName,
       };
     }
@@ -374,8 +390,8 @@ export function buildGroundedSmartTip(
       tipType: 'MART_RECOMMEND',
       badgeText: martCheaper ? '마트 가격대 우위' : '동급 가격대 비슷',
       tipMessage: martCheaper
-        ? `${product.productName}: ${priceBasis} 마트 전단가가 ${referenceLabel}보다 낮게 확인됐어요. ${advice('상품 특성과 구성이 마음에 든다면 전단 행사를 활용하기 좋아요.')}`
-        : `${product.productName}: ${referenceLabel}와 환산단가 차이가 크지 않아요. ${advice('필요한 시점과 구매 편의를 기준으로 선택해 보세요.')}`,
+        ? `${priceBasis} 마트 전단가가 ${referenceLabel}보다 낮게 확인됐어요. ${advice('상품 특성과 구성이 마음에 든다면 전단 행사를 활용하기 좋아요.')}`
+        : `${referenceLabel}와 환산단가 차이가 크지 않아요. ${advice('필요한 시점과 구매 편의를 기준으로 선택하는 게 좋아요.')}`,
       coupangKeyword: null,
     };
   }
@@ -385,7 +401,7 @@ export function buildGroundedSmartTip(
     return {
       tipType: percent >= 20 ? 'MART_BEST' : 'MART_RECOMMEND',
       badgeText: percent >= 20 ? '마트 필구 특가' : '마트 가격 메리트',
-      tipMessage: `${product.productName}: ${priceBasis} 마트가 ${referenceLabel}보다 ${percentage}% 저렴해 전단 행사 메리트가 확실해요.${safeTipCopy ? ` ${safeTipCopy}` : ''}`,
+      tipMessage: `${priceBasis} 마트가 ${referenceLabel}보다 ${percentage}% 저렴해 전단 행사 메리트가 확실해요.${safeTipCopy ? ` ${safeTipCopy}` : ''}`,
       coupangKeyword: null,
     };
   }
@@ -395,7 +411,7 @@ export function buildGroundedSmartTip(
       return {
         tipType: 'MART_RECOMMEND',
         badgeText: '가격 비슷·신선 확인',
-        tipMessage: `${product.productName}: ${referenceLabel}와 ${percentage}% 차이로 비슷해요. ${advice('신선도를 직접 확인하고 바로 구매하기 좋습니다.')}`,
+        tipMessage: `${referenceLabel}와 ${percentage}% 차이로 비슷해요. ${advice('필요한 만큼 사고 신선도를 직접 확인할 수 있는 마트 구매가 좋아요.')}`,
         coupangKeyword: null,
       };
     }
@@ -404,7 +420,7 @@ export function buildGroundedSmartTip(
       return {
         tipType: 'MART_RECOMMEND',
         badgeText: '가격 비슷·바로 구매',
-        tipMessage: `${product.productName}: ${referenceLabel}와 ${percentage}% 차이로 비슷해요. ${advice('마트에서 바로 사고 냉동 보관해 두기 좋습니다.')}`,
+        tipMessage: `${referenceLabel}와 ${percentage}% 차이로 비슷해요. ${advice('가격 차이가 작다면 필요한 수량만 마트에서 바로 사기 좋아요.')}`,
         coupangKeyword: null,
       };
     }
@@ -413,7 +429,7 @@ export function buildGroundedSmartTip(
       return {
         tipType: 'MART_RECOMMEND',
         badgeText: '소용량 간편 선택',
-        tipMessage: `${product.productName}: 확인된 최저가와 가격 차이가 크지 않고 ${evidence.reason}. ${advice('필요한 만큼 바로 구매하기 좋아요.')}`,
+        tipMessage: `확인된 최저가와 가격 차이가 크지 않아요. ${advice('필요한 만큼 바로 구매하기 좋아요.')}`,
         coupangKeyword: null,
       };
     }
@@ -421,7 +437,7 @@ export function buildGroundedSmartTip(
     return {
       tipType: 'MART_RECOMMEND',
       badgeText: '가격 비슷·바로 구매',
-      tipMessage: `${product.productName}: ${referenceLabel}와 ${percentage}% 차이로 비슷해요. ${advice('배송을 기다리지 않고 바로 구매할 수 있습니다.')}`,
+      tipMessage: `${referenceLabel}와 ${percentage}% 차이로 비슷해요. ${advice('배송을 기다리지 않고 마트에서 바로 사기 좋아요.')}`,
       coupangKeyword: null,
     };
   }
@@ -430,7 +446,7 @@ export function buildGroundedSmartTip(
     return {
       tipType: 'COUPANG_TIP',
       badgeText: '온라인 최저가 유리',
-      tipMessage: `${product.productName}: ${priceBasis} ${referenceLabel}가 마트보다 ${percentage}% 저렴해 온라인 주문이 유리해요. ${advice(isFrozen ? '냉동 보관 가능한 상품이라 온라인으로 여유 있게 주문하기 좋습니다.' : '보관 기간이 길어 온라인으로 여유 있게 주문하기 좋습니다.')}`,
+      tipMessage: `${priceBasis} ${referenceLabel}가 마트보다 ${percentage}% 저렴해 온라인 주문이 유리해요. ${advice(isFrozen ? '자주 먹는 상품이라면 온라인 묶음 구매가 더 실용적이에요.' : '오래 두고 쓰는 상품이라 온라인으로 여유 있게 주문하기 좋아요.')}`,
       coupangKeyword: product.productName,
     };
   }
@@ -439,7 +455,7 @@ export function buildGroundedSmartTip(
     return {
       tipType: 'COUPANG_TIP',
       badgeText: '가격과 신선도 비교',
-      tipMessage: `${product.productName}: ${referenceLabel}가 ${percentage}% 저렴해요. 가격을 우선하면 온라인, 상태 확인과 당일 구매가 중요하면 마트가 적합합니다.${safeTipCopy ? ` ${safeTipCopy}` : ''}`,
+      tipMessage: `${referenceLabel}가 ${percentage}% 저렴해요. 가격을 우선하면 온라인이 유리하고, 상태 확인과 당일 구매가 중요하면 마트가 좋아요.${safeTipCopy ? ` ${safeTipCopy}` : ''}`,
       coupangKeyword: product.productName,
     };
   }
@@ -448,7 +464,7 @@ export function buildGroundedSmartTip(
     return {
       tipType: 'MART_RECOMMEND',
       badgeText: '프리미엄 선택',
-      tipMessage: `${product.productName}: 온라인 최저가가 ${percentage}% 저렴하지만 ${evidence.reason}. ${advice('가격보다 제품 특색을 중시할 때 선택할 만해요.')}`,
+      tipMessage: `온라인 최저가가 ${percentage}% 저렴하지만 동급 비교상품과 제품 특성이 달라요. ${advice('가격보다 제품 특색을 중시할 때 선택할 만해요.')}`,
       coupangKeyword: null,
     };
   }
@@ -458,8 +474,8 @@ export function buildGroundedSmartTip(
       tipType: evidence.insightType === 'BULK_ONLINE' ? 'COUPANG_BULK' : 'COUPANG_TIP',
       badgeText: evidence.insightType === 'BULK_ONLINE' ? '온라인 대용량 유리' : '온라인 최저가 유리',
       tipMessage: evidence.insightType === 'SMALL_PACK'
-        ? `${product.productName}: ${priceBasis} ${referenceLabel}가 ${percentage}% 저렴해 온라인 주문이 유리해요. ${advice('오늘 바로 필요한 소용량이 아니라면 온라인 구매가 경제적입니다.')}`
-        : `${product.productName}: ${priceBasis} ${referenceLabel}가 마트보다 ${percentage}% 저렴해 온라인 주문이 유리해요. ${advice('보관 공간과 필요한 수량을 확인한 뒤 주문하세요.')}`,
+        ? `${priceBasis} ${referenceLabel}가 ${percentage}% 저렴해 온라인 주문이 유리해요. ${advice('오늘 바로 필요한 소용량이 아니라면 온라인 구매가 경제적이에요.')}`
+        : `${priceBasis} ${referenceLabel}가 마트보다 ${percentage}% 저렴해 온라인 주문이 유리해요. ${advice('주문 전에 필요한 수량과 묶음 구성을 따져보는 게 좋아요.')}`,
       coupangKeyword: evidence.insightType === 'BULK_ONLINE'
         ? `${product.productName} 대용량`
         : product.productName,
@@ -470,15 +486,12 @@ export function buildGroundedSmartTip(
 }
 
 /** 온라인 동일 규격이 없는 상품에 가격을 꾸며내지 않고 비가격 구매 팁을 만듭니다. */
-export function buildVisionOnlySmartTip(product: ParsedProduct, reason: string): SmartTip {
-  const safeReason = reason.replace(/[\t\r\n]+/g, ' ').trim().slice(0, 80)
-    || '온라인에서 동일한 구성과 규격을 확인하기 어려운 상품';
-
+export function buildVisionOnlySmartTip(product: ParsedProduct, _reason: string): SmartTip {
   if (product.isPerishable) {
     return {
       tipType: 'MART_RECOMMEND',
       badgeText: '신선 장보기',
-      tipMessage: `${product.productName}: ${safeReason}. 매장에서 신선도와 실제 구성을 확인하고 구매하기 좋아요.`,
+      tipMessage: '필요한 만큼 사고 상태와 신선도를 직접 확인할 수 있는 마트 구매가 좋아요.',
       coupangKeyword: null,
     };
   }
@@ -486,7 +499,7 @@ export function buildVisionOnlySmartTip(product: ParsedProduct, reason: string):
   return {
     tipType: 'MART_RECOMMEND',
     badgeText: '마트 구성 상품',
-    tipMessage: `${product.productName}: ${safeReason}. 온라인 가격을 억지로 비교하기보다 전단의 구성과 필요한 수량을 확인해 보세요.`,
+    tipMessage: '온라인에서 같은 구성을 찾기 어려워 전단 구성과 필요한 수량을 기준으로 구매하는 게 좋아요.',
     coupangKeyword: null,
   };
 }
@@ -537,7 +550,11 @@ FROZEN, LONG_KEEPING, FRESH, SMALL_PACK, BULK, READY_TO_EAT, STANDARD 중 하나
 - EXACT/CLOSE/CATEGORY는 실제 http 또는 https 출처URL을 넣으십시오.
 - NONE은 가격 두 칸에 0, 판매처·비교상품명·가격조건·출처URL에 하이픈(-)을 넣으십시오.
 - 비교근거에는 왜 동일하거나 동급인지 50자 이내로 작성하십시오.
-- 구매조언은 보관, 신선도, 용량, 조리와 사용 상황에 관한 자연스러운 한 문장으로 작성하십시오.
+- 구매조언은 어디서 살지, 필요한 수량만 살지, 묶음 구매가 나은지, 매장에서 상태를 확인할지 같은 구매 결정만 다루십시오.
+- 세척, 손질, 조리, 보관 방법, 냉장·냉동 방법, 해동, 섭취기한이나 섭취 방법은 절대 작성하지 마십시오.
+- FROZEN과 LONG_KEEPING은 보관 방법을 설명하지 말고, 오래 두고 사용할 수 있어 온라인 묶음 구매가 가능한지 판단하는 근거로만 사용하십시오.
+- 상품명을 반복하거나 '상품명:' 접두어를 붙이지 마십시오.
+- 구매조언은 명령형(~하세요, ~하십시오)이나 합쇼체(~습니다)를 쓰지 말고 한 문장의 자연스러운 해요체(~해요, ~좋아요, ~유리해요)로 작성하십시오.
 - 구매조언에는 가격, 숫자, 할인율, 판매처 또는 마트/온라인 중 어디가 유리한지에 대한 판단을 넣지 마십시오. 구매 방향과 할인율은 서버가 계산합니다.`;
 }
 

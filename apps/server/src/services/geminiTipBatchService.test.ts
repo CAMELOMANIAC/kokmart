@@ -65,7 +65,7 @@ describe('buildGroundedSmartTip', () => {
 
     expect(tip.tipType).toBe('MART_RECOMMEND');
     expect(tip.tipMessage).toContain('2.9% 차이로 비슷');
-    expect(tip.tipMessage).toContain('바로 구매');
+    expect(tip.tipMessage).toContain('마트에서 바로 사기 좋아요');
   });
 
   it('프리미엄 근거가 있으면 가격 대신 제품 가치를 설명한다', () => {
@@ -84,7 +84,7 @@ describe('buildGroundedSmartTip', () => {
     expect(tip.badgeText).toBe('프리미엄 선택');
     expect(tip.tipMessage).toContain('온라인 최저가가 25.0% 저렴하지만');
     expect(tip.tipMessage).toContain('가격보다 제품 특색');
-    expect(tip.tipMessage).toContain('고급 치즈와 숙성 도우 사용');
+    expect(tip.tipMessage).not.toContain('고급 치즈와 숙성 도우 사용');
   });
 
   it('소용량이어도 온라인이 10% 이상 저렴하면 온라인 구매를 추천한다', () => {
@@ -121,7 +121,7 @@ describe('buildGroundedSmartTip', () => {
     expect(tip.tipMessage).toContain('필요한 만큼 바로 구매');
   });
 
-  it('냉동식품의 온라인 최저가가 10% 이상 싸면 보관 장점과 함께 온라인을 추천한다', () => {
+  it('냉동식품의 온라인 최저가가 10% 이상 싸면 묶음 구매 판단과 함께 온라인을 추천한다', () => {
     const tip = buildGroundedSmartTip(product({
       productName: '하림 냉동 닭가슴살 찹스테이크 600g',
       effectiveUnitPrice: 8_990,
@@ -139,7 +139,8 @@ describe('buildGroundedSmartTip', () => {
 
     expect(tip.tipType).toBe('COUPANG_TIP');
     expect(tip.tipMessage).toContain('동일 상품 판매가(온라인 행사몰)');
-    expect(tip.tipMessage).toContain('냉동 보관 가능한 상품');
+    expect(tip.tipMessage).toContain('온라인 묶음 구매');
+    expect(tip.tipMessage).not.toMatch(/냉동 보관|보관하세요|조리/);
     expect(tip.tipMessage).not.toContain('1당');
   });
 
@@ -153,15 +154,16 @@ describe('buildGroundedSmartTip', () => {
       insightType: 'STANDARD',
       reason: '동일 규격 상품',
       sourceUrl: 'https://example.com/product',
-      tipCopy: '여럿이 나눠 먹는 간편한 식사로 활용하기 좋아요.',
+      tipCopy: '여럿이 먹을 양이라면 묶음 구성을 비교해 구매하기 좋아요.',
     });
 
     expect(tip.tipMessage).toContain('행사몰');
     expect(tip.tipMessage).toContain('20.0% 저렴');
-    expect(tip.tipMessage).toContain('여럿이 나눠 먹는 간편한 식사로 활용하기 좋아요.');
+    expect(tip.tipMessage).toContain('여럿이 먹을 양이라면 묶음 구성을 비교해 구매하기 좋아요.');
+    expect(tip.tipMessage).not.toContain('피자 파티세트:');
   });
 
-  it('동급 냉동 상품이 더 저렴하면 보관 장점과 함께 온라인을 추천한다', () => {
+  it('세척·조리·보관 조언은 폐기하고 구매 판단 문구로 대체한다', () => {
     const tip = buildGroundedSmartTip(product({
       productName: '냉동 닭가슴살 찹스테이크',
       effectiveUnitPrice: 1_500,
@@ -183,7 +185,8 @@ describe('buildGroundedSmartTip', () => {
     expect(tip.tipType).toBe('COUPANG_TIP');
     expect(tip.tipMessage).toContain('동급 비교상품(온라인몰)');
     expect(tip.tipMessage).toContain('33.3% 저렴');
-    expect(tip.tipMessage).toContain('냉동실에 두고 필요한 만큼 조리하기 편해요.');
+    expect(tip.tipMessage).toContain('온라인 묶음 구매가 더 실용적이에요.');
+    expect(tip.tipMessage).not.toMatch(/냉동실|조리|보관/);
   });
 
   it('CATEGORY 비교는 정밀 할인율을 노출하지 않는다', () => {
@@ -207,7 +210,7 @@ describe('buildGroundedSmartTip', () => {
     expect(tip.tipType).toBe('COUPANG_TIP');
     expect(tip.tipMessage).toContain('동급 비교상품');
     expect(tip.tipMessage).not.toContain('%');
-    expect(tip.tipMessage).toContain('보관이 쉬운 상품');
+    expect(tip.tipMessage).toContain('온라인 묶음 구성');
   });
 });
 
@@ -220,8 +223,16 @@ describe('buildVisionOnlySmartTip', () => {
 
     expect(tip.tipType).toBe('MART_RECOMMEND');
     expect(tip.badgeText).toBe('신선 장보기');
-    expect(tip.tipMessage).toContain('마트에서 당일 구성한 모둠회');
+    expect(tip.tipMessage).toBe('필요한 만큼 사고 상태와 신선도를 직접 확인할 수 있는 마트 구매가 좋아요.');
+    expect(tip.tipMessage).not.toContain('특선 홈파티 모둠회:');
     expect(tip.tipMessage).not.toContain('%');
     expect(tip.coupangKeyword).toBeNull();
+  });
+
+  it('비가격 팁도 상품명 접두어 없이 구매 조언만 제공한다', () => {
+    const tip = buildVisionOnlySmartTip(product(), '냉장 보관하고 데워 드십시오');
+
+    expect(tip.tipMessage).toBe('온라인에서 같은 구성을 찾기 어려워 전단 구성과 필요한 수량을 기준으로 구매하는 게 좋아요.');
+    expect(tip.tipMessage).not.toMatch(/피자 파티세트:|냉장|보관|데워|드십시오/);
   });
 });
