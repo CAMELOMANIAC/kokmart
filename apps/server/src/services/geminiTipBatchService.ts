@@ -1,4 +1,4 @@
-import { GoogleGenAI, ThinkingLevel } from '@google/genai';
+import { GoogleGenAI } from '@google/genai';
 import { ParsedProduct, SmartTip } from '@kokmart/shared';
 
 type ShoppingInsightType =
@@ -103,6 +103,33 @@ function parseEvidenceTsv(rawText: string): Map<string, OnlinePriceEvidence> {
   }
 
   return result;
+}
+
+function countInteractionGrounding(steps: Array<{ type: string; [key: string]: unknown }> | undefined): {
+  searchQueries: number;
+  citations: number;
+} {
+  let searchQueries = 0;
+  let citations = 0;
+
+  for (const step of steps || []) {
+    if (step.type === 'google_search_call') {
+      const queries = (step.arguments as { queries?: unknown } | undefined)?.queries;
+      searchQueries += Array.isArray(queries) && queries.length > 0 ? queries.length : 1;
+      continue;
+    }
+
+    if (step.type !== 'model_output') continue;
+    const content = (step as { content?: Array<{ type?: string; annotations?: Array<{ type?: string; url?: string }> }> }).content;
+    for (const block of content || []) {
+      if (block.type !== 'text') continue;
+      citations += (block.annotations || []).filter(
+        (annotation) => annotation.type === 'url_citation' && /^https?:\/\//i.test(annotation.url || '')
+      ).length;
+    }
+  }
+
+  return { searchQueries, citations };
 }
 
 /**
@@ -265,25 +292,33 @@ export async function generateGeminiTipBatch(
 
   const model = (process.env.GEMINI_TIP_MODEL || DEFAULT_TIP_MODEL).trim();
   const ai = new GoogleGenAI({ apiKey });
-  const response = await ai.models.generateContent({
+  const interaction = await ai.interactions.create({
     model,
-    contents: buildPrompt(products),
-    config: {
-      tools: [{ googleSearch: {} }],
-      thinkingConfig: { thinkingLevel: ThinkingLevel.LOW },
-      maxOutputTokens: 4096,
+    input: buildPrompt(products),
+    tools: [{ type: 'google_search' }],
+    generation_config: {
+      thinking_level: 'low',
+      max_output_tokens: 4096,
     },
+    stream: false,
+    store: false,
   });
 
-  const groundingSources = response.candidates?.reduce(
-    (total, candidate) => total + (candidate.groundingMetadata?.groundingChunks?.length || 0),
-    0
-  ) || 0;
-  if (groundingSources === 0) {
-    throw new Error('Gemini Google Search가 검증 가능한 grounding source를 반환하지 않았습니다.');
+  const responseText = interaction.output_text || '';
+  const { searchQueries, citations } = countInteractionGrounding(
+    interaction.steps as Array<{ type: string; [key: string]: unknown }> | undefined
+  );
+  if (searchQueries === 0 || citations === 0) {
+    console.warn(
+      `[Gemini Batch] Grounding 검증 실패: searchQueries=${searchQueries}, citations=${citations}, response=${responseText.slice(0, 500)}`
+    );
+    throw new Error(
+      `Gemini Google Search 근거가 부족합니다. searchQueries=${searchQueries}, citations=${citations}`
+    );
   }
 
-  const evidenceById = parseEvidenceTsv(response.text || '');
+  const groundingSources = citations;
+  const evidenceById = parseEvidenceTsv(responseText);
   const completed: ParsedProduct[] = [];
   const rejected: RejectedGeminiTipProduct[] = [];
 
