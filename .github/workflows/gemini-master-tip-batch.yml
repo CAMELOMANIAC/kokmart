@@ -35,7 +35,8 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          # @supabase/supabase-js의 현재 런타임은 native WebSocket을 위해 Node 22 이상이 필요합니다.
+          node-version: '22'
           cache: 'pnpm'
 
       - name: Install dependencies
