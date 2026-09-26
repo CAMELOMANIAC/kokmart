@@ -153,8 +153,9 @@ GitHub 저장소의 Actions secrets에 다음 값을 등록합니다.
 - `SUPABASE_URL`
 - `SUPABASE_SERVICE_ROLE_KEY`
 - `GEMINI_TIP_API_KEY`: Tier 1 결제 프로젝트에서 발급한 검색 팁 전용 키
+- `GEMINI_VISION_API_KEY`: Vercel에도 등록한 무료 프로젝트의 이미지 파싱 키
 
-기본값은 요청당 최대 12개 상품, 실행당 최대 16회 호출이며 모델은 `gemini-3.8-flash`, thinking level은 `low`입니다. 정상 상품은 배치 도중 즉시 저장하고 검색 근거가 없는 상품만 별도로 재시도합니다. 로컬에서 같은 배치를 실행하려면 `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `GEMINI_TIP_API_KEY`를 설정한 뒤 `pnpm tips:master-batch`를 실행합니다.
+기본값은 요청당 최대 12개 상품, 실행당 최대 16회 호출이며 검색 모델은 `gemini-3.8-flash`, thinking level은 `low`입니다. 검색 근거가 없는 상품은 원본 페이지를 무료 `gemini-3.5-flash-lite`로 한 번 재검증합니다. 교정 후 온라인 비교가 가능한 상품만 3.8 Flash로 한 번 더 검색하고, 마트 자체 구성·즉석조리·신선식품처럼 동일 온라인 상품이 없는 경우에는 가격을 만들지 않는 비가격 팁으로 완료합니다. 로컬에서 같은 배치를 실행하려면 `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `GEMINI_TIP_API_KEY`, `GEMINI_VISION_API_KEY`를 설정한 뒤 `pnpm tips:master-batch`를 실행합니다.
 
 ### 4. 클라이언트 앱 배포 (Tauri v2 Cross-Platform)
 ```bash

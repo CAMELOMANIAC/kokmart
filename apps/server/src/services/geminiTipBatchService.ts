@@ -241,6 +241,28 @@ export function buildGroundedSmartTip(
   };
 }
 
+/** 온라인 동일 규격이 없는 상품에 가격을 꾸며내지 않고 비가격 구매 팁을 만듭니다. */
+export function buildVisionOnlySmartTip(product: ParsedProduct, reason: string): SmartTip {
+  const safeReason = reason.replace(/[\t\r\n]+/g, ' ').trim().slice(0, 80)
+    || '온라인에서 동일한 구성과 규격을 확인하기 어려운 상품';
+
+  if (product.isPerishable) {
+    return {
+      tipType: 'MART_RECOMMEND',
+      badgeText: '신선 장보기',
+      tipMessage: `${product.productName}: ${safeReason}. 매장에서 신선도와 실제 구성을 확인하고 구매하기 좋아요.`,
+      coupangKeyword: null,
+    };
+  }
+
+  return {
+    tipType: 'MART_RECOMMEND',
+    badgeText: '마트 구성 상품',
+    tipMessage: `${product.productName}: ${safeReason}. 온라인 가격을 억지로 비교하기보다 전단의 구성과 필요한 수량을 확인해 보세요.`,
+    coupangKeyword: null,
+  };
+}
+
 function buildPrompt(products: ParsedProduct[]): string {
   const rows = products.map((product) =>
     [
@@ -328,9 +350,8 @@ export async function generateGeminiTipBatch(
     console.warn(
       `[Gemini Batch] 유효한 출처 URL이 없습니다: searchQueries=${searchQueries}, citations=${citations}, response=${responseText.slice(0, 500)}`
     );
-    throw new Error('Gemini 검색 결과에 검증 가능한 출처 URL이 없습니다.');
   }
-  if (citations === 0) {
+  if (citations === 0 && evidenceById.size > 0) {
     console.warn(
       `[Gemini Batch] URL citation annotation은 없지만 검색 실행과 TSV 출처 URL을 확인했습니다: searchQueries=${searchQueries}, urls=${evidenceById.size}`
     );

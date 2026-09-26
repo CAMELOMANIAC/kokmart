@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { ParsedProduct } from '@kokmart/shared';
-import { buildGroundedSmartTip } from './geminiTipBatchService.js';
+import { buildGroundedSmartTip, buildVisionOnlySmartTip } from './geminiTipBatchService.js';
 
 function product(overrides: Partial<ParsedProduct> = {}): ParsedProduct {
   return {
@@ -117,5 +117,20 @@ describe('buildGroundedSmartTip', () => {
     expect(tip.tipType).toBe('MART_RECOMMEND');
     expect(tip.badgeText).toBe('소용량 간편 선택');
     expect(tip.tipMessage).toContain('바로 먹기 좋아요');
+  });
+});
+
+describe('buildVisionOnlySmartTip', () => {
+  it('온라인 동일 상품이 없는 신선식품에 가격 없는 현장 팁을 만든다', () => {
+    const tip = buildVisionOnlySmartTip(
+      product({ productName: '특선 홈파티 모둠회', isPerishable: true }),
+      '마트에서 당일 구성한 모둠회'
+    );
+
+    expect(tip.tipType).toBe('MART_RECOMMEND');
+    expect(tip.badgeText).toBe('신선 장보기');
+    expect(tip.tipMessage).toContain('마트에서 당일 구성한 모둠회');
+    expect(tip.tipMessage).not.toContain('%');
+    expect(tip.coupangKeyword).toBeNull();
   });
 });

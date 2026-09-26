@@ -33,6 +33,7 @@ import {
   parseSingleCroppedProductWithGemini,
   parseMasterFlyerWithGemini,
   parseSinglePageWithGemini,
+  refineProductsFromFlyerWithGemini,
 } from './geminiService.js';
 
 describe('geminiService', () => {
@@ -222,6 +223,43 @@ describe('geminiService', () => {
       await expect(
         parseSinglePageWithGemini(page, 1, '이마트')
       ).rejects.toThrow('Gemini 단일 페이지 재파싱 실패: 인증 오류');
+    });
+  });
+
+  describe('refineProductsFromFlyerWithGemini', () => {
+    it('검색 실패 상품을 원본 페이지와 좌표로 재검증해야 한다', async () => {
+      const page = await createTestImage(100, 100);
+      mockGenerateContent.mockResolvedValueOnce({
+        text: JSON.stringify([
+          {
+            id: 'product-1',
+            productName: '샤브용 모둠버섯 300g',
+            salePrice: 4980,
+            effectiveUnitPrice: 1660,
+            unitMeasure: '100g',
+            isPerishable: true,
+            onlineComparable: false,
+            reason: '여러 버섯이 섞인 마트 행사 구성',
+          },
+        ]),
+      });
+
+      const result = await refineProductsFromFlyerWithGemini(page, [{
+        id: 'product-1',
+        productName: '사브용 모듬버섯',
+        salePrice: 4980,
+        effectiveUnitPrice: 4980,
+        unitMeasure: '1팩',
+        isPerishable: true,
+        boundingBox: { id: 'box-1', ymin: 100, xmin: 100, ymax: 400, xmax: 400 },
+      }]);
+
+      expect(result).toHaveLength(1);
+      expect(result[0]?.product.productName).toBe('샤브용 모둠버섯 300g');
+      expect(result[0]?.onlineComparable).toBe(false);
+      expect(mockGenerateContent).toHaveBeenCalledWith(expect.objectContaining({
+        model: 'gemini-3.5-flash-lite',
+      }));
     });
   });
 

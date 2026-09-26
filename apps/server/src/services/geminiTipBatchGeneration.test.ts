@@ -73,4 +73,22 @@ describe('generateGeminiTipBatch', () => {
     expect(result.products).toHaveLength(1);
     expect(result.products[0]?.tipStatus).toBe('complete');
   });
+
+  it('검색은 실행됐지만 결과 행이 없으면 예외 대신 비전 재검증 대상으로 반환한다', async () => {
+    mockCreateInteraction.mockResolvedValueOnce({
+      output_text: 'id\t온라인총가격\t마트단위로환산한온라인단위가격\t판매처\t검색결과상품명\t구매특성\t근거요약\t출처URL',
+      steps: [
+        {
+          type: 'google_search_call',
+          arguments: { queries: ['피자 파티세트 온라인 가격'] },
+        },
+      ],
+    });
+
+    const result = await generateGeminiTipBatch([product]);
+
+    expect(result.products).toHaveLength(0);
+    expect(result.rejected).toHaveLength(1);
+    expect(result.rejected[0]?.product.id).toBe('product-1');
+  });
 });

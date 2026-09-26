@@ -16,6 +16,12 @@ function getVisionModel(): string {
   return (process.env.GEMINI_VISION_MODEL || DEFAULT_VISION_MODEL).trim();
 }
 
+export interface VisionRefinedProduct {
+  product: ParsedProduct;
+  onlineComparable: boolean;
+  reason: string;
+}
+
 /**
  * 대형 전단지 이미지를 4~6분할 타일 그리드로 크롭
  */
@@ -320,6 +326,10 @@ export async function parseMasterFlyerWithGemini(
 9. ymin, xmin, ymax, xmax: [★가장 중요: 상품 실물 사진/비주얼 중심 좌표]
    - 가격표, 상품명 글씨, 행사 문구/스티커 등 '텍스트 구역'은 제외하십시오.
    - 해당 상품의 '실제 음식, 과일, 채소, 정육, 제품 본체 사진이나 포장 패키지 비주얼(사진/그림)'만을 타이트하게 감싸는 0부터 1000 사이의 정규화 정수 좌표를 구하십시오. 썸네일에 글씨 대신 실제 상품 사진이 돋보여야 합니다.
+10. 서로 다른 상품 카드나 가격표를 한 행에 합치지 마십시오. 인접한 상품은 반드시 개별 행으로 분리하십시오.
+11. 하나의 가격표가 슬래시(/)로 구분된 여러 선택 상품에 공통 적용되면, 이미지에서 이름을 읽을 수 있는 각 상품을 별도 행으로 출력하고 같은 행사가를 적용하십시오.
+12. 브랜드, 상품명, 맛/종류, 용량/수량은 이미지에 실제로 보이는 문자열만 사용하십시오. 흐리거나 가려진 내용은 추측하거나 보완하지 마십시오.
+13. 비슷한 한글을 문맥으로 바꾸지 말고 이미지 표기를 그대로 확인하십시오. 특히 샤브/사브, 세트/세리처럼 한 글자 차이를 확대해 재확인하십시오.
 `;
 
   try {
@@ -402,6 +412,10 @@ export async function parseSinglePageWithGemini(
 9. ymin, xmin, ymax, xmax: [★가장 중요: 상품 실물 사진/비주얼 중심 좌표]
    - 가격표, 상품명 글씨, 행사 문구/스티커 등 '텍스트 구역'은 제외하십시오.
    - 해당 상품의 '실제 음식, 과일, 채소, 정육, 제품 본체 사진이나 포장 패키지 비주얼(사진/그림)'만을 타이트하게 감싸는 0부터 1000 사이의 정규화 정수 좌표를 구하십시오. 썸네일에 글씨 대신 실제 상품 사진이 돋보여야 합니다.
+10. 서로 다른 상품 카드나 가격표를 한 행에 합치지 마십시오. 인접한 상품은 반드시 개별 행으로 분리하십시오.
+11. 하나의 가격표가 슬래시(/)로 구분된 여러 선택 상품에 공통 적용되면, 이미지에서 이름을 읽을 수 있는 각 상품을 별도 행으로 출력하고 같은 행사가를 적용하십시오.
+12. 브랜드, 상품명, 맛/종류, 용량/수량은 이미지에 실제로 보이는 문자열만 사용하고 추측하지 마십시오.
+13. 비슷한 한글 한 글자 차이를 확대해 재확인하고 이미지 표기를 정확히 보존하십시오.
 `;
 
   try {
@@ -443,4 +457,131 @@ export async function parseSinglePageWithGemini(
     const errorMsg = error instanceof Error ? error.message : String(error);
     throw new Error(`Gemini 단일 페이지 재파싱 실패: ${errorMsg}`);
   }
+}
+
+/**
+ * 검색 근거가 없던 상품만 원본 페이지에서 다시 확인합니다.
+ * bounding box는 상품 사진 중심 좌표이므로 전체 페이지와 좌표를 함께 전달해 주변 가격표/상품명을 연결합니다.
+ */
+export async function refineProductsFromFlyerWithGemini(
+  pageBuffer: Buffer,
+  products: ParsedProduct[]
+): Promise<VisionRefinedProduct[]> {
+  if (!pageBuffer || pageBuffer.length === 0) {
+    throw new Error('재검증할 전단 페이지 이미지가 비어 있습니다.');
+  }
+  if (products.length === 0) return [];
+
+  const ai = getVisionAiClient();
+  const model = getVisionModel();
+  const rows = products.map((product) => {
+    const box = product.boundingBox;
+    return [
+      product.id,
+      product.productName,
+      Math.round(product.salePrice),
+      Math.round(product.effectiveUnitPrice),
+      product.unitMeasure,
+      box ? `${box.ymin},${box.xmin},${box.ymax},${box.xmax}` : '좌표없음',
+    ].join('\t');
+  }).join('\n');
+
+  const prompt = `
+당신은 한국 마트 전단의 OCR 교정자입니다. 아래 입력 상품은 온라인 동일상품 검색에 실패했습니다.
+전체 전단 이미지에서 각 상품의 좌표가 가리키는 '상품 사진'을 찾고, 그 사진과 가장 가까운 상품명·규격·가격표만 다시 읽으십시오.
+
+[입력]
+id\t현재상품명\t현재행사가\t현재단위가격\t현재단위\t상품사진좌표(ymin,xmin,ymax,xmax; 0~1000)
+${rows}
+
+[필수 규칙]
+- 입력 id마다 정확히 하나의 결과를 반환하고 id를 변경하지 마십시오.
+- 좌표 주변의 다른 상품 카드, 옆 열, 위아래 가격표를 섞지 마십시오.
+- 이미지에서 분명히 보이는 브랜드·상품명·맛/종류·용량/수량만 기록하고 추측하지 마십시오.
+- 현재 값이 정확하면 그대로 유지하십시오. 가격은 이미지에서 확실히 읽을 때만 교정하십시오.
+- 슬래시로 여러 선택 상품이 묶인 행사, 마트 즉석조리/회/초밥/자체 구성, 규격이 불명확한 신선식품은 onlineComparable=false로 표시하십시오.
+- 브랜드와 정확한 용량/수량이 확인되는 포장 공산품처럼 온라인에서 동일 규격을 찾을 수 있을 때만 onlineComparable=true로 표시하십시오.
+- reason은 판정 근거를 40자 이내의 객관적인 한국어로 작성하십시오.
+`;
+
+  const response = await ai.models.generateContent({
+    model,
+    contents: [
+      {
+        role: 'user',
+        parts: [
+          { inlineData: { mimeType: 'image/jpeg', data: pageBuffer.toString('base64') } },
+          { text: prompt },
+        ],
+      },
+    ],
+    config: {
+      responseMimeType: 'application/json',
+      responseSchema: {
+        type: Type.ARRAY,
+        items: {
+          type: Type.OBJECT,
+          properties: {
+            id: { type: Type.STRING },
+            productName: { type: Type.STRING },
+            salePrice: { type: Type.NUMBER },
+            effectiveUnitPrice: { type: Type.NUMBER },
+            unitMeasure: { type: Type.STRING },
+            isPerishable: { type: Type.BOOLEAN },
+            onlineComparable: { type: Type.BOOLEAN },
+            reason: { type: Type.STRING },
+          },
+          required: [
+            'id',
+            'productName',
+            'salePrice',
+            'effectiveUnitPrice',
+            'unitMeasure',
+            'isPerishable',
+            'onlineComparable',
+            'reason',
+          ],
+        },
+      },
+      maxOutputTokens: 4096,
+      temperature: 0.1,
+    },
+  });
+
+  const raw = JSON.parse(response.text || '[]') as Array<{
+    id: string;
+    productName: string;
+    salePrice: number;
+    effectiveUnitPrice: number;
+    unitMeasure: string;
+    isPerishable: boolean;
+    onlineComparable: boolean;
+    reason: string;
+  }>;
+  const originalById = new Map(products.map((product) => [product.id, product]));
+  const seen = new Set<string>();
+  const refined: VisionRefinedProduct[] = [];
+
+  for (const item of raw) {
+    const original = originalById.get(item.id);
+    if (!original || !item.id || seen.has(item.id)) continue;
+    if (!item.productName?.trim() || !item.unitMeasure?.trim()) continue;
+    if (!Number.isFinite(item.salePrice) || item.salePrice <= 0) continue;
+    if (!Number.isFinite(item.effectiveUnitPrice) || item.effectiveUnitPrice <= 0) continue;
+    seen.add(item.id);
+    refined.push({
+      product: {
+        ...original,
+        productName: item.productName.trim(),
+        salePrice: Math.round(item.salePrice),
+        effectiveUnitPrice: Math.round(item.effectiveUnitPrice),
+        unitMeasure: item.unitMeasure.trim(),
+        isPerishable: item.isPerishable,
+      },
+      onlineComparable: item.onlineComparable,
+      reason: item.reason.replace(/[\t\r\n]+/g, ' ').trim().slice(0, 80),
+    });
+  }
+
+  return refined;
 }

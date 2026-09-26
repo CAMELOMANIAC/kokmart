@@ -62,6 +62,7 @@ export interface SaveFlyerParams {
 export interface ClaimedTipProduct {
   product: ParsedProduct;
   attempts: number;
+  flyerId: string;
 }
 
 function mapProductRow(row: Record<string, unknown>, fallbackMartName = '마트'): ParsedProduct {
@@ -318,6 +319,7 @@ export async function claimPendingTipProducts(limit = 4): Promise<ClaimedTipProd
   return ((data || []) as Array<Record<string, unknown>>).map((row) => ({
     product: mapProductRow(row),
     attempts: Number(row.tip_attempts) || 1,
+    flyerId: String(row.flyer_id || ''),
   }));
 }
 
@@ -338,7 +340,50 @@ export async function claimPendingGeminiTipBatch(limit = 12): Promise<ClaimedTip
   return ((data || []) as Array<Record<string, unknown>>).map((row) => ({
     product: mapProductRow(row),
     attempts: Number(row.tip_attempts) || 1,
+    flyerId: String(row.flyer_id || ''),
   }));
+}
+
+/** 선점한 상품이 속한 전단 페이지의 원본 이미지 URL을 반환합니다. */
+export async function getFlyerPageImageUrl(flyerId: string, pageIndex: number): Promise<string | null> {
+  const client = getSupabaseClient();
+  if (!client) throw new Error('Supabase가 설정되지 않았습니다.');
+  if (!flyerId) return null;
+
+  const { data, error } = await client
+    .from('flyers')
+    .select('image_urls')
+    .eq('id', flyerId)
+    .maybeSingle();
+  if (error) throw new Error(`전단 원본 이미지 조회 실패: ${error.message}`);
+
+  const imageUrls = (data?.image_urls as string[] | null) || [];
+  return imageUrls[Math.max(0, pageIndex - 1)] || null;
+}
+
+/** 비전 재검증 결과를 저장해 다음 재시도에서도 교정된 상품 정보를 사용합니다. */
+export async function updateClaimedGeminiProductDetails(products: ParsedProduct[]): Promise<void> {
+  const client = getSupabaseClient();
+  if (!client) throw new Error('Supabase가 설정되지 않았습니다.');
+
+  const results = await Promise.all(products.map((product) => {
+    if (!product.id) throw new Error('교정할 상품 ID가 없습니다.');
+    return client
+      .from('flyer_products')
+      .update({
+        product_name: product.productName,
+        sale_price: Math.round(product.salePrice),
+        effective_unit_price: Math.round(product.effectiveUnitPrice),
+        unit_measure: product.unitMeasure,
+        is_perishable: product.isPerishable,
+      })
+      .eq('id', product.id)
+      .eq('tip_status', 'processing')
+      .eq('tip_processor', 'gemini_batch');
+  }));
+
+  const failure = results.find((result) => result.error);
+  if (failure?.error) throw new Error(`Gemini 상품 교정 저장 실패: ${failure.error.message}`);
 }
 
 /** Groq 팁 생성에 성공한 상품을 완료 상태로 갱신합니다. */
@@ -382,7 +427,7 @@ export async function completeTipProducts(products: ParsedProduct[], model: stri
   }
 }
 
-/** Gemini 검색 근거 검증을 통과한 마스터 팁을 저장합니다. */
+/** Gemini 검색 근거 또는 비전 재검증을 통과한 마스터 팁을 저장합니다. */
 export async function completeGeminiTipProducts(products: ParsedProduct[], model: string): Promise<void> {
   const client = getSupabaseClient();
   if (!client) throw new Error('Supabase가 설정되지 않았습니다.');
@@ -393,8 +438,8 @@ export async function completeGeminiTipProducts(products: ParsedProduct[], model
       if (!product.id || !product.smartTip) {
         throw new Error('완료할 상품 ID 또는 smartTip이 없습니다.');
       }
-      if (product.tipSource !== 'gemini_grounded') {
-        throw new Error(`Gemini 검증을 통과하지 않은 상품은 완료할 수 없습니다: ${product.id}`);
+      if (product.tipSource !== 'gemini_grounded' && product.tipSource !== 'gemini_vision') {
+        throw new Error(`Gemini 검색/비전 검증을 통과하지 않은 상품은 완료할 수 없습니다: ${product.id}`);
       }
 
       return client
@@ -404,8 +449,13 @@ export async function completeGeminiTipProducts(products: ParsedProduct[], model
           badge_text: product.smartTip.badgeText,
           tip_message: product.smartTip.tipMessage,
           coupang_keyword: product.smartTip.coupangKeyword,
+          product_name: product.productName,
+          sale_price: Math.round(product.salePrice),
+          effective_unit_price: Math.round(product.effectiveUnitPrice),
+          unit_measure: product.unitMeasure,
+          is_perishable: product.isPerishable,
           tip_status: 'complete',
-          tip_source: 'gemini_grounded',
+          tip_source: product.tipSource,
           tip_model: model,
           tip_locked_at: null,
           tip_last_error: null,

@@ -35,7 +35,7 @@ CREATE TABLE IF NOT EXISTS flyer_products (
     tip_message TEXT,                                  -- 실시간 가격 비교 팁 메시지
     coupang_keyword VARCHAR(255),                      -- 쿠팡 최저가 검색어 (null 가능)
     tip_status VARCHAR(20) NOT NULL DEFAULT 'pending', -- pending/processing/complete/retry/failed
-    tip_source VARCHAR(30),                            -- fallback/groq_grounded/gemini_grounded
+    tip_source VARCHAR(30),                            -- fallback/groq_grounded/gemini_grounded/gemini_vision
     tip_processor VARCHAR(30) NOT NULL DEFAULT 'groq_realtime', -- groq_realtime/gemini_batch
     tip_attempts INTEGER NOT NULL DEFAULT 0,
     tip_locked_at TIMESTAMPTZ,
