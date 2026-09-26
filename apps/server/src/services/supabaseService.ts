@@ -101,9 +101,10 @@ function mapProductRow(row: Record<string, unknown>, fallbackMartName = '마트'
     id: row.id as string,
     pageIndex: Number(row.page_index) || 1,
     productName: row.product_name as string,
+    packageSpec: (row.package_spec as string | null) || undefined,
     salePrice: Number(row.sale_price) || 0,
     effectiveUnitPrice: Number(row.effective_unit_price) || 0,
-    unitMeasure: row.unit_measure as string,
+    unitMeasure: (row.unit_measure as string | null) || '',
     isPerishable: Boolean(row.is_perishable),
     martName: (row.mart_name as string) || fallbackMartName,
     smartTip,
@@ -176,8 +177,13 @@ export async function saveFlyerToSupabase(params: SaveFlyerParams): Promise<{
         page_index: prod.pageIndex || 1,
         product_name: prod.productName,
         sale_price: Math.round(Number(prod.salePrice) || 0),
-        effective_unit_price: Math.round(Number(prod.effectiveUnitPrice) || 0),
-        unit_measure: prod.unitMeasure,
+        package_spec: prod.packageSpec?.trim() || null,
+        effective_unit_price: Number(prod.effectiveUnitPrice) > 0
+          ? Math.round(Number(prod.effectiveUnitPrice))
+          : null,
+        unit_measure: Number(prod.effectiveUnitPrice) > 0 && /^(100g|100ml|1개)$/.test(prod.unitMeasure)
+          ? prod.unitMeasure
+          : null,
         is_perishable: prod.isPerishable,
         mart_name: prod.martName || martName,
         tip_type: prod.smartTip?.tipType || null,
@@ -372,9 +378,14 @@ export async function updateClaimedGeminiProductDetails(products: ParsedProduct[
       .from('flyer_products')
       .update({
         product_name: product.productName,
+        package_spec: product.packageSpec?.trim() || null,
         sale_price: Math.round(product.salePrice),
-        effective_unit_price: Math.round(product.effectiveUnitPrice),
-        unit_measure: product.unitMeasure,
+        effective_unit_price: product.effectiveUnitPrice > 0
+          ? Math.round(product.effectiveUnitPrice)
+          : null,
+        unit_measure: product.effectiveUnitPrice > 0 && /^(100g|100ml|1개)$/.test(product.unitMeasure)
+          ? product.unitMeasure
+          : null,
         is_perishable: product.isPerishable,
       })
       .eq('id', product.id)
@@ -450,9 +461,14 @@ export async function completeGeminiTipProducts(products: ParsedProduct[], model
           tip_message: product.smartTip.tipMessage,
           coupang_keyword: product.smartTip.coupangKeyword,
           product_name: product.productName,
+          package_spec: product.packageSpec?.trim() || null,
           sale_price: Math.round(product.salePrice),
-          effective_unit_price: Math.round(product.effectiveUnitPrice),
-          unit_measure: product.unitMeasure,
+          effective_unit_price: product.effectiveUnitPrice > 0
+            ? Math.round(product.effectiveUnitPrice)
+            : null,
+          unit_measure: product.effectiveUnitPrice > 0 && /^(100g|100ml|1개)$/.test(product.unitMeasure)
+            ? product.unitMeasure
+            : null,
           is_perishable: product.isPerishable,
           tip_status: 'complete',
           tip_source: product.tipSource,

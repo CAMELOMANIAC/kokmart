@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { parseFlyerTsv } from './tsvParser.js';
+import { calculateNormalizedUnitPrice, parseFlyerTsv } from './tsvParser.js';
 
 describe('parseFlyerTsv', () => {
   it('should parse 6-column TSV with markdown code fence and header', () => {
@@ -64,12 +64,42 @@ describe('parseFlyerTsv', () => {
     expect(products[0]?.effectiveUnitPrice).toBe(1500);
   });
 
-  it('should fallback effectiveUnitPrice to salePrice when effectiveUnitPrice is 0', () => {
+  it('환산할 수 없는 포장 단위를 판매가로 복사하지 않는다', () => {
     const rawTsv = `1\t사과 1봉\t9,900\t0\t1봉\tY`;
     const products = parseFlyerTsv(rawTsv);
 
     expect(products[0]?.salePrice).toBe(9900);
-    expect(products[0]?.effectiveUnitPrice).toBe(9900);
+    expect(products[0]?.effectiveUnitPrice).toBe(0);
+    expect(products[0]?.unitMeasure).toBe('');
+  });
+
+  it('신규 포맷의 포장 규격으로 100g 환산단가를 계산한다', () => {
+    const rawTsv = `페이지번호\t상품명\t포장규격\t할인가\t신선식품여부(Y/N)\tymin\txmin\tymax\txmax
+1\t피코크 하얀짬뽕\t1280g\t6980\tN\t10\t20\t300\t400`;
+    const products = parseFlyerTsv(rawTsv);
+
+    expect(products[0]).toMatchObject({
+      productName: '피코크 하얀짬뽕',
+      packageSpec: '1280g',
+      salePrice: 6980,
+      effectiveUnitPrice: 545,
+      unitMeasure: '100g',
+    });
+  });
+
+  it('묶음 규격을 총용량으로 환산한다', () => {
+    expect(calculateNormalizedUnitPrice(4980, '2L×6병')).toEqual({
+      effectiveUnitPrice: 42,
+      unitMeasure: '100ml',
+    });
+    expect(calculateNormalizedUnitPrice(3980, '8입')).toEqual({
+      effectiveUnitPrice: 498,
+      unitMeasure: '1개',
+    });
+    expect(calculateNormalizedUnitPrice(6980, '1.28kg(640g×2)')).toEqual({
+      effectiveUnitPrice: 545,
+      unitMeasure: '100g',
+    });
   });
 
   it('should parse various perishable boolean representations correctly', () => {

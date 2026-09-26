@@ -75,6 +75,7 @@ describe('geminiService', () => {
       const testImage = await createTestImage(100, 100);
       const mockProduct = {
         productName: '국내산 삼겹살',
+        packageSpec: '100g',
         salePrice: 1980,
         effectiveUnitPrice: 1980,
         unitMeasure: '100g',
@@ -234,9 +235,8 @@ describe('geminiService', () => {
           {
             id: 'product-1',
             productName: '샤브용 모둠버섯 300g',
+            packageSpec: '300g',
             salePrice: 4980,
-            effectiveUnitPrice: 1660,
-            unitMeasure: '100g',
             isPerishable: true,
             onlineComparable: false,
             reason: '여러 버섯이 섞인 마트 행사 구성',
@@ -256,6 +256,9 @@ describe('geminiService', () => {
 
       expect(result).toHaveLength(1);
       expect(result[0]?.product.productName).toBe('샤브용 모둠버섯 300g');
+      expect(result[0]?.product.packageSpec).toBe('300g');
+      expect(result[0]?.product.effectiveUnitPrice).toBe(1660);
+      expect(result[0]?.product.unitMeasure).toBe('100g');
       expect(result[0]?.onlineComparable).toBe(false);
       expect(mockGenerateContent).toHaveBeenCalledWith(expect.objectContaining({
         model: 'gemini-3.5-flash-lite',

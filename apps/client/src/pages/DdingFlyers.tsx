@@ -411,11 +411,18 @@ export const DdingFlyers: React.FC = () => {
 
                     <div className={s.productDetailCol}>
                       <div className={s.productTitleRow}>
-                        <div className={s.productName}>{item.productName}</div>
+                        <div className={s.productName}>
+                          {item.productName}
+                          {item.packageSpec && !item.productName.includes(item.packageSpec)
+                            ? ` ${item.packageSpec}`
+                            : ''}
+                        </div>
                         <div className={s.priceContainer}>
-                          <div className={s.unitPriceText}>
-                            {item.unitMeasure}당 {item.effectiveUnitPrice.toLocaleString()}원
-                          </div>
+                          {item.effectiveUnitPrice > 0 && item.unitMeasure ? (
+                            <div className={s.unitPriceText}>
+                              {item.unitMeasure}당 {item.effectiveUnitPrice.toLocaleString()}원
+                            </div>
+                          ) : null}
                           <div className={s.salePriceText}>
                             {item.salePrice.toLocaleString()}원
                           </div>

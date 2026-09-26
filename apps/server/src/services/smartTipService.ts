@@ -216,11 +216,14 @@ function buildProductPrompt(products: ParsedProduct[]): string {
             : cat === 'BULK_HOUSEHOLD'
               ? '생필품'
               : '일반';
-      return `${p.id || 'p'}\t${p.martName || '마트'}\t${p.productName}\t${p.salePrice}\t${p.effectiveUnitPrice}원/${p.unitMeasure}\t${catLabel}`;
+      const normalizedPrice = p.effectiveUnitPrice > 0 && p.unitMeasure
+        ? `${p.effectiveUnitPrice}원/${p.unitMeasure}`
+        : '환산불가';
+      return `${p.id || 'p'}\t${p.martName || '마트'}\t${p.productName}\t${p.packageSpec || ''}\t${p.salePrice}\t${normalizedPrice}\t${catLabel}`;
     })
     .join('\n');
 
-  return `id\t마트\t상품명\t행사가\t단가\t구분\n${productLines}`;
+  return `id\t마트\t상품명\t포장규격\t행사가\t환산단가\t구분\n${productLines}`;
 }
 
 function mapStrictTips(products: ParsedProduct[], responseText: string): ParsedProduct[] {

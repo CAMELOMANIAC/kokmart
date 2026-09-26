@@ -319,9 +319,10 @@ function buildPrompt(products: ParsedProduct[]): string {
       product.id,
       product.martName || '마트',
       product.productName,
+      product.packageSpec || '',
       Math.round(product.salePrice),
-      Math.round(product.effectiveUnitPrice),
-      product.unitMeasure,
+      product.effectiveUnitPrice > 0 ? Math.round(product.effectiveUnitPrice) : '',
+      product.unitMeasure || '',
     ].join('\t')
   ).join('\n');
 
@@ -330,7 +331,7 @@ function buildPrompt(products: ParsedProduct[]): string {
 상품의 용량/수량/규격이 다르면 반드시 마트의 단위 기준으로 환산하십시오. 검색 결과가 없거나 규격을 확실히 맞출 수 없으면 그 상품은 출력하지 마십시오.
 
 [입력]
-id\t마트\t상품명\t마트총가격\t마트단위가격\t마트단위
+id\t마트\t상품명\t포장규격\t마트총가격\t마트환산단가\t환산기준
 ${rows}
 
 [출력]
@@ -339,6 +340,7 @@ id\t온라인총가격\t마트단위로환산한온라인단위가격\t판매처
 
 [검증 규칙]
 - 입력의 모든 상품을 개별 검색하고, 입력 id를 한 글자도 바꾸지 마십시오.
+- 마트환산단가가 비어 있으면 판매가를 환산단가로 간주하지 말고 가격 할인율도 만들지 마십시오.
 - 상품 하나당 Google Search 쿼리는 최대 3회만 수행하십시오. '상품명 용량 최저가', '상품명 용량 행사', '상품명 용량 마트몰'처럼 현재 행사 가격을 우선 탐색하십시오.
 - 검색 결과와 판매 페이지에서 확인한 가격들을 비교한 뒤, 현재 누구나 적용받을 수 있는 공개 판매가 중 단위 가격이 가장 낮은 결과 하나만 출력하십시오.
 - 정상가와 공개 행사가가 함께 보이면 반드시 현재 적용 중인 공개 행사가를 사용하고 정상가는 출력하지 마십시오.

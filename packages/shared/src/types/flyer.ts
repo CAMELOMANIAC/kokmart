@@ -31,8 +31,12 @@ export interface ParsedProduct {
   id?: string;
   pageIndex?: number;
   productName: string;
+  /** 전단에 표시된 포장 규격 원문(예: 1280g, 500ml×2, 8입) */
+  packageSpec?: string;
   salePrice: number;
+  /** 100g, 100ml 또는 1개 기준 환산가. 환산 불가 시 0이며 DB에는 NULL로 저장합니다. */
   effectiveUnitPrice: number;
+  /** 환산단가의 기준. 100g, 100ml, 1개 또는 빈 문자열만 사용합니다. */
   unitMeasure: string;
   isPerishable: boolean;
   martName?: '이마트' | '홈플러스' | '롯데마트' | string;

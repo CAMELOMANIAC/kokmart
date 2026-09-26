@@ -10,6 +10,57 @@ function cleanNumber(val: string): number {
   return isNaN(num) ? 0 : num;
 }
 
+export type CanonicalUnitMeasure = '100g' | '100ml' | '1개';
+
+export interface NormalizedUnitPrice {
+  effectiveUnitPrice: number;
+  unitMeasure: CanonicalUnitMeasure;
+}
+
+/** 포장 규격을 실제 비교 가능한 100g/100ml/1개 가격으로 환산합니다. */
+export function calculateNormalizedUnitPrice(
+  salePrice: number,
+  packageSpec: string
+): NormalizedUnitPrice | null {
+  if (!Number.isFinite(salePrice) || salePrice <= 0 || !packageSpec?.trim()) return null;
+
+  const spec = packageSpec
+    .toLowerCase()
+    .replace(/,/g, '')
+    .replace(/\s+/g, '')
+    .replace(/[＊*]/g, '×');
+  const weight = spec.match(/(\d+(?:\.\d+)?)(kg|g)(?![a-z])(?:×(\d+(?:\.\d+)?)(?:개|입|병|캔|봉|팩|통)?)?/i);
+  if (weight) {
+    const value = Number(weight[1]);
+    const multiplier = weight[3] ? Number(weight[3]) : 1;
+    const grams = value * (weight[2]?.toLowerCase() === 'kg' ? 1000 : 1) * multiplier;
+    if (Number.isFinite(grams) && grams > 0) {
+      return { effectiveUnitPrice: Math.round((salePrice / grams) * 100), unitMeasure: '100g' };
+    }
+  }
+
+  const volume = spec.match(/(\d+(?:\.\d+)?)(ml|l)(?![a-z])(?:×(\d+(?:\.\d+)?)(?:개|입|병|캔|봉|팩|통)?)?/i);
+  if (volume) {
+    const value = Number(volume[1]);
+    const multiplier = volume[3] ? Number(volume[3]) : 1;
+    const milliliters = value * (volume[2]?.toLowerCase() === 'l' ? 1000 : 1) * multiplier;
+    if (Number.isFinite(milliliters) && milliliters > 0) {
+      return { effectiveUnitPrice: Math.round((salePrice / milliliters) * 100), unitMeasure: '100ml' };
+    }
+  }
+
+  const count = spec.match(/(\d+(?:\.\d+)?)(?:개입|입|개|병|캔|롤|매)(?![a-z가-힣])(?:×(\d+(?:\.\d+)?)(?:팩|통|묶음)?)?/i);
+  if (count) {
+    const multiplier = count[2] ? Number(count[2]) : 1;
+    const quantity = Number(count[1]) * multiplier;
+    if (Number.isFinite(quantity) && quantity > 0) {
+      return { effectiveUnitPrice: Math.round(salePrice / quantity), unitMeasure: '1개' };
+    }
+  }
+
+  return null;
+}
+
 /**
  * 신선식품 여부 boolean 변환
  */
@@ -99,6 +150,7 @@ export function parseFlyerTsv(rawText: string, defaultPageIndex = 1): ParsedProd
 
     let pageIndex = defaultPageIndex;
     let productName = '';
+    let packageSpec = '';
     let salePriceStr = '';
     let unitPriceStr = '';
     let unitMeasure = '';
@@ -108,7 +160,23 @@ export function parseFlyerTsv(rawText: string, defaultPageIndex = 1): ParsedProd
     let ymaxStr = '';
     let xmaxStr = '';
 
-    if (cols.length >= 10) {
+    if (
+      cols.length === 9
+      && /^\d+$/.test(cols[0] || '')
+      && /^(?:y|n|yes|no|true|false|예|아니오|신선)$/i.test(cols[4] || '')
+    ) {
+      // 신규 포맷: [페이지번호, 상품명, 포장규격, 할인가, 신선식품여부, ymin, xmin, ymax, xmax]
+      const parsedPage = parseInt(cols[0] || '1', 10);
+      pageIndex = isNaN(parsedPage) ? defaultPageIndex : parsedPage;
+      productName = cols[1] || '';
+      packageSpec = cols[2] || '';
+      salePriceStr = cols[3] || '0';
+      isPerishableStr = cols[4] || 'N';
+      yminStr = cols[5] || '';
+      xminStr = cols[6] || '';
+      ymaxStr = cols[7] || '';
+      xmaxStr = cols[8] || '';
+    } else if (cols.length >= 10) {
       // [페이지번호, 상품명, 할인가, 단위당가격, 단위, 신선식품여부, ymin, xmin, ymax, xmax]
       const parsedPage = parseInt(cols[0] || '1', 10);
       pageIndex = isNaN(parsedPage) ? defaultPageIndex : parsedPage;
@@ -155,10 +223,14 @@ export function parseFlyerTsv(rawText: string, defaultPageIndex = 1): ParsedProd
     }
 
     const salePrice = cleanNumber(salePriceStr);
-    let effectiveUnitPrice = cleanNumber(unitPriceStr);
-    if (effectiveUnitPrice === 0 && salePrice > 0) {
-      effectiveUnitPrice = salePrice;
-    }
+    const normalized = packageSpec
+      ? calculateNormalizedUnitPrice(salePrice, packageSpec)
+      : null;
+    const parsedLegacyUnitPrice = cleanNumber(unitPriceStr);
+    const normalizedLegacyMeasure = /^(?:100g|100ml|1개)$/.test(unitMeasure) ? unitMeasure : '';
+    const effectiveUnitPrice = normalized?.effectiveUnitPrice
+      ?? (normalizedLegacyMeasure && parsedLegacyUnitPrice > 0 ? parsedLegacyUnitPrice : 0);
+    unitMeasure = normalized?.unitMeasure || normalizedLegacyMeasure;
 
     let boundingBox: ParsedProduct['boundingBox'];
     if (yminStr && xminStr && ymaxStr && xmaxStr) {
@@ -182,9 +254,10 @@ export function parseFlyerTsv(rawText: string, defaultPageIndex = 1): ParsedProd
     products.push({
       pageIndex,
       productName,
+      ...(packageSpec ? { packageSpec } : {}),
       salePrice,
       effectiveUnitPrice,
-      unitMeasure: unitMeasure || '개',
+      unitMeasure,
       isPerishable: parseIsPerishable(isPerishableStr),
       ...(boundingBox ? { boundingBox } : {}),
     });

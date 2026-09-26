@@ -1,6 +1,6 @@
 import { GoogleGenAI, Type } from '@google/genai';
 import sharp from 'sharp';
-import { ParsedProduct, parseFlyerTsv } from '@kokmart/shared';
+import { calculateNormalizedUnitPrice, ParsedProduct, parseFlyerTsv } from '@kokmart/shared';
 
 const DEFAULT_VISION_MODEL = 'gemini-3.5-flash-lite';
 
@@ -14,6 +14,15 @@ function getVisionAiClient(): GoogleGenAI {
 
 function getVisionModel(): string {
   return (process.env.GEMINI_VISION_MODEL || DEFAULT_VISION_MODEL).trim();
+}
+
+function withNormalizedUnitPricing(product: ParsedProduct): ParsedProduct {
+  const normalized = calculateNormalizedUnitPrice(product.salePrice, product.packageSpec || '');
+  return {
+    ...product,
+    effectiveUnitPrice: normalized?.effectiveUnitPrice || 0,
+    unitMeasure: normalized?.unitMeasure || '',
+  };
 }
 
 export interface VisionRefinedProduct {
@@ -67,7 +76,8 @@ export async function parseTileWithGemini(tileBuffer: Buffer): Promise<ParsedPro
 
   const prompt = `
 당신은 대한민국 대형마트(이마트, 홈플러스, 롯데마트) 전단지 데이터 분석 전문가입니다.
-전단 이미지 내 상품 목록, 할인가, 단위당(100g 또는 100ml 또는 개당) 단가, 신선식품 여부를 추출하십시오.
+전단 이미지 내 상품 목록, 포장 규격, 할인가, 신선식품 여부를 추출하십시오.
+포장 규격은 이미지에 적힌 중량·용량·수량(예: 1280g, 500ml×2, 8입)을 그대로 기록하십시오.
 그리고 아래 마트 우선(Mart-First) 추천 원칙에 따라 smartTip을 생성하십시오.
 
 [smartTip 분류 규칙]
@@ -95,6 +105,7 @@ export async function parseTileWithGemini(tileBuffer: Buffer): Promise<ParsedPro
           type: Type.OBJECT,
           properties: {
             productName: { type: Type.STRING },
+            packageSpec: { type: Type.STRING },
             salePrice: { type: Type.NUMBER },
             effectiveUnitPrice: { type: Type.NUMBER },
             unitMeasure: { type: Type.STRING },
@@ -110,14 +121,14 @@ export async function parseTileWithGemini(tileBuffer: Buffer): Promise<ParsedPro
               required: ['tipType', 'badgeText', 'tipMessage']
             }
           },
-          required: ['productName', 'salePrice', 'effectiveUnitPrice', 'unitMeasure', 'isPerishable', 'smartTip']
+          required: ['productName', 'packageSpec', 'salePrice', 'effectiveUnitPrice', 'unitMeasure', 'isPerishable', 'smartTip']
         }
       }
     }
   });
 
-  const parsedJson = JSON.parse(response.text || '[]');
-  return parsedJson as ParsedProduct[];
+  const parsedJson = JSON.parse(response.text || '[]') as ParsedProduct[];
+  return parsedJson.map(withNormalizedUnitPricing);
 }
 
 /**
@@ -214,7 +225,8 @@ export async function parseSingleCroppedProductWithGemini(
   const prompt = `
 당신은 대한민국 대형마트(${martName}) 전단지 상품 상세 분석 전문가입니다.
 제공된 이미지는 전단지에서 특정 상품 1개를 여백을 포함하여 크롭한 고화질 이미지입니다.
-이미지에서 상품명, 할인가(최종 판매가), 단위당(100g 또는 100ml 또는 개당) 단가, 신선식품 여부를 정확하게 파싱하고,
+이미지에서 상품명, 포장 규격, 할인가(최종 판매가), 신선식품 여부를 정확하게 파싱하고,
+포장 규격은 이미지에 적힌 중량·용량·수량(예: 1280g, 500ml×2, 8입)을 그대로 기록하고,
 마트 우선(Mart-First) 원칙에 따른 smartTip을 생성하십시오.
 
 [smartTip 분류 규칙]
@@ -241,6 +253,7 @@ export async function parseSingleCroppedProductWithGemini(
           type: Type.OBJECT,
           properties: {
             productName: { type: Type.STRING },
+            packageSpec: { type: Type.STRING },
             salePrice: { type: Type.NUMBER },
             effectiveUnitPrice: { type: Type.NUMBER },
             unitMeasure: { type: Type.STRING },
@@ -256,12 +269,12 @@ export async function parseSingleCroppedProductWithGemini(
               required: ['tipType', 'badgeText', 'tipMessage']
             }
           },
-          required: ['productName', 'salePrice', 'effectiveUnitPrice', 'unitMeasure', 'isPerishable', 'smartTip']
+          required: ['productName', 'packageSpec', 'salePrice', 'effectiveUnitPrice', 'unitMeasure', 'isPerishable', 'smartTip']
         }
       }
     });
 
-    const parsedJson = JSON.parse(response.text || '{}') as ParsedProduct;
+    const parsedJson = withNormalizedUnitPricing(JSON.parse(response.text || '{}') as ParsedProduct);
     parsedJson.id = `prod-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
     parsedJson.martName = (martName === '이마트' || martName === '홈플러스' || martName === '롯데마트') ? martName : '이마트';
     return parsedJson;
@@ -312,16 +325,16 @@ export async function parseMasterFlyerWithGemini(
 마크다운 코드블록이나 불필요한 설명 없이 탭으로 구분된 텍스트만 출력하십시오.
 
 [출력 TSV 헤더 형식]
-페이지번호\t상품명\t할인가\t단위당가격\t단위\t신선식품여부(Y/N)\tymin\txmin\tymax\txmax
+페이지번호\t상품명\t포장규격\t할인가\t신선식품여부(Y/N)\tymin\txmin\tymax\txmax
 
 [작성 규칙]
 1. 헤더 다음 행부터 전단지에 있는 모든 상품을 한 행씩 순서대로 작성하십시오. 절대 헤더만 출력하고 멈추지 마십시오.
 2. 페이지번호: 이미지가 속한 페이지 번호 (1부터 시작하는 정수).
-3. 상품명: 전단지에 표기된 구체적인 브랜드 및 상품명(용량/수량 포함).
-4. 할인가: 실제 소비자가 구매하는 행사가격 (숫자만 입력, 쉼표나 '원' 제외).
-5. 단위당가격: 100g, 100ml 또는 1개당 단가 (전단지에 표기된 단가, 숫자만 입력). 표기가 없으면 할인가와 동일하게 입력.
-6. 단위: 단가의 기준 단위 (예: 100g, 100ml, 1개, 1봉, 1박스).
-7. 신선식품여부: 정육, 수산, 채소, 과일, 계란 등 신선식품은 Y, 공산품/생필품/가공식품은 N.
+3. 상품명: 전단지에 표기된 구체적인 브랜드 및 상품명. 포장 규격은 상품명과 분리하십시오.
+4. 포장규격: 이미지에 표시된 전체 중량·용량·수량을 원문대로 기록하십시오(예: 1280g, 1.5kg, 500ml×2, 8입). '각', '팩', '통', '봉', '세트'만 보이고 실제 용량·수량을 읽을 수 없으면 빈 칸으로 두십시오.
+5. 할인가: 실제 소비자가 구매하는 행사가격 (숫자만 입력, 쉼표나 '원' 제외). '각 6,980원'에서 가격은 6980이고 '각'은 포장규격이 아닙니다.
+6. 신선식품여부: 정육, 수산, 채소, 과일, 계란 등 신선식품은 Y, 공산품/생필품/가공식품은 N.
+7. 환산단가는 출력하지 마십시오. 백엔드가 포장규격과 할인가로 100g·100ml·1개 기준 가격을 계산합니다.
 8. 전수 추출 필수: 메인 대표 상품뿐만 아니라 하단, 측면, 작은 박스에 표기된 소형 상품(채소, 양념, 가공식품, 생필품 등)까지 단 1개도 누락하지 말고 100% 빠짐없이 전수 추출하십시오. 중간에 임의로 생략하거나 요약하지 마십시오.
 9. ymin, xmin, ymax, xmax: [★가장 중요: 상품 실물 사진/비주얼 중심 좌표]
    - 가격표, 상품명 글씨, 행사 문구/스티커 등 '텍스트 구역'은 제외하십시오.
@@ -398,16 +411,16 @@ export async function parseSinglePageWithGemini(
 마크다운 코드블록이나 불필요한 설명 없이 순수 TSV 텍스트만 출력하십시오.
 
 [출력 TSV 헤더 형식]
-페이지번호\t상품명\t할인가\t단위당가격\t단위\t신선식품여부(Y/N)\tymin\txmin\tymax\txmax
+페이지번호\t상품명\t포장규격\t할인가\t신선식품여부(Y/N)\tymin\txmin\tymax\txmax
 
 [작성 규칙]
 1. 헤더 다음 행부터 페이지에 있는 모든 상품을 한 행씩 순서대로 작성하십시오. 절대 헤더만 출력하고 멈추지 마십시오.
 2. 페이지번호: ${pageIndex}
-3. 상품명: 구체적인 상품명 및 규격
-4. 할인가: 숫자만 입력
-5. 단위당가격: 100g/100ml/개당 단가 (숫자만)
-6. 단위: 기준 단위 (100g, 100ml, 개 등)
-7. 신선식품여부: 신선식품(정육/수산/채소/과일/계란)은 Y, 그 외 가공/공산품은 N
+3. 상품명: 구체적인 브랜드 및 상품명. 포장 규격은 상품명과 분리
+4. 포장규격: 이미지에 표시된 전체 중량·용량·수량(예: 1280g, 500ml×2, 8입). '각/팩/통/봉/세트'만 보이면 빈 칸
+5. 할인가: 숫자만 입력. '각'은 가격 단위일 뿐 포장규격이 아님
+6. 신선식품여부: 신선식품(정육/수산/채소/과일/계란)은 Y, 그 외 가공/공산품은 N
+7. 환산단가는 출력하지 않음. 백엔드가 100g·100ml·1개 기준으로 계산
 8. 전수 추출 필수: 메인 대표 상품뿐만 아니라 하단, 측면, 작은 박스에 표기된 소형 상품(채소, 양념, 가공식품, 생필품 등)까지 단 1개도 누락하지 말고 빠짐없이 전수 추출하십시오. 임의 생략이나 요약 금지.
 9. ymin, xmin, ymax, xmax: [★가장 중요: 상품 실물 사진/비주얼 중심 좌표]
    - 가격표, 상품명 글씨, 행사 문구/스티커 등 '텍스트 구역'은 제외하십시오.
@@ -479,9 +492,8 @@ export async function refineProductsFromFlyerWithGemini(
     return [
       product.id,
       product.productName,
+      product.packageSpec || '',
       Math.round(product.salePrice),
-      Math.round(product.effectiveUnitPrice),
-      product.unitMeasure,
       box ? `${box.ymin},${box.xmin},${box.ymax},${box.xmax}` : '좌표없음',
     ].join('\t');
   }).join('\n');
@@ -491,7 +503,7 @@ export async function refineProductsFromFlyerWithGemini(
 전체 전단 이미지에서 각 상품의 좌표가 가리키는 '상품 사진'을 찾고, 그 사진과 가장 가까운 상품명·규격·가격표만 다시 읽으십시오.
 
 [입력]
-id\t현재상품명\t현재행사가\t현재단위가격\t현재단위\t상품사진좌표(ymin,xmin,ymax,xmax; 0~1000)
+id\t현재상품명\t현재포장규격\t현재행사가\t상품사진좌표(ymin,xmin,ymax,xmax; 0~1000)
 ${rows}
 
 [필수 규칙]
@@ -499,6 +511,7 @@ ${rows}
 - 좌표 주변의 다른 상품 카드, 옆 열, 위아래 가격표를 섞지 마십시오.
 - 이미지에서 분명히 보이는 브랜드·상품명·맛/종류·용량/수량만 기록하고 추측하지 마십시오.
 - 현재 값이 정확하면 그대로 유지하십시오. 가격은 이미지에서 확실히 읽을 때만 교정하십시오.
+- packageSpec에는 실제 중량·용량·수량만 기록하십시오(예: 1280g, 500ml×2, 8입). '각/팩/통/봉/세트'만 보이면 빈 문자열로 두십시오.
 - 슬래시로 여러 선택 상품이 묶인 행사, 마트 즉석조리/회/초밥/자체 구성, 규격이 불명확한 신선식품은 onlineComparable=false로 표시하십시오.
 - 브랜드와 정확한 용량/수량이 확인되는 포장 공산품처럼 온라인에서 동일 규격을 찾을 수 있을 때만 onlineComparable=true로 표시하십시오.
 - reason은 판정 근거를 40자 이내의 객관적인 한국어로 작성하십시오.
@@ -524,9 +537,8 @@ ${rows}
           properties: {
             id: { type: Type.STRING },
             productName: { type: Type.STRING },
+            packageSpec: { type: Type.STRING },
             salePrice: { type: Type.NUMBER },
-            effectiveUnitPrice: { type: Type.NUMBER },
-            unitMeasure: { type: Type.STRING },
             isPerishable: { type: Type.BOOLEAN },
             onlineComparable: { type: Type.BOOLEAN },
             reason: { type: Type.STRING },
@@ -534,9 +546,8 @@ ${rows}
           required: [
             'id',
             'productName',
+            'packageSpec',
             'salePrice',
-            'effectiveUnitPrice',
-            'unitMeasure',
             'isPerishable',
             'onlineComparable',
             'reason',
@@ -551,9 +562,8 @@ ${rows}
   const raw = JSON.parse(response.text || '[]') as Array<{
     id: string;
     productName: string;
+    packageSpec: string;
     salePrice: number;
-    effectiveUnitPrice: number;
-    unitMeasure: string;
     isPerishable: boolean;
     onlineComparable: boolean;
     reason: string;
@@ -565,17 +575,19 @@ ${rows}
   for (const item of raw) {
     const original = originalById.get(item.id);
     if (!original || !item.id || seen.has(item.id)) continue;
-    if (!item.productName?.trim() || !item.unitMeasure?.trim()) continue;
+    if (!item.productName?.trim()) continue;
     if (!Number.isFinite(item.salePrice) || item.salePrice <= 0) continue;
-    if (!Number.isFinite(item.effectiveUnitPrice) || item.effectiveUnitPrice <= 0) continue;
+    const packageSpec = item.packageSpec?.trim() || '';
+    const normalized = calculateNormalizedUnitPrice(item.salePrice, packageSpec);
     seen.add(item.id);
     refined.push({
       product: {
         ...original,
         productName: item.productName.trim(),
+        packageSpec,
         salePrice: Math.round(item.salePrice),
-        effectiveUnitPrice: Math.round(item.effectiveUnitPrice),
-        unitMeasure: item.unitMeasure.trim(),
+        effectiveUnitPrice: normalized?.effectiveUnitPrice || 0,
+        unitMeasure: normalized?.unitMeasure || '',
         isPerishable: item.isPerishable,
       },
       onlineComparable: item.onlineComparable,

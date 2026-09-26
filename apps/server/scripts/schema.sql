@@ -25,9 +25,10 @@ CREATE TABLE IF NOT EXISTS flyer_products (
     flyer_id UUID NOT NULL REFERENCES flyers(id) ON DELETE CASCADE,
     page_index INTEGER NOT NULL DEFAULT 1,             -- 전단지 페이지 번호 (1부터 시작)
     product_name VARCHAR(255) NOT NULL,                -- 상품명 (용량/규격 포함)
+    package_spec VARCHAR(100),                         -- 이미지에 표기된 포장 규격 원문 (1280g, 500ml×2, 8입)
     sale_price INTEGER NOT NULL,                       -- 행사가격 (원)
-    effective_unit_price INTEGER NOT NULL,             -- 단위당 단가 (원)
-    unit_measure VARCHAR(50) NOT NULL,                 -- 기준 단위 ('100g', '100ml', '1개' 등)
+    effective_unit_price INTEGER,                      -- 100g/100ml/1개 환산 단가 (환산 불가 시 NULL)
+    unit_measure VARCHAR(50),                          -- 환산 기준 ('100g', '100ml', '1개'; 환산 불가 시 NULL)
     is_perishable BOOLEAN NOT NULL DEFAULT false,      -- 신선식품 여부
     mart_name VARCHAR(50),                             -- 마트 브랜드명
     tip_type VARCHAR(50),                              -- 'MART_BEST', 'MART_RECOMMEND', 'COUPANG_TIP', 'COUPANG_BULK'
@@ -55,6 +56,9 @@ ALTER TABLE flyer_products ADD COLUMN IF NOT EXISTS box_ymin INTEGER;
 ALTER TABLE flyer_products ADD COLUMN IF NOT EXISTS box_xmin INTEGER;
 ALTER TABLE flyer_products ADD COLUMN IF NOT EXISTS box_ymax INTEGER;
 ALTER TABLE flyer_products ADD COLUMN IF NOT EXISTS box_xmax INTEGER;
+ALTER TABLE flyer_products ADD COLUMN IF NOT EXISTS package_spec VARCHAR(100);
+ALTER TABLE flyer_products ALTER COLUMN effective_unit_price DROP NOT NULL;
+ALTER TABLE flyer_products ALTER COLUMN unit_measure DROP NOT NULL;
 ALTER TABLE flyer_products ADD COLUMN IF NOT EXISTS tip_status VARCHAR(20) NOT NULL DEFAULT 'pending';
 ALTER TABLE flyer_products ADD COLUMN IF NOT EXISTS tip_source VARCHAR(30);
 ALTER TABLE flyer_products ADD COLUMN IF NOT EXISTS tip_processor VARCHAR(30) NOT NULL DEFAULT 'groq_realtime';
