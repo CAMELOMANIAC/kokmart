@@ -3,6 +3,7 @@ import {
   FlyerRecord,
   ParsedProduct,
   SmartTip,
+  TipProcessor,
   TipProcessingStatus,
   TipSource,
   TipType,
@@ -55,6 +56,7 @@ export interface SaveFlyerParams {
   products: ParsedProduct[];
   validStartDate?: string;
   validEndDate?: string;
+  tipProcessor?: TipProcessor;
 }
 
 export interface ClaimedTipProduct {
@@ -106,6 +108,7 @@ function mapProductRow(row: Record<string, unknown>, fallbackMartName = '마트'
     smartTip,
     tipStatus: (row.tip_status as TipProcessingStatus | undefined) || undefined,
     tipSource: (row.tip_source as TipSource | undefined) || undefined,
+    tipProcessor: (row.tip_processor as TipProcessor | undefined) || undefined,
     boundingBox,
   };
 }
@@ -132,6 +135,7 @@ export async function saveFlyerToSupabase(params: SaveFlyerParams): Promise<{
     products,
     validStartDate,
     validEndDate,
+    tipProcessor = isMaster ? 'gemini_batch' : 'groq_realtime',
   } = params;
 
   console.log(`[Supabase] 💾 Saving flyer to DB (${martName} ${branchName}, ${products.length} products)...`);
@@ -181,6 +185,8 @@ export async function saveFlyerToSupabase(params: SaveFlyerParams): Promise<{
         coupang_keyword: prod.smartTip?.coupangKeyword || null,
         tip_status: tipStatus,
         tip_source: prod.tipSource || (prod.smartTip ? 'fallback' : null),
+        // 전단 단위로 처리 주체를 고정해 마스터 상품이 지점 전단에 복사될 때 큐가 섞이지 않게 합니다.
+        tip_processor: tipProcessor,
         tip_attempts: 0,
         tip_next_attempt_at: new Date().toISOString(),
         tip_updated_at: tipStatus === 'complete' ? new Date().toISOString() : null,
@@ -315,6 +321,26 @@ export async function claimPendingTipProducts(limit = 4): Promise<ClaimedTipProd
   }));
 }
 
+/** GitHub Actions가 마스터 전단 한 페이지(또는 그 일부)를 원자적으로 선점합니다. */
+export async function claimPendingGeminiTipBatch(limit = 12): Promise<ClaimedTipProduct[]> {
+  const client = getSupabaseClient();
+  if (!client) {
+    throw new Error('Supabase가 설정되지 않아 Gemini 팁 작업을 선점할 수 없습니다.');
+  }
+
+  const safeLimit = Math.max(1, Math.min(limit, 15));
+  const { data, error } = await client.rpc('claim_pending_gemini_tip_batch', { p_limit: safeLimit });
+
+  if (error) {
+    throw new Error(`Gemini 팁 작업 선점 실패: ${error.message}`);
+  }
+
+  return ((data || []) as Array<Record<string, unknown>>).map((row) => ({
+    product: mapProductRow(row),
+    attempts: Number(row.tip_attempts) || 1,
+  }));
+}
+
 /** Groq 팁 생성에 성공한 상품을 완료 상태로 갱신합니다. */
 export async function completeTipProducts(products: ParsedProduct[], model: string): Promise<void> {
   const client = getSupabaseClient();
@@ -345,13 +371,55 @@ export async function completeTipProducts(products: ParsedProduct[], model: stri
           tip_updated_at: now,
         })
         .eq('id', product.id)
-        .eq('tip_status', 'processing');
+        .eq('tip_status', 'processing')
+        .eq('tip_processor', 'groq_realtime');
     })
   );
 
   const failure = results.find((result) => result.error);
   if (failure?.error) {
     throw new Error(`팁 완료 상태 저장 실패: ${failure.error.message}`);
+  }
+}
+
+/** Gemini 검색 근거 검증을 통과한 마스터 팁을 저장합니다. */
+export async function completeGeminiTipProducts(products: ParsedProduct[], model: string): Promise<void> {
+  const client = getSupabaseClient();
+  if (!client) throw new Error('Supabase가 설정되지 않았습니다.');
+
+  const now = new Date().toISOString();
+  const results = await Promise.all(
+    products.map((product) => {
+      if (!product.id || !product.smartTip) {
+        throw new Error('완료할 상품 ID 또는 smartTip이 없습니다.');
+      }
+      if (product.tipSource !== 'gemini_grounded') {
+        throw new Error(`Gemini 검증을 통과하지 않은 상품은 완료할 수 없습니다: ${product.id}`);
+      }
+
+      return client
+        .from('flyer_products')
+        .update({
+          tip_type: product.smartTip.tipType,
+          badge_text: product.smartTip.badgeText,
+          tip_message: product.smartTip.tipMessage,
+          coupang_keyword: product.smartTip.coupangKeyword,
+          tip_status: 'complete',
+          tip_source: 'gemini_grounded',
+          tip_model: model,
+          tip_locked_at: null,
+          tip_last_error: null,
+          tip_updated_at: now,
+        })
+        .eq('id', product.id)
+        .eq('tip_status', 'processing')
+        .eq('tip_processor', 'gemini_batch');
+    })
+  );
+
+  const failure = results.find((result) => result.error);
+  if (failure?.error) {
+    throw new Error(`Gemini 팁 완료 상태 저장 실패: ${failure.error.message}`);
   }
 }
 
@@ -380,12 +448,49 @@ export async function retryTipProducts(
           tip_updated_at: new Date().toISOString(),
         })
         .eq('id', product.id)
-        .eq('tip_status', 'processing');
+        .eq('tip_status', 'processing')
+        .eq('tip_processor', 'groq_realtime');
     })
   );
 
   const failure = results.find((result) => result.error);
   if (failure?.error) {
     throw new Error(`팁 재시도 상태 저장 실패: ${failure.error.message}`);
+  }
+}
+
+/** 실패한 Gemini 배치를 다음 Actions 실행에서 재시도하도록 되돌립니다. */
+export async function retryGeminiTipProducts(
+  claimed: ClaimedTipProduct[],
+  errorMessage: string,
+  retryAfterMs: number,
+  maxAttempts: number
+): Promise<void> {
+  const client = getSupabaseClient();
+  if (!client) throw new Error('Supabase가 설정되지 않았습니다.');
+
+  const nextAttemptAt = new Date(Date.now() + Math.max(1_000, retryAfterMs)).toISOString();
+  const results = await Promise.all(
+    claimed.map(({ product, attempts }) => {
+      if (!product.id) throw new Error('재시도할 상품 ID가 없습니다.');
+      const exhausted = attempts >= maxAttempts;
+      return client
+        .from('flyer_products')
+        .update({
+          tip_status: exhausted ? 'failed' : 'retry',
+          tip_locked_at: null,
+          tip_next_attempt_at: nextAttemptAt,
+          tip_last_error: errorMessage.slice(0, 2000),
+          tip_updated_at: new Date().toISOString(),
+        })
+        .eq('id', product.id)
+        .eq('tip_status', 'processing')
+        .eq('tip_processor', 'gemini_batch');
+    })
+  );
+
+  const failure = results.find((result) => result.error);
+  if (failure?.error) {
+    throw new Error(`Gemini 팁 재시도 상태 저장 실패: ${failure.error.message}`);
   }
 }

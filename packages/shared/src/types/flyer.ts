@@ -1,7 +1,8 @@
 import { SmartTip } from './tip.js';
 
 export type TipProcessingStatus = 'pending' | 'processing' | 'complete' | 'retry' | 'failed';
-export type TipSource = 'fallback' | 'groq_grounded';
+export type TipSource = 'fallback' | 'groq_grounded' | 'gemini_grounded';
+export type TipProcessor = 'groq_realtime' | 'gemini_batch';
 
 export interface BoundingBox {
   id: string;
@@ -38,6 +39,7 @@ export interface ParsedProduct {
   smartTip?: SmartTip;
   tipStatus?: TipProcessingStatus;
   tipSource?: TipSource;
+  tipProcessor?: TipProcessor;
   boundingBox?: BoundingBox;
 }
 

@@ -11,6 +11,7 @@
     "build:shared": "pnpm --filter @kokmart/shared build",
     "build:client": "pnpm --filter @kokmart/client build",
     "build:server": "pnpm --filter @kokmart/server build",
+    "tips:master-batch": "pnpm --filter @kokmart/server tips:master-batch",
     "lint": "eslint \"{apps,packages}/**/*.{ts,tsx}\"",
     "test": "vitest run",
     "test:watch": "vitest",

@@ -54,18 +54,22 @@ SELECT cron.schedule(
   WHERE EXISTS (
     SELECT 1
     FROM public.flyer_products
-    WHERE (
-      tip_status IN ('pending', 'retry')
-      AND tip_next_attempt_at <= timezone('utc'::text, now())
-    ) OR (
-      tip_status = 'processing'
-      AND tip_locked_at < timezone('utc'::text, now()) - interval '15 minutes'
-    )
+    WHERE tip_processor = 'groq_realtime'
+      AND (
+        (
+          tip_status IN ('pending', 'retry')
+          AND tip_next_attempt_at <= timezone('utc'::text, now())
+        ) OR (
+          tip_status = 'processing'
+          AND tip_locked_at < timezone('utc'::text, now()) - interval '15 minutes'
+        )
+      )
   )
   AND NOT EXISTS (
     SELECT 1
     FROM public.flyer_products
     WHERE tip_status = 'processing'
+      AND tip_processor = 'groq_realtime'
       AND tip_locked_at >= timezone('utc'::text, now()) - interval '15 minutes'
   );
   $$

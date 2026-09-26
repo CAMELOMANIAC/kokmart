@@ -420,7 +420,7 @@ app.post('/api/flyers/parse-master', upload.array('pages', 5), async (req: Reque
     const rawProducts = await parseMasterFlyerWithGemini(pageBuffers, martName);
     const geminiDuration = ((Date.now() - geminiStartTime) / 1000).toFixed(2);
 
-    // 2단계: DB 사용 시 팁 없이 pending으로 저장하고 Groq worker 큐로 넘깁니다.
+    // 2단계: 공통 마스터 상품은 GitHub Actions의 Gemini 배치 큐로 넘깁니다.
     // DB를 사용할 수 없을 때만 화면용 fallback을 생성합니다.
     const queueEnabled = isSupabaseConfigured();
     const queuedProducts: ParsedProduct[] = rawProducts.map((product) => ({
@@ -428,6 +428,7 @@ app.post('/api/flyers/parse-master', upload.array('pages', 5), async (req: Reque
       smartTip: queueEnabled ? undefined : generateDefaultTip(product),
       tipStatus: queueEnabled ? 'pending' : 'failed',
       tipSource: queueEnabled ? undefined : 'fallback',
+      tipProcessor: queueEnabled ? 'gemini_batch' : undefined,
     }));
 
     // 응답 전에 저장을 완료해야 서버리스 종료로 큐 작업이 유실되지 않습니다.
@@ -439,13 +440,14 @@ app.post('/api/flyers/parse-master', upload.array('pages', 5), async (req: Reque
           title: `${martName} 주간 전단`,
           imageUrls: imageUrls || [],
           products: queuedProducts,
+          tipProcessor: 'gemini_batch',
         })
       : null;
 
     const totalDuration = ((Date.now() - requestStartTime) / 1000).toFixed(2);
     console.log(`[API /api/flyers/parse-master] 📊 Summary Report:`);
     console.log(`  - 1단계 Gemini Vision OCR : ${geminiDuration}s (${rawProducts.length}개 상품 추출)`);
-    console.log(`  - 2단계 DB 팁 작업 등록    : ${queuedProducts.length}개 ${queueEnabled ? 'pending' : 'fallback'}`);
+    console.log(`  - 2단계 DB 팁 작업 등록    : ${queuedProducts.length}개 ${queueEnabled ? 'gemini_batch pending' : 'fallback'}`);
     console.log(`  - 🏁 전체 총 소요 시간     : ${totalDuration}s`);
     console.log(`======================================================\n`);
 
@@ -536,6 +538,7 @@ app.post('/api/flyers/sync-branch', async (req: Request, res: Response) => {
           smartTip: isSupabaseConfigured() ? undefined : generateDefaultTip(product),
           tipStatus: isSupabaseConfigured() ? 'pending' : 'failed',
           tipSource: isSupabaseConfigured() ? undefined : 'fallback',
+          tipProcessor: isSupabaseConfigured() ? 'groq_realtime' : undefined,
         }));
 
         // 해당 페이지 전체 교체
@@ -550,7 +553,7 @@ app.post('/api/flyers/sync-branch', async (req: Request, res: Response) => {
       allFinalProducts.push(...pageItems);
     }
 
-    // 지점 전단도 먼저 저장하고, 새로 파싱한 상품의 팁은 동일 worker 큐에서 처리합니다.
+    // 지점 전단은 먼저 저장하고, 새로 파싱한 상품의 팁은 Groq 실시간 큐에서 처리합니다.
     if (isSupabaseConfigured()) {
       await saveFlyerToSupabase({
         martName,
@@ -559,6 +562,7 @@ app.post('/api/flyers/sync-branch', async (req: Request, res: Response) => {
         title: `${martName} ${branchName} 전단`,
         imageUrls: branchPageUrls,
         products: allFinalProducts,
+        tipProcessor: 'groq_realtime',
       });
     }
 

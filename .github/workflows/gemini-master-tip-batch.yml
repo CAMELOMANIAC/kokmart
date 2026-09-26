@@ -1,0 +1,56 @@
+name: Gemini Master Flyer Tip Batch
+
+on:
+  schedule:
+    # 매주 목요일 한국시간 03:17 (UTC 수요일 18:17)
+    - cron: '17 18 * * 3'
+  workflow_dispatch:
+    inputs:
+      max_batches:
+        description: '이번 실행에서 사용할 최대 Gemini 요청 수 (무료 RPD 여유분을 위해 16 이하 권장)'
+        required: false
+        default: '16'
+
+concurrency:
+  group: gemini-master-tip-batch
+  cancel-in-progress: false
+
+jobs:
+  generate-master-tips:
+    name: Generate master flyer tips
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build shared package
+        run: pnpm build:shared
+
+      - name: Generate and save Gemini master tips
+        run: pnpm tips:master-batch
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          GEMINI_TIP_MODEL: gemini-2.5-flash
+          GEMINI_TIP_BATCH_SIZE: '12'
+          GEMINI_TIP_MAX_BATCHES: ${{ github.event.inputs.max_batches || '16' }}
+          GEMINI_TIP_MAX_ATTEMPTS: '2'

@@ -125,13 +125,14 @@ pnpm build
 
 ### 2. Supabase 비동기 스마트 팁 Worker
 
-전단 파싱 요청은 Gemini 결과를 `tip_status=pending`으로 DB에 먼저 저장한 뒤 즉시 반환합니다. Groq 가격 팁은 Supabase Cron이 Vercel의 보호된 worker API를 호출해 소량씩 생성합니다.
+전단 파싱 요청은 상품을 `tip_status=pending`으로 DB에 먼저 저장한 뒤 즉시 반환합니다. 마스터 전단은 `tip_processor=gemini_batch`, 지점 전단은 `tip_processor=groq_realtime`로 분리됩니다.
 
 1. Supabase SQL Editor에서 [`apps/server/scripts/schema.sql`](apps/server/scripts/schema.sql)을 실행합니다.
+   - 기존 DB라면 전체 스키마 대신 [`apps/server/scripts/setup-tip-processing-lanes.sql`](apps/server/scripts/setup-tip-processing-lanes.sql)을 먼저 실행할 수 있습니다.
 2. [`apps/server/scripts/setup-tip-worker-cron.sql`](apps/server/scripts/setup-tip-worker-cron.sql)의 production URL과 secret 예시를 실제 값으로 바꿔 실행합니다.
 3. SQL의 `tip_worker_secret`과 Vercel의 `TIP_WORKER_SECRET`은 반드시 같은 값을 사용합니다.
 
-Cron은 매분 큐 상태를 확인하지만, `pending`, 실행 시점이 된 `retry`, 또는 15분 이상 멈춘 `processing` 상품이 있을 때만 Vercel worker를 호출합니다. worker는 한 번에 최대 4개 상품을 처리하며, 429 응답이 오면 함수 안에서 기다리지 않고 `tip_next_attempt_at` 이후로 작업을 연기합니다. 클라이언트는 처리 중인 상품이 있을 때 15초마다 최신 DB 값을 조회합니다.
+Cron은 매분 `groq_realtime` 큐만 확인하며, 처리할 지점 상품이 있을 때만 Vercel worker를 호출합니다. 마스터 전단의 `gemini_batch` 행은 Vercel/Groq worker가 가져가지 않습니다. 429 응답이 오면 함수 안에서 기다리지 않고 `tip_next_attempt_at` 이후로 작업을 연기합니다. 클라이언트는 처리 중인 상품이 있을 때 15초마다 최신 DB 값을 조회합니다.
 
 로컬에서 worker를 수동 실행하려면 다음과 같이 호출할 수 있습니다.
 
@@ -142,7 +143,19 @@ curl -X POST http://localhost:4000/api/internal/tip-worker \
   -d '{"source":"manual"}'
 ```
 
-### 3. 클라이언트 앱 배포 (Tauri v2 Cross-Platform)
+### 3. GitHub Actions 마스터 팁 배치
+
+[`gemini-master-tip-batch.yml`](.github/workflows/gemini-master-tip-batch.yml)은 매주 목요일 03:17(KST)에 실행되며, 수동 실행도 지원합니다. Actions가 Supabase에서 마스터 페이지를 직접 선점하고 Gemini 2.5 Flash + Google Search를 호출한 다음 결과를 Supabase에 바로 저장하므로 Vercel 함수는 거치지 않습니다.
+
+GitHub 저장소의 Actions secrets에 다음 값을 등록합니다.
+
+- `SUPABASE_URL`
+- `SUPABASE_SERVICE_ROLE_KEY`
+- `GEMINI_API_KEY`
+
+기본값은 요청당 최대 12개 상품, 실행당 최대 16회 호출입니다. 정상 상품은 배치 도중 즉시 저장하고 검색 근거가 없는 상품만 별도로 재시도합니다. 로컬에서 같은 배치를 실행하려면 세 환경 변수를 설정한 뒤 `pnpm tips:master-batch`를 실행합니다.
+
+### 4. 클라이언트 앱 배포 (Tauri v2 Cross-Platform)
 ```bash
 cd apps/client
 

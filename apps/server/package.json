@@ -6,7 +6,8 @@
   "main": "api/index.js",
   "scripts": {
     "dev": "tsx watch src/index.ts",
-    "build": "pnpm --filter @kokmart/shared build && tsc"
+    "build": "pnpm --filter @kokmart/shared build && tsc",
+    "tips:master-batch": "tsx scripts/run-gemini-tip-batch.ts"
   },
   "dependencies": {
     "@google/genai": "^2.21.0",
