@@ -373,7 +373,7 @@ export function buildGroundedSmartTip(
   const canCompareTotalPrice = product.salePrice > 0 && evidence.onlinePrice > 0;
   const hasVerifiableSource = Boolean(evidence.sourceUrl);
   
-  if (!hasVerifiableSource || (!hasNormalizedPrices && !canCompareTotalPrice)) {
+  if (!hasNormalizedPrices && !canCompareTotalPrice) {
     return buildApproximatePromotionTip(product, evidence);
   }
 
@@ -590,7 +590,7 @@ id\t비교등급\t비교상품총가격\t마트기준환산단가\t판매처\t�
 FROZEN, LONG_KEEPING, FRESH, SMALL_PACK, BULK, READY_TO_EAT, STANDARD 중 하나만 사용하십시오.
 
 [규칙]
-- 동일 상품이 없다고 바로 NONE으로 만들지 말고 CLOSE, 그다음 CATEGORY 순서로 대안을 찾으십시오.
+- 동일 상품이 없다고 바로 NONE으로 만들지 말고 CLOSE, 그다음 CATEGORY 순서로 끝까지 대안을 찾으십시오. 가급적 NONE 출력은 피하십시오.
 - 예: '100% 국산콩 양조간장'이 없으면 다른 브랜드의 국산콩 양조간장, 그다음 동급 프리미엄 양조간장을 찾으십시오. 진간장이나 업소용 간장은 제외하십시오.
 - 용량이 다르면 입력의 환산기준과 같은 기준으로 계산하십시오. 계산할 수 없으면 환산단가는 0으로 쓰십시오.
 - 마트환산단가가 비어 있더라도 EXACT 상품의 총가격은 찾을 수 있습니다.
