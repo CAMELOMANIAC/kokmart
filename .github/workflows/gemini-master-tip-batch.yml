@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
     inputs:
       max_batches:
-        description: '이번 실행에서 사용할 최대 Gemini 요청 수 (무료 RPD 여유분을 위해 16 이하 권장)'
+        description: '이번 실행에서 사용할 최대 Gemini 검색 요청 수 (비용 제어를 위해 16 이하 권장)'
         required: false
         default: '16'
 
@@ -50,8 +50,8 @@ jobs:
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-          GEMINI_TIP_MODEL: gemini-2.5-flash
+          GEMINI_TIP_API_KEY: ${{ secrets.GEMINI_TIP_API_KEY }}
+          GEMINI_TIP_MODEL: gemini-3.8-flash
           GEMINI_TIP_BATCH_SIZE: '12'
           GEMINI_TIP_MAX_BATCHES: ${{ github.event.inputs.max_batches || '16' }}
           GEMINI_TIP_MAX_ATTEMPTS: '2'

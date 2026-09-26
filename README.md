@@ -115,7 +115,8 @@ pnpm build
 3. `vercel.json` 설정으로 `apps/server/api/index.ts` 가 **Vercel Serverless Function**으로 자동 내보내기 배포됩니다.
 4. Vercel 대시보드에 다음 환경 변수를 등록합니다.
 
-   - `GEMINI_API_KEY`
+   - `GEMINI_VISION_API_KEY`: 결제가 연결되지 않은 별도 Google Cloud 프로젝트의 이미지 파싱용 키
+   - `GEMINI_VISION_MODEL`: 선택값, 기본 `gemini-3.5-flash-lite`
    - `GROQ_API_KEY`
    - `SUPABASE_URL`
    - `SUPABASE_SERVICE_ROLE_KEY`
@@ -145,15 +146,15 @@ curl -X POST http://localhost:4000/api/internal/tip-worker \
 
 ### 3. GitHub Actions 마스터 팁 배치
 
-[`gemini-master-tip-batch.yml`](.github/workflows/gemini-master-tip-batch.yml)은 매주 목요일 03:17(KST)에 실행되며, 수동 실행도 지원합니다. Actions가 Supabase에서 마스터 페이지를 직접 선점하고 Gemini 2.5 Flash + Google Search를 호출한 다음 결과를 Supabase에 바로 저장하므로 Vercel 함수는 거치지 않습니다.
+[`gemini-master-tip-batch.yml`](.github/workflows/gemini-master-tip-batch.yml)은 매주 목요일 03:17(KST)에 실행되며, 수동 실행도 지원합니다. Actions가 Supabase에서 마스터 페이지를 직접 선점하고 유료 프로젝트의 Gemini 3.8 Flash + Google Search를 호출한 다음 결과를 Supabase에 바로 저장하므로 Vercel 함수는 거치지 않습니다.
 
 GitHub 저장소의 Actions secrets에 다음 값을 등록합니다.
 
 - `SUPABASE_URL`
 - `SUPABASE_SERVICE_ROLE_KEY`
-- `GEMINI_API_KEY`
+- `GEMINI_TIP_API_KEY`: Tier 1 결제 프로젝트에서 발급한 검색 팁 전용 키
 
-기본값은 요청당 최대 12개 상품, 실행당 최대 16회 호출입니다. 정상 상품은 배치 도중 즉시 저장하고 검색 근거가 없는 상품만 별도로 재시도합니다. 로컬에서 같은 배치를 실행하려면 세 환경 변수를 설정한 뒤 `pnpm tips:master-batch`를 실행합니다.
+기본값은 요청당 최대 12개 상품, 실행당 최대 16회 호출이며 모델은 `gemini-3.8-flash`, thinking level은 `low`입니다. 정상 상품은 배치 도중 즉시 저장하고 검색 근거가 없는 상품만 별도로 재시도합니다. 로컬에서 같은 배치를 실행하려면 `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `GEMINI_TIP_API_KEY`를 설정한 뒤 `pnpm tips:master-batch`를 실행합니다.
 
 ### 4. 클라이언트 앱 배포 (Tauri v2 Cross-Platform)
 ```bash

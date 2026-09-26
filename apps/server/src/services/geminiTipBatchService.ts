@@ -1,4 +1,4 @@
-import { GoogleGenAI } from '@google/genai';
+import { GoogleGenAI, ThinkingLevel } from '@google/genai';
 import { ParsedProduct, SmartTip } from '@kokmart/shared';
 
 type ShoppingInsightType =
@@ -31,6 +31,8 @@ export interface GeminiTipBatchResult {
   model: string;
   groundingSources: number;
 }
+
+const DEFAULT_TIP_MODEL = 'gemini-3.8-flash';
 
 function stripMarkdownFences(text: string): string {
   return text
@@ -242,7 +244,7 @@ id\t온라인총가격\t마트단위로환산한온라인단위가격\t판매처
 - 출처URL은 실제 검색 결과의 http 또는 https URL이어야 합니다.`;
 }
 
-/** Gemini 2.5 Flash + Google Search로 한 페이지 분량의 마스터 팁을 생성합니다. */
+/** Gemini 3.8 Flash + Google Search로 한 페이지 분량의 마스터 팁을 생성합니다. */
 export async function generateGeminiTipBatch(
   products: ParsedProduct[]
 ): Promise<GeminiTipBatchResult> {
@@ -250,26 +252,26 @@ export async function generateGeminiTipBatch(
     return {
       products: [],
       rejected: [],
-      model: process.env.GEMINI_TIP_MODEL || 'gemini-2.5-flash',
+      model: process.env.GEMINI_TIP_MODEL || DEFAULT_TIP_MODEL,
       groundingSources: 0,
     };
   }
 
-  const apiKey = (process.env.GEMINI_API_KEY || '').trim();
-  if (!apiKey) throw new Error('GEMINI_API_KEY가 설정되지 않았습니다.');
+  const apiKey = (process.env.GEMINI_TIP_API_KEY || '').trim();
+  if (!apiKey) throw new Error('GEMINI_TIP_API_KEY가 설정되지 않았습니다.');
 
   const missingId = products.find((product) => !product.id);
   if (missingId) throw new Error(`'${missingId.productName}' 상품 ID가 없습니다.`);
 
-  const model = process.env.GEMINI_TIP_MODEL || 'gemini-2.5-flash';
+  const model = (process.env.GEMINI_TIP_MODEL || DEFAULT_TIP_MODEL).trim();
   const ai = new GoogleGenAI({ apiKey });
   const response = await ai.models.generateContent({
     model,
     contents: buildPrompt(products),
     config: {
       tools: [{ googleSearch: {} }],
-      temperature: 0.1,
-      maxOutputTokens: 8192,
+      thinkingConfig: { thinkingLevel: ThinkingLevel.LOW },
+      maxOutputTokens: 4096,
     },
   });
 

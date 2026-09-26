@@ -2,12 +2,18 @@ import { GoogleGenAI, Type } from '@google/genai';
 import sharp from 'sharp';
 import { ParsedProduct, parseFlyerTsv } from '@kokmart/shared';
 
-function getAiClient(): GoogleGenAI {
-  const apiKey = process.env.GEMINI_API_KEY || '';
+const DEFAULT_VISION_MODEL = 'gemini-3.5-flash-lite';
+
+function getVisionAiClient(): GoogleGenAI {
+  const apiKey = (process.env.GEMINI_VISION_API_KEY || '').trim();
   if (!apiKey) {
-    throw new Error('GEMINI_API_KEY가 환경 변수에 설정되어 있지 않습니다.');
+    throw new Error('GEMINI_VISION_API_KEY가 환경 변수에 설정되어 있지 않습니다.');
   }
   return new GoogleGenAI({ apiKey });
+}
+
+function getVisionModel(): string {
+  return (process.env.GEMINI_VISION_MODEL || DEFAULT_VISION_MODEL).trim();
 }
 
 /**
@@ -42,10 +48,10 @@ export async function cropFlyerGrid(imageBuffer: Buffer, gridCols = 2, gridRows 
 }
 
 /**
- * Gemini 1.5 Flash Vision API를 사용하여 전단 조각 파싱 및 3대 팁 분류
+ * Gemini 3.5 Flash-Lite를 사용하여 전단 조각 파싱 및 3대 팁 분류
  */
 export async function parseTileWithGemini(tileBuffer: Buffer): Promise<ParsedProduct[]> {
-  const ai = getAiClient();
+  const ai = getVisionAiClient();
 
   if (!tileBuffer || tileBuffer.length === 0) {
     throw new Error('파싱할 타일 이미지 버퍼가 비어 있습니다.');
@@ -65,7 +71,7 @@ export async function parseTileWithGemini(tileBuffer: Buffer): Promise<ParsedPro
 `;
 
   const response = await ai.models.generateContent({
-    model: 'gemini-1.5-flash',
+    model: getVisionModel(),
     contents: [
       {
         inlineData: {
@@ -115,7 +121,7 @@ export async function detectBoundingBoxesWithGemini(
   imageBuffer: Buffer,
   martName = '마트'
 ): Promise<Array<{ id: string; ymin: number; xmin: number; ymax: number; xmax: number; labelHint: string }>> {
-  const ai = getAiClient();
+  const ai = getVisionAiClient();
 
   if (!imageBuffer || imageBuffer.length === 0) {
     throw new Error('Bounding Box를 검출할 전단 이미지 데이터가 없습니다.');
@@ -138,7 +144,7 @@ export async function detectBoundingBoxesWithGemini(
 `;
 
   const response = await ai.models.generateContent({
-    model: 'gemini-1.5-flash',
+    model: getVisionModel(),
     contents: [
       {
         inlineData: {
@@ -192,7 +198,7 @@ export async function parseSingleCroppedProductWithGemini(
   croppedBuffer: Buffer,
   martName = '이마트'
 ): Promise<ParsedProduct> {
-  const ai = getAiClient();
+  const ai = getVisionAiClient();
 
   if (!croppedBuffer || croppedBuffer.length === 0) {
     throw new Error('파싱할 크롭 상품 이미지 버퍼가 비어 있습니다.');
@@ -213,7 +219,7 @@ export async function parseSingleCroppedProductWithGemini(
 
   try {
     const response = await ai.models.generateContent({
-      model: 'gemini-1.5-flash',
+      model: getVisionModel(),
       contents: [
         {
           inlineData: {
@@ -277,8 +283,8 @@ export async function parseMasterFlyerWithGemini(
     }
   }
 
-  const ai = getAiClient();
-  const model = process.env.GEMINI_VISION_MODEL || 'gemini-3.5-flash-lite';
+  const ai = getVisionAiClient();
+  const model = getVisionModel();
   const startTime = Date.now();
 
   console.log(`[Gemini Vision] 🚀 Calling model '${model}' with ${pageBuffers.length} flyer images...`);
@@ -370,8 +376,8 @@ export async function parseSinglePageWithGemini(
     throw new Error('파싱할 페이지 이미지 데이터가 비어 있습니다.');
   }
 
-  const ai = getAiClient();
-  const model = process.env.GEMINI_VISION_MODEL || 'gemini-3.5-flash-lite';
+  const ai = getVisionAiClient();
+  const model = getVisionModel();
   const base64Image = pageBuffer.toString('base64');
 
   const prompt = `
@@ -438,4 +444,3 @@ export async function parseSinglePageWithGemini(
     throw new Error(`Gemini 단일 페이지 재파싱 실패: ${errorMsg}`);
   }
 }
-

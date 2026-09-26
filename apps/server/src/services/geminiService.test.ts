@@ -22,7 +22,8 @@ vi.mock('@google/genai', () => {
 });
 
 vi.hoisted(() => {
-  process.env.GEMINI_API_KEY = 'mock_gemini_api_key';
+  process.env.GEMINI_VISION_API_KEY = 'mock_gemini_vision_api_key';
+  process.env.GEMINI_VISION_MODEL = 'gemini-3.5-flash-lite';
 });
 
 import {
@@ -92,6 +93,9 @@ describe('geminiService', () => {
       const result = await parseTileWithGemini(testImage);
       expect(result).toEqual([mockProduct]);
       expect(mockGenerateContent).toHaveBeenCalledTimes(1);
+      expect(mockGenerateContent).toHaveBeenCalledWith(
+        expect.objectContaining({ model: 'gemini-3.5-flash-lite' })
+      );
     });
   });
 
