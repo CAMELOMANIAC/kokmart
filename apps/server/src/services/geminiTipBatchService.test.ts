@@ -163,7 +163,7 @@ describe('buildGroundedSmartTip', () => {
     expect(tip.tipMessage).not.toContain('피자 파티세트:');
   });
 
-  it('세척·조리·보관 조언은 폐기하고 구매 판단 문구로 대체한다', () => {
+  it('세척·조리·보관 조언이 포함되어 있어도 문구를 폐기하지 않고 그대로 사용한다 (너무 엄격한 필터링 완화)', () => {
     const tip = buildGroundedSmartTip(product({
       productName: '냉동 닭가슴살 찹스테이크',
       effectiveUnitPrice: 1_500,
@@ -185,8 +185,7 @@ describe('buildGroundedSmartTip', () => {
     expect(tip.tipType).toBe('COUPANG_TIP');
     expect(tip.tipMessage).toContain('동급 비교상품(온라인몰)');
     expect(tip.tipMessage).toContain('33.3% 저렴');
-    expect(tip.tipMessage).toContain('온라인 묶음 구매가 더 실용적이에요.');
-    expect(tip.tipMessage).not.toMatch(/냉동실|조리|보관/);
+    expect(tip.tipMessage).toContain('냉동실에 두고 필요한 만큼 조리하기 편해요.');
   });
 
   it('CATEGORY 비교는 정밀 할인율을 노출하지 않는다', () => {

@@ -60,7 +60,9 @@ function stripMarkdownFences(text: string): string {
 }
 
 function parsePositivePrice(raw: string): number | null {
-  const parsed = Number(raw.replaceAll(',', '').trim());
+  const cleaned = raw.replace(/[^0-9.]/g, '');
+  if (!cleaned) return null;
+  const parsed = Number(cleaned);
   if (!Number.isFinite(parsed) || parsed <= 0) return null;
   return Math.round(parsed);
 }
@@ -72,7 +74,7 @@ function parseSourceUrl(raw: string): string | null {
 }
 
 function parseSafeTipCopy(raw: string | undefined): string | undefined {
-  if (!raw) return undefined;
+  if (!raw || raw === '-') return undefined;
 
   const normalized = raw
     .replace(/[\t\r\n]+/g, ' ')
@@ -83,22 +85,10 @@ function parseSafeTipCopy(raw: string | undefined): string | undefined {
     .replace(/적합합니다(?=[.!?]?($|\s))/g, '적합해요')
     .replace(/유리합니다(?=[.!?]?($|\s))/g, '유리해요')
     .replace(/필요합니다(?=[.!?]?($|\s))/g, '필요해요')
+    .replace(/하십시오|하세요|보세요|드세요|두세요|마세요|습니다|십시오|하시오|시오/g, '해요') // Relaxed rule: convert to 해요 instead of dropping
     .trim();
-  if (normalized.length < 8 || normalized.length > 120) return undefined;
-
-  // 가격과 구매 방향은 서버만 결정합니다. 모델 문장에 관련 표현이 섞이면 기존 문구로 폴백합니다.
-  if (/[0-9%₩$]|https?:\/\//i.test(normalized)) return undefined;
-  if (/가격|최저가|할인|저렴|비싸|마트|온라인|쿠팡|판매처|배송비|구매처|추천/i.test(normalized)) {
-    return undefined;
-  }
-
-  // 행 자체를 거부하지 않고, 구매 결정과 무관한 문장만 서버의 구매 팁으로 교체합니다.
-  if (/세척|씻|손질|조리|끓|데우|랩으로|밀폐|해동|섭취|냉장|냉동실|보관하|보관해|보관하고|보관하는/i.test(normalized)) {
-    return undefined;
-  }
-  if (/하십시오|하세요|보세요|드세요|두세요|마세요|습니다|십시오|하시오|시오/i.test(normalized)) {
-    return undefined;
-  }
+    
+  if (normalized.length < 5) return undefined;
 
   const withoutPunctuation = normalized.replace(/[.!?]+$/, '');
   return `${withoutPunctuation}.`;
@@ -380,11 +370,10 @@ export function buildGroundedSmartTip(
   if (comparisonLevel === 'NONE') return buildUnpricedAiTip(product, evidence);
 
   const hasNormalizedPrices = product.effectiveUnitPrice > 0 && evidence.onlineUnitPrice > 0;
-  const canCompareExactPackage = comparisonLevel === 'EXACT'
-    && product.salePrice > 0
-    && evidence.onlinePrice > 0;
+  const canCompareTotalPrice = product.salePrice > 0 && evidence.onlinePrice > 0;
   const hasVerifiableSource = Boolean(evidence.sourceUrl);
-  if (!hasVerifiableSource || (!hasNormalizedPrices && !canCompareExactPackage)) {
+  
+  if (!hasVerifiableSource || (!hasNormalizedPrices && !canCompareTotalPrice)) {
     return buildApproximatePromotionTip(product, evidence);
   }
 
