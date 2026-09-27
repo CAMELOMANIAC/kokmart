@@ -686,6 +686,7 @@ export async function generateGeminiTipBatch(
   for (const product of products) {
     const evidence = evidenceById.get(product.id || '');
     if (!evidence) {
+      console.warn(`[Gemini Batch] 에러: '${product.productName}' 상품의 결과가 누락되었습니다. 원본 TSV 응답을 확인하세요.\n=== 원본 응답 ===\n${responseText}\n=================`);
       rejected.push({ product, error: `Gemini 검색 결과에서 '${product.productName}' 가격 근거가 누락되었습니다.` });
       continue;
     }
@@ -701,9 +702,11 @@ export async function generateGeminiTipBatch(
         tipProcessor: 'gemini_batch',
       });
     } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      console.warn(`[Gemini Batch] 에러: '${product.productName}' 처리 중 예외 발생 - ${errorMessage}`);
       rejected.push({
         product,
-        error: error instanceof Error ? error.message : String(error),
+        error: errorMessage,
       });
     }
   }
