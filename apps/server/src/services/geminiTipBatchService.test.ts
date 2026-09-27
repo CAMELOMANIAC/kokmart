@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { ParsedProduct } from '@kokmart/shared';
-import { buildGroundedSmartTip, buildVisionOnlySmartTip } from './geminiTipBatchService.js';
+import {
+  buildGroundedSmartTip,
+  buildVisionOnlySmartTip,
+  generateGeminiTipBatch,
+} from './geminiTipBatchService.js';
 
 function product(overrides: Partial<ParsedProduct> = {}): ParsedProduct {
   return {
@@ -231,6 +235,185 @@ describe('buildGroundedSmartTip', () => {
     expect(tip.badgeText).toBe('프로모션 가격대 적정');
     expect(tip.tipMessage).toBe('평균적인 프로모션 가격대와 비교해 구매하기 적합한 가격이에요.');
     expect(tip.tipMessage).not.toContain('%');
+  });
+
+  it('온라인/마트 가격 비율이 비정상 범위(<0.02 또는 >50)이면 에러를 던진다', () => {
+    expect(() =>
+      buildGroundedSmartTip(product({ effectiveUnitPrice: 10_000 }), {
+        id: 'product-1',
+        onlinePrice: 100,
+        onlineUnitPrice: 100, // ratio 100 / 10000 = 0.01 < 0.02
+        retailer: '쿠팡',
+        matchedProduct: '파티세트',
+        insightType: 'STANDARD',
+        reason: '비정상 가격',
+        sourceUrl: 'https://example.com/product',
+      })
+    ).toThrow('비정상 범위입니다.');
+
+    expect(() =>
+      buildGroundedSmartTip(product({ effectiveUnitPrice: 100 }), {
+        id: 'product-1',
+        onlinePrice: 10_000,
+        onlineUnitPrice: 10_000, // ratio 10000 / 100 = 100 > 50
+        retailer: '쿠팡',
+        matchedProduct: '파티세트',
+        insightType: 'STANDARD',
+        reason: '비정상 가격',
+        sourceUrl: 'https://example.com/product',
+      })
+    ).toThrow('비정상 범위입니다.');
+  });
+
+  it('approximatePriceVerdict가 SIMILAR인 경우 적절한 팁을 생성한다', () => {
+    const tip = buildGroundedSmartTip(product({ effectiveUnitPrice: 0 }), {
+      id: 'product-1',
+      comparisonLevel: 'CATEGORY',
+      onlinePrice: 0,
+      onlineUnitPrice: 0,
+      retailer: '온라인몰',
+      matchedProduct: '동급 파티세트',
+      insightType: 'STANDARD',
+      reason: '유사 가격대 검색',
+      sourceUrl: '',
+      approximatePriceVerdict: 'SIMILAR',
+    });
+
+    expect(tip.tipType).toBe('MART_RECOMMEND');
+    expect(tip.badgeText).toBe('프로모션 가격대 비슷');
+    expect(tip.tipMessage).toContain('평균적인 프로모션 가격대와 비슷해');
+  });
+
+  it('approximatePriceVerdict가 ONLINE_GOOD이고 출처 URL 유무에 따라 팁 타입이 전환된다', () => {
+    const tipWithUrl = buildGroundedSmartTip(product({ effectiveUnitPrice: 0, productName: '신선 딸기' }), {
+      id: 'product-1',
+      comparisonLevel: 'CATEGORY',
+      onlinePrice: 0,
+      onlineUnitPrice: 0,
+      retailer: '쿠팡',
+      matchedProduct: '동급 딸기',
+      insightType: 'STANDARD',
+      reason: '온라인이 더 쌈',
+      sourceUrl: 'https://example.com/strawberry',
+      approximatePriceVerdict: 'ONLINE_GOOD',
+    });
+
+    expect(tipWithUrl.tipType).toBe('COUPANG_TIP');
+    expect(tipWithUrl.badgeText).toBe('온라인 가격대 참고');
+    expect(tipWithUrl.coupangKeyword).toBe('신선 딸기');
+
+    const tipWithoutUrl = buildGroundedSmartTip(product({ effectiveUnitPrice: 0, productName: '신선 딸기' }), {
+      id: 'product-1',
+      comparisonLevel: 'CATEGORY',
+      onlinePrice: 0,
+      onlineUnitPrice: 0,
+      retailer: '온라인몰',
+      matchedProduct: '동급 딸기',
+      insightType: 'STANDARD',
+      reason: '온라인이 더 쌈',
+      sourceUrl: '',
+      approximatePriceVerdict: 'ONLINE_GOOD',
+    });
+
+    expect(tipWithoutUrl.tipType).toBe('MART_RECOMMEND');
+    expect(tipWithoutUrl.badgeText).toBe('온라인 가격대 참고');
+    expect(tipWithoutUrl.coupangKeyword).toBeNull();
+  });
+
+  it('comparisonLevel이 CATEGORY이고 신선식품일 때 마트 구매를 권장한다', () => {
+    const tip = buildGroundedSmartTip(
+      product({ effectiveUnitPrice: 10_000, productName: '한돈 삼겹살', isPerishable: true }),
+      {
+        id: 'product-1',
+        comparisonLevel: 'CATEGORY',
+        onlinePrice: 8_000,
+        onlineUnitPrice: 8_000,
+        retailer: '온라인몰',
+        matchedProduct: '수입 삼겹살',
+        insightType: 'STANDARD',
+        productTrait: 'FRESH',
+        reason: '동급 신선육',
+        sourceUrl: 'https://example.com/meat',
+      }
+    );
+
+    expect(tip.tipType).toBe('MART_RECOMMEND');
+    expect(tip.badgeText).toBe('가격대·신선도 비교');
+    expect(tip.tipMessage).toContain('상태와 신선도를 직접 확인할 수 있는 마트 구매가 좋아요.');
+  });
+
+  it('martCheaper일 때 할인율 20% 이상이면 MART_BEST, 20% 미만이면 MART_RECOMMEND를 반환한다', () => {
+    const tipBest = buildGroundedSmartTip(product({ effectiveUnitPrice: 7_000 }), {
+      id: 'product-1',
+      onlinePrice: 10_000,
+      onlineUnitPrice: 10_000,
+      retailer: '쿠팡',
+      matchedProduct: '피자 파티세트',
+      insightType: 'STANDARD',
+      reason: '온라인이 30% 더 비쌈',
+      sourceUrl: 'https://example.com/product',
+    });
+
+    expect(tipBest.tipType).toBe('MART_BEST');
+    expect(tipBest.badgeText).toBe('마트 필구 특가');
+
+    const tipRecommend = buildGroundedSmartTip(product({ effectiveUnitPrice: 8_500 }), {
+      id: 'product-1',
+      onlinePrice: 10_000,
+      onlineUnitPrice: 10_000,
+      retailer: '쿠팡',
+      matchedProduct: '피자 파티세트',
+      insightType: 'STANDARD',
+      reason: '온라인이 15% 더 비쌈',
+      sourceUrl: 'https://example.com/product',
+    });
+
+    expect(tipRecommend.tipType).toBe('MART_RECOMMEND');
+    expect(tipRecommend.badgeText).toBe('마트 가격 메리트');
+  });
+
+  it('onlineCheaper이고 BULK_ONLINE 인사이트 타입이면 COUPANG_BULK 배지와 대용량 키워드를 반환한다', () => {
+    const tip = buildGroundedSmartTip(product({ effectiveUnitPrice: 10_000, productName: '신라면' }), {
+      id: 'product-1',
+      onlinePrice: 7_000,
+      onlineUnitPrice: 7_000,
+      retailer: '쿠팡',
+      matchedProduct: '신라면 30봉 묶음',
+      insightType: 'BULK_ONLINE',
+      reason: '온라인 대용량 할인',
+      sourceUrl: 'https://example.com/ramen',
+    });
+
+    expect(tip.tipType).toBe('COUPANG_BULK');
+    expect(tip.badgeText).toBe('온라인 대용량 유리');
+    expect(tip.coupangKeyword).toBe('신라면 대용량');
+  });
+});
+
+describe('generateGeminiTipBatch 예외 처리', () => {
+  it('상품 목록이 빈 배열이면 빈 결과를 반환한다', async () => {
+    const result = await generateGeminiTipBatch([]);
+    expect(result.products).toEqual([]);
+    expect(result.rejected).toEqual([]);
+    expect(result.groundingSources).toBe(0);
+  });
+
+  it('GEMINI_TIP_API_KEY가 없으면 에러를 던진다', async () => {
+    const originalApiKey = process.env.GEMINI_TIP_API_KEY;
+    delete process.env.GEMINI_TIP_API_KEY;
+
+    try {
+      await expect(generateGeminiTipBatch([product()])).rejects.toThrow(
+        'GEMINI_TIP_API_KEY가 설정되지 않았습니다.'
+      );
+    } finally {
+      process.env.GEMINI_TIP_API_KEY = originalApiKey;
+    }
+  });
+
+  it('상품 ID가 누락된 경우 에러를 던진다', async () => {
+    const invalidProduct = product({ id: '' });
+    await expect(generateGeminiTipBatch([invalidProduct])).rejects.toThrow('상품 ID가 없습니다.');
   });
 });
 
