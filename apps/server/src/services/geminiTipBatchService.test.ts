@@ -30,7 +30,7 @@ describe('buildGroundedSmartTip', () => {
 
     expect(tip.tipType).toBe('MART_BEST');
     expect(tip.tipMessage).toContain('마트가 동일 상품 판매가(쿠팡)보다');
-    expect(tip.tipMessage).toContain('70.3% 저렴');
+    expect(tip.tipMessage).toContain('70.3% 더 저렴');
     expect(tip.coupangKeyword).toBeNull();
   });
 
@@ -82,7 +82,7 @@ describe('buildGroundedSmartTip', () => {
 
     expect(tip.tipType).toBe('MART_RECOMMEND');
     expect(tip.badgeText).toBe('프리미엄 선택');
-    expect(tip.tipMessage).toContain('온라인 최저가가 25.0% 저렴하지만');
+    expect(tip.tipMessage).toContain('온라인 최저가가 25.0% 더 저렴하지만');
     expect(tip.tipMessage).toContain('가격보다 제품 특색');
     expect(tip.tipMessage).not.toContain('고급 치즈와 숙성 도우 사용');
   });
@@ -184,7 +184,7 @@ describe('buildGroundedSmartTip', () => {
 
     expect(tip.tipType).toBe('COUPANG_TIP');
     expect(tip.tipMessage).toContain('동급 비교상품(온라인몰)');
-    expect(tip.tipMessage).toContain('33.3% 저렴');
+    expect(tip.tipMessage).toContain('33.3% 더 저렴');
     expect(tip.tipMessage).toContain('냉동실에 두고 필요한 만큼 조리하기 편해요.');
   });
 

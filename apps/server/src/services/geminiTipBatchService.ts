@@ -123,7 +123,7 @@ function parseEvidenceTsv(rawText: string): Map<string, OnlinePriceEvidence> {
         rawTipCopy,
         rawApproximatePriceVerdict,
       ] = columns;
-      if (!id || !rawReason) continue;
+      if (!id) continue;
 
       const comparisonLevel = rawComparisonLevel.toUpperCase() as ComparisonLevel;
       const allowedTraits: ProductTrait[] = [
@@ -139,7 +139,7 @@ function parseEvidenceTsv(rawText: string): Map<string, OnlinePriceEvidence> {
       const productTrait = allowedTraits.includes(normalizedProductTrait)
         ? normalizedProductTrait
         : 'STANDARD';
-      const reason = rawReason.replace(/[\t\r\n]+/g, ' ').slice(0, 80);
+      const reason = (rawReason || '').replace(/[\t\r\n]+/g, ' ').slice(0, 80);
       const tipCopy = parseSafeTipCopy(rawTipCopy);
       const normalizedVerdict = (rawApproximatePriceVerdict || '').toUpperCase() as ApproximatePriceVerdict;
       const approximatePriceVerdict: ApproximatePriceVerdict = [
@@ -173,9 +173,8 @@ function parseEvidenceTsv(rawText: string): Map<string, OnlinePriceEvidence> {
       const onlinePrice = parsePositivePrice(rawOnlinePrice || '');
       const onlineUnitPrice = parsePositivePrice(rawOnlineUnitPrice || '');
       const normalizedSourceUrl = parseSourceUrl(sourceUrl || '');
-      // 검색은 됐지만 판매처명·URL·환산단가가 빠진 행도 대략 가격대 판단으로 보존합니다.
-      // 정확한 할인율은 아래 빌더에서 URL과 비교 가능한 가격이 모두 있을 때만 계산합니다.
-      if (!onlinePrice && approximatePriceVerdict === 'UNKNOWN') continue;
+      // 검색은 됐지만 가격이나 판정이 빠진 행도 시스템 오류(누락)로 처리되지 않도록 일단 보존합니다.
+      // 이후 빌더(buildGroundedSmartTip) 단계에서 정보 부족으로 판단되면 자연스럽게 폴백(비가격 팁)으로 넘어갑니다.
 
       const evidence: OnlinePriceEvidence = {
         id,
@@ -451,7 +450,7 @@ export function buildGroundedSmartTip(
     return {
       tipType: percent >= 20 ? 'MART_BEST' : 'MART_RECOMMEND',
       badgeText: percent >= 20 ? '마트 필구 특가' : '마트 가격 메리트',
-      tipMessage: `${priceBasis} 마트가 ${referenceLabel}보다 ${percentage}% 저렴해 전단 행사 메리트가 확실해요.${safeTipCopy ? ` ${safeTipCopy}` : ''}`,
+      tipMessage: `${priceBasis} 마트가 ${referenceLabel}보다 ${percentage}% 더 저렴해요.${safeTipCopy ? ` ${safeTipCopy}` : ''}`,
       coupangKeyword: null,
     };
   }
@@ -496,7 +495,7 @@ export function buildGroundedSmartTip(
     return {
       tipType: 'COUPANG_TIP',
       badgeText: '온라인 최저가 유리',
-      tipMessage: `${priceBasis} ${referenceLabel}가 마트보다 ${percentage}% 저렴해 온라인 주문이 유리해요. ${advice(isFrozen ? '자주 먹는 상품이라면 온라인 묶음 구매가 더 실용적이에요.' : '오래 두고 쓰는 상품이라 온라인으로 여유 있게 주문하기 좋아요.')}`,
+      tipMessage: `${priceBasis} ${referenceLabel}가 마트보다 ${percentage}% 더 저렴해요. ${advice(isFrozen ? '자주 먹는 상품이라면 온라인 묶음 구매가 더 실용적이에요.' : '오래 두고 쓰는 상품이라 온라인으로 여유 있게 주문하기 좋아요.')}`,
       coupangKeyword: product.productName,
     };
   }
@@ -505,7 +504,7 @@ export function buildGroundedSmartTip(
     return {
       tipType: 'COUPANG_TIP',
       badgeText: '가격과 신선도 비교',
-      tipMessage: `${referenceLabel}가 ${percentage}% 저렴해요. 가격을 우선하면 온라인이 유리하고, 상태 확인과 당일 구매가 중요하면 마트가 좋아요.${safeTipCopy ? ` ${safeTipCopy}` : ''}`,
+      tipMessage: `${referenceLabel}가 ${percentage}% 더 저렴해요.${safeTipCopy ? ` ${safeTipCopy}` : ''}`,
       coupangKeyword: product.productName,
     };
   }
@@ -514,7 +513,7 @@ export function buildGroundedSmartTip(
     return {
       tipType: 'MART_RECOMMEND',
       badgeText: '프리미엄 선택',
-      tipMessage: `온라인 최저가가 ${percentage}% 저렴하지만 동급 비교상품과 제품 특성이 달라요. ${advice('가격보다 제품 특색을 중시할 때 선택할 만해요.')}`,
+      tipMessage: `온라인 최저가가 ${percentage}% 더 저렴하지만 동급 상품과 특성이 달라요. ${advice('가격보다 제품 특색을 중시할 때 참고하세요.')}`,
       coupangKeyword: null,
     };
   }
@@ -593,9 +592,8 @@ FROZEN, LONG_KEEPING, FRESH, SMALL_PACK, BULK, READY_TO_EAT, STANDARD 중 하나
 [규칙]
 - 동일 상품이 없다고 바로 NONE으로 만들지 말고 CLOSE, 그다음 CATEGORY 순서로 대안을 찾으십시오. 대안이 정 없다면 절대 행을 생략(누락)하지 말고 반드시 NONE으로 출력하여 입력과 출력의 행 수를 똑같이 맞추십시오.
 - 예: '100% 국산콩 양조간장'이 없으면 다른 브랜드의 국산콩 양조간장, 그다음 동급 프리미엄 양조간장을 찾으십시오. 진간장이나 업소용 간장은 제외하십시오.
-- 용량이 다르면 입력의 환산기준과 같은 기준으로 계산하십시오. 계산할 수 없으면 환산단가는 0으로 쓰십시오.
+- 용량이 다르면 입력의 환산기준과 같은 기준으로 계산하십시오. 계산할 수 없거나 정보가 부족하더라도 '보통 1망에 X개', '일반적으로 1팩에 Xg'처럼 상식적인 단위를 추론하여 융통성 있게 가격을 비교하십시오.
 - 마트환산단가가 비어 있더라도 EXACT 상품의 총가격은 찾을 수 있습니다.
-- 현재 판매 페이지나 검색 결과에서 확인한 가격만 사용하고 추정하지 마십시오.
 - 공개 행사·회원가·카드가 등 조건이 있으면 배제하지 말고 가격조건에 짧게 적으십시오.
 - 품절·중고·해외배송은 제외하고, 확인되는 배송비는 총가격에 포함하십시오.
 - EXACT/CLOSE/CATEGORY는 가능하면 실제 http 또는 https 출처URL을 넣으십시오.
@@ -604,12 +602,11 @@ FROZEN, LONG_KEEPING, FRESH, SMALL_PACK, BULK, READY_TO_EAT, STANDARD 중 하나
 - 대략가격판정은 MART_GOOD, SIMILAR, ONLINE_GOOD, UNKNOWN 중 하나만 사용하십시오. 마트 전단가가 평균적인 프로모션 가격대보다 좋거나 구매하기 적합하면 MART_GOOD를 사용하십시오.
 - NONE은 가격 두 칸에 0, 판매처·비교상품명·가격조건·출처URL에 하이픈(-)을 넣고 대략가격판정은 UNKNOWN으로 작성하십시오.
 - 비교근거에는 왜 동일하거나 동급인지 50자 이내로 작성하십시오.
-- 구매조언은 어디서 살지, 필요한 수량만 살지, 묶음 구매가 나은지, 매장에서 상태를 확인할지 같은 구매 결정만 다루십시오.
+- 구매조언은 "쟁여두세요", "구비해두세요" 같은 뻔한 행동 지시 대신, "평소 4~6과에 7,000~9,000원대에 판매되므로 개당 1,000원 꼴이라 가성비가 매우 좋습니다"처럼 온라인 시세, 중량, 가격대 등 구체적인 숫자 정보를 적극 활용하여 객관적인 가성비 분석을 작성하십시오.
 - 세척, 손질, 조리, 보관 방법, 냉장·냉동 방법, 해동, 섭취기한이나 섭취 방법은 절대 작성하지 마십시오.
-- FROZEN과 LONG_KEEPING은 보관 방법을 설명하지 말고, 오래 두고 사용할 수 있어 온라인 묶음 구매가 가능한지 판단하는 근거로만 사용하십시오.
+- FROZEN과 LONG_KEEPING은 보관 방법을 설명하지 말고, 가성비 판단의 근거로만 사용하십시오.
 - 상품명을 반복하거나 '상품명:' 접두어를 붙이지 마십시오.
-- 구매조언은 명령형(~하세요, ~하십시오)이나 합쇼체(~습니다)를 쓰지 말고 한 문장의 자연스러운 해요체(~해요, ~좋아요, ~유리해요)로 작성하십시오.
-- 구매조언에는 가격, 숫자, 할인율, 판매처 또는 마트/온라인 중 어디가 유리한지에 대한 판단을 넣지 마십시오. 구매 방향과 할인율은 서버가 계산합니다.`;
+- 구매조언은 명령형(~하세요, ~하십시오)이나 합쇼체(~습니다)를 쓰지 말고 한 문장의 자연스러운 해요체(~해요, ~좋아요)로 작성하십시오.`;
 }
 
 /** Gemini 3.8 Flash + Google Search로 한 페이지 분량의 마스터 팁을 생성합니다. */
