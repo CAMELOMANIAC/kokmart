@@ -1,4 +1,4 @@
-name: Gemini Master Flyer Tip Batch
+name: Gemini Master Flyer Batch
 
 on:
   schedule:
@@ -44,6 +44,14 @@ jobs:
 
       - name: Build shared package
         run: pnpm build:shared
+
+      - name: Crawl and parse latest Emart flyer
+        run: pnpm flyers:master-crawl
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          GEMINI_VISION_API_KEY: ${{ secrets.GEMINI_VISION_API_KEY }}
+          GEMINI_VISION_MODEL: gemini-3.5-flash-lite
 
       - name: Generate and save Gemini master tips
         run: pnpm tips:master-batch

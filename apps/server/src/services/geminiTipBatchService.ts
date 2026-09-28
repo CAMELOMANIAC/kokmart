@@ -370,8 +370,7 @@ export function buildGroundedSmartTip(
 
   const hasNormalizedPrices = product.effectiveUnitPrice > 0 && evidence.onlineUnitPrice > 0;
   const canCompareTotalPrice = product.salePrice > 0 && evidence.onlinePrice > 0;
-  const hasVerifiableSource = Boolean(evidence.sourceUrl);
-  
+
   if (!hasNormalizedPrices && !canCompareTotalPrice) {
     return buildApproximatePromotionTip(product, evidence);
   }

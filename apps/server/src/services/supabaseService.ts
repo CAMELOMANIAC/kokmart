@@ -209,6 +209,10 @@ export async function saveFlyerToSupabase(params: SaveFlyerParams): Promise<{
 
     if (productsError) {
       console.error('[Supabase Error] flyer_products insert 실패:', productsError);
+      const { error: rollbackError } = await client.from('flyers').delete().eq('id', flyerId);
+      if (rollbackError) {
+        console.error('[Supabase Error] 상품 저장 실패 후 빈 전단 롤백 실패:', rollbackError);
+      }
       throw new Error(`Supabase 상품 목록 저장 실패: ${productsError.message}`);
     }
   }
@@ -304,6 +308,28 @@ export async function getLatestFlyerFromSupabase(
   };
 
   return { flyer: flyerRecord, products };
+}
+
+/** 새 마스터 전단 저장이 끝난 뒤 같은 마트의 이전 마스터 전단을 제거합니다. 상품은 FK CASCADE로 함께 삭제됩니다. */
+export async function deleteOtherMasterFlyers(
+  martName: string,
+  branchName: string,
+  keepFlyerId: string
+): Promise<number> {
+  const client = getSupabaseClient();
+  if (!client) throw new Error('Supabase가 설정되지 않았습니다.');
+  if (!keepFlyerId) throw new Error('유지할 전단 ID가 없습니다.');
+
+  const { data, error } = await client
+    .from('flyers')
+    .delete()
+    .eq('mart_name', martName)
+    .eq('branch_name', branchName)
+    .eq('is_master', true)
+    .neq('id', keepFlyerId)
+    .select('id');
+  if (error) throw new Error(`이전 마스터 전단 삭제 실패: ${error.message}`);
+  return data?.length || 0;
 }
 
 /**

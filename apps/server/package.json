@@ -7,6 +7,7 @@
   "scripts": {
     "dev": "tsx watch src/index.ts",
     "build": "pnpm --filter @kokmart/shared build && tsc",
+    "flyers:master-crawl": "tsx scripts/run-emart-master-crawl.ts",
     "tips:master-batch": "tsx scripts/run-gemini-tip-batch.ts"
   },
   "dependencies": {
