@@ -20,6 +20,7 @@ import {
   filterChipBrandActive,
 } from './StoreSearchFilterHeader.css';
 import { ALL_FILTER_BRANDS, getBrandDotClass } from './storeBadgeUtils';
+import { isFlyerSupportedBrand } from '../../utils/martSupport';
 
 export type CategoryFilter = 'all' | 'hypermarket' | 'ssm';
 
@@ -145,11 +146,12 @@ export const StoreSearchFilterHeader: React.FC<StoreSearchFilterHeaderProps> = (
 
                 <div
                   className={`${filterChip} ${selectedCategory === 'ssm' ? filterChipActive : ''}`}
-                  onClick={() =>
-                    onSelectCategory(selectedCategory === 'ssm' ? 'all' : 'ssm')
-                  }
+                  data-disabled="true"
+                  onClick={() => onSelectCategory('ssm')}
+                  title="추후 업데이트 예정"
                 >
                   <span>SSM·슈퍼</span>
+                  <span data-pending-badge="true">준비중</span>
                 </div>
 
                 <div
@@ -165,7 +167,25 @@ export const StoreSearchFilterHeader: React.FC<StoreSearchFilterHeaderProps> = (
               {/* 2행: 가로 스크롤 개별 브랜드 칩 */}
               <div className={filterBrandRowScrollable}>
                 {ALL_FILTER_BRANDS.map((brand) => {
-                  const isChecked = selectedBrands[brand] !== false;
+                  const isSupported = isFlyerSupportedBrand(brand);
+                  const isChecked = selectedBrands[brand] === true;
+
+                  if (!isSupported) {
+                    return (
+                      <div
+                        key={brand}
+                        className={filterChip}
+                        data-disabled="true"
+                        onClick={() => onToggleBrand(brand)}
+                        title="추후 업데이트 예정"
+                      >
+                        <span className={getBrandDotClass(brand)} />
+                        <span>{brand}</span>
+                        <span data-pending-badge="true">준비중</span>
+                      </div>
+                    );
+                  }
+
                   return (
                     <div
                       key={brand}

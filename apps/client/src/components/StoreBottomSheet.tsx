@@ -24,6 +24,8 @@ import {
 import { ALL_FILTER_BRANDS } from './bottomsheet/storeBadgeUtils';
 import { StorePillList } from './bottomsheet/StorePillList';
 import { StoreCardList } from './bottomsheet/StoreCardList';
+import { useToastStore } from '../store/useToastStore';
+import { isFlyerSupportedBrand, FLYER_SUPPORTED_BRANDS } from '../utils/martSupport';
 
 interface StoreBottomSheetProps {
   stores: MartStore[];
@@ -85,6 +87,8 @@ export const StoreBottomSheet: React.FC<StoreBottomSheetProps> = ({
     };
   }, []);
 
+  const showToast = useToastStore((state) => state.showToast);
+
   // 2. 필터 상태 (대분류, 영업중, 개별 브랜드)
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [onlyOpen, setOnlyOpen] = useState(false);
@@ -92,22 +96,33 @@ export const StoreBottomSheet: React.FC<StoreBottomSheetProps> = ({
   const [selectedBrands, setSelectedBrands] = useState<Record<string, boolean>>(() => {
     const initial: Record<string, boolean> = {};
     ALL_FILTER_BRANDS.forEach((b) => {
-      initial[b] = true;
+      initial[b] = isFlyerSupportedBrand(b);
     });
     return initial;
   });
 
   const toggleBrand = (brand: MartBrand) => {
+    if (!isFlyerSupportedBrand(brand)) {
+      showToast(`${brand} 전단 서비스는 추후 업데이트 예정입니다 🚀`);
+      return;
+    }
     setSelectedBrands((prev) => ({
       ...prev,
       [brand]: prev[brand] === false ? true : false,
     }));
   };
 
+  const handleSelectCategory = (category: CategoryFilter) => {
+    if (category === 'ssm') {
+      showToast('SSM·슈퍼 전단 서비스는 추후 업데이트 예정입니다 🚀');
+    }
+    setSelectedCategory(category);
+  };
+
   const isAnyFilterActive =
     onlyOpen ||
     selectedCategory !== 'all' ||
-    ALL_FILTER_BRANDS.some((b) => selectedBrands[b] === false);
+    FLYER_SUPPORTED_BRANDS.some((b) => selectedBrands[b] === false);
 
   // 3. 필터링된 매장 리스트 (메모이제이션)
   const filteredStores = useMemo(() => {
@@ -126,7 +141,7 @@ export const StoreBottomSheet: React.FC<StoreBottomSheetProps> = ({
         if (!isSsm) return false;
       }
 
-      // 2) 개별 브랜드 필터
+      // 2) 개별 브랜드 필터 (체크 해제된 브랜드 제외)
       if (selectedBrands[s.brand] === false) return false;
 
       // 3) 영업중 필터
@@ -278,7 +293,7 @@ export const StoreBottomSheet: React.FC<StoreBottomSheetProps> = ({
             onToggleFilter={handleToggleFilter}
             isAnyFilterActive={isAnyFilterActive}
             selectedCategory={selectedCategory}
-            onSelectCategory={setSelectedCategory}
+            onSelectCategory={handleSelectCategory}
             onlyOpen={onlyOpen}
             onToggleOnlyOpen={() => setOnlyOpen(!onlyOpen)}
             selectedBrands={selectedBrands}

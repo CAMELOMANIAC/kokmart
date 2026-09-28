@@ -103,6 +103,15 @@ export const cardDealBadge = style({
   color: vars.colors.accentGreen,
 });
 
+export const cardDealBadgePending = style({
+  display: "flex",
+  alignItems: "center",
+  gap: "4px",
+  fontSize: "12px",
+  fontWeight: 600,
+  color: vars.colors.textSub,
+});
+
 export const cardDealButton = style({
   border: "none",
   backgroundColor: vars.colors.secondary,
@@ -115,6 +124,25 @@ export const cardDealButton = style({
   alignItems: "center",
   gap: "4px",
   cursor: "pointer",
+});
+
+export const cardDealButtonDisabled = style({
+  border: "none",
+  backgroundColor: vars.colors.bgLight,
+  color: vars.colors.textSub,
+  padding: "6px 12px",
+  borderRadius: "12px",
+  fontSize: "12px",
+  fontWeight: 600,
+  display: "flex",
+  alignItems: "center",
+  gap: "4px",
+  cursor: "pointer",
+  transition: "all 0.15s ease",
+  ":active": {
+    transform: "scale(0.96)",
+    backgroundColor: vars.colors.border,
+  },
 });
 
 export const cardCheckIcon = style({

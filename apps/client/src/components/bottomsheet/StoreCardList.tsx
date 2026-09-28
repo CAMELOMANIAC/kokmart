@@ -16,11 +16,15 @@ import {
   cardInfoRow,
   cardFooter,
   cardDealBadge,
+  cardDealBadgePending,
   cardDealButton,
+  cardDealButtonDisabled,
   cardCheckIcon,
   emptyMessage,
 } from './StoreCardList.css';
 import { getBrandBadgeClass } from './storeBadgeUtils';
+import { isFlyerSupportedBrand, UNSUPPORTED_MART_FLYER_MESSAGE } from '../../utils/martSupport';
+import { useToastStore } from '../../store/useToastStore';
 
 interface StoreCardListProps {
   stores: MartStore[];
@@ -38,6 +42,7 @@ export const StoreCardList: React.FC<StoreCardListProps> = ({
   onGoToFlyerTab,
 }) => {
   const cardListRef = useRef<HTMLDivElement>(null);
+  const showToast = useToastStore((state) => state.showToast);
 
   // 전체화면 카드리스트 스크롤 방향 감지 → isScrollingDown 업데이트
   useScrollDirection({ ref: cardListRef });
@@ -66,6 +71,7 @@ export const StoreCardList: React.FC<StoreCardListProps> = ({
       ) : (
         stores.map((store) => {
           const isSelected = isStoreSelected(store.id);
+          const isSupported = isFlyerSupportedBrand(store.brand);
 
           return (
             <motion.div
@@ -110,21 +116,39 @@ export const StoreCardList: React.FC<StoreCardListProps> = ({
 
               {/* 하단 특가 정보 요약 및 전단 핫딜 연동 버튼 */}
               <div className={cardFooter}>
-                <div className={cardDealBadge}>
-                  <Zap size={14} color="#10B981" />
-                  <span>진행 중인 전단 특가 {store.activeDealCount}개</span>
-                </div>
+                {isSupported ? (
+                  <div className={cardDealBadge}>
+                    <Zap size={14} color="#10B981" />
+                    <span>진행 중인 전단 특가 {store.activeDealCount}개</span>
+                  </div>
+                ) : (
+                  <div className={cardDealBadgePending}>
+                    <Clock size={14} color="#9CA3AF" />
+                    <span>전단 서비스 준비 중</span>
+                  </div>
+                )}
 
                 <motion.button
                   whileTap={{ scale: 0.94 }}
                   onClick={(e) => {
                     e.stopPropagation();
-                    onGoToFlyerTab();
+                    if (isSupported) {
+                      onGoToFlyerTab();
+                    } else {
+                      showToast(`${store.displayName || store.name}의 ${UNSUPPORTED_MART_FLYER_MESSAGE}`);
+                    }
                   }}
-                  className={cardDealButton}
+                  className={isSupported ? cardDealButton : cardDealButtonDisabled}
+                  title={isSupported ? '전단 보기' : '준비중'}
                 >
-                  <span>전단 보기</span>
-                  <ChevronRight size={13} />
+                  {isSupported ? (
+                    <>
+                      <span>전단 보기</span>
+                      <ChevronRight size={13} />
+                    </>
+                  ) : (
+                    <span>준비중</span>
+                  )}
                 </motion.button>
               </div>
             </motion.div>

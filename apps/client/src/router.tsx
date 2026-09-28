@@ -19,6 +19,7 @@ import { KokHome } from './pages/KokHome';
 import { DdingFlyers } from './pages/DdingFlyers';
 import { DdibCart } from './pages/DdibCart';
 import { BbumCommunity } from './pages/BbumCommunity';
+import { Toast } from './components/Toast';
 import './styles/transitions.css';
 
 const RootComponent: React.FC = () => {
@@ -104,6 +105,7 @@ const RootComponent: React.FC = () => {
       )}
 
       <Navigation />
+      <Toast />
     </div>
   );
 };

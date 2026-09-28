@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Zap, ChevronRight } from 'lucide-react';
+import { Zap, ChevronRight, Clock } from 'lucide-react';
 import type { MartStore } from '@kokmart/shared';
 import {
   ctaButton,
@@ -10,35 +10,53 @@ import {
   ctaAnimatedContent,
   ctaBadgeCount,
 } from './StoreCtaButton.css';
+import { isFlyerSupportedBrand } from '../utils/martSupport';
+import { useToastStore } from '../store/useToastStore';
 
 interface StoreCtaButtonProps {
   selectedStores: MartStore[];
   onClick: () => void;
 }
 
-export const getCtaButtonInfo = (selectedStores: MartStore[]): { text: string; count: number } | null => {
+export const getCtaButtonInfo = (
+  selectedStores: MartStore[]
+): { text: string; count: number; isAllUnsupported: boolean } | null => {
   if (selectedStores.length === 0) return null;
 
   const count = selectedStores.length;
-  const firstStore = selectedStores[0];
-  const firstName = firstStore?.displayName || firstStore?.name || '마트';
+  const supportedStores = selectedStores.filter((s) => isFlyerSupportedBrand(s.brand));
+  const isAllUnsupported = supportedStores.length === 0;
 
-  const text =
-    count === 1
-      ? `${firstName} 전단 보기`
-      : `${firstName} 외 ${count - 1}곳 전단 비교하기`;
+  const repStore = supportedStores.length > 0 ? supportedStores[0] : selectedStores[0];
+  const repName = repStore?.displayName || repStore?.name || '마트';
 
-  return { text, count };
+  let text = '';
+  if (isAllUnsupported) {
+    text = count === 1 ? `${repName} 전단 준비중` : `${repName} 외 ${count - 1}곳 전단 준비중`;
+  } else {
+    text = count === 1 ? `${repName} 전단 보기` : `${repName} 외 ${count - 1}곳 전단 비교하기`;
+  }
+
+  return { text, count, isAllUnsupported };
 };
 
 export const StoreCtaButton: React.FC<StoreCtaButtonProps> = ({
   selectedStores,
   onClick,
 }) => {
+  const showToast = useToastStore((state) => state.showToast);
   const ctaInfo = getCtaButtonInfo(selectedStores);
   if (!ctaInfo) return null;
 
-  const { text: ctaText, count } = ctaInfo;
+  const { text: ctaText, count, isAllUnsupported } = ctaInfo;
+
+  const handleClick = () => {
+    if (isAllUnsupported) {
+      showToast('선택하신 매장은 전단 서비스 준비 중입니다. 대형 3사(이마트, 홈플러스, 롯데마트)를 선택해 주세요! 🚀');
+      return;
+    }
+    onClick();
+  };
 
   return (
     <motion.button
@@ -50,11 +68,15 @@ export const StoreCtaButton: React.FC<StoreCtaButtonProps> = ({
         },
       }}
       whileTap={{ scale: 0.97 }}
-      onClick={onClick}
+      onClick={handleClick}
       className={ctaButton}
     >
       <div className={ctaContentLeft}>
-        <Zap size={16} fill="#FFFFFF" color="#FFFFFF" className={ctaIcon} />
+        {isAllUnsupported ? (
+          <Clock size={16} color="#FFFFFF" className={ctaIcon} />
+        ) : (
+          <Zap size={16} fill="#FFFFFF" color="#FFFFFF" className={ctaIcon} />
+        )}
 
         <div className={ctaTextWrapper}>
           <AnimatePresence mode="popLayout" initial={false}>

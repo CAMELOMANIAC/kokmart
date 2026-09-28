@@ -1,4 +1,4 @@
-import { style, keyframes } from "@vanilla-extract/css";
+import { style, keyframes, globalStyle } from "@vanilla-extract/css";
 import { vars } from "../../styles/theme.css";
 
 const spin = keyframes({
@@ -153,4 +153,25 @@ export const filterChipBrandActive = style({
   backgroundColor: "#FFF7ED",
   color: "#EA580C",
   borderColor: "#FDBA74",
+});
+
+globalStyle(`${filterChip}[data-disabled="true"]`, {
+  backgroundColor: "#F9FAFB",
+  borderColor: "#E5E7EB",
+  color: "#9CA3AF",
+  cursor: "pointer",
+});
+
+globalStyle(`${filterChip}[data-disabled="true"]:active`, {
+  transform: "scale(0.96)",
+});
+
+globalStyle(`${filterChip} [data-pending-badge="true"]`, {
+  fontSize: "10px",
+  fontWeight: 700,
+  backgroundColor: "#F3F4F6",
+  color: "#9CA3AF",
+  padding: "1px 5px",
+  borderRadius: "4px",
+  marginLeft: "2px",
 });
