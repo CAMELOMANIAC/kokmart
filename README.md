@@ -9,6 +9,61 @@
 
 **마트콕(Martkok)**는 대형마트 3사의 종이 전단지를 AI(Gemini Multimodal Vision API) 기반으로 분석하여 단위당 최저가를 비교하고, 마트 필구 특가 및 쿠팡 대용량 알뜰 팁을 제공하는 스마트 장보기 최적화 앱입니다.
 
+## 🧭 AI 전단 처리 아키텍처
+
+마트콕의 목표 운영 구조는 **공통 전단은 주간 배치로 미리 만들고**, 사용자가 실제로 선택한 지점만 필요할 때 생성·캐시하는 2-Tier 구조입니다. 비용이 큰 Vision·검색 호출을 사용하지 않는 지점에는 발생시키지 않는 것이 핵심입니다.
+
+```mermaid
+flowchart TB
+  subgraph Weekly["① 주간 공통 마스터 전단 갱신"]
+    Cron["GitHub Actions<br/>매주 목요일 03:17 KST"]
+    Crawl["마트별 공식 전단 크롤링<br/>공통 전단 이미지 URL 수집"]
+    Same{"기존 image_urls와 동일한가?"}
+    Skip["AI 호출 생략"]
+    Vision["Gemini 3.5 Flash-Lite<br/>전단 이미지 → 상품·규격·가격"]
+    MasterDB[("Supabase<br/>공통 마스터 전단")]
+    TipBatch["Gemini 3.8 Flash + Google Search<br/>구매 팁 배치 생성"]
+    MasterCache[("상품·구매 팁 캐시")]
+
+    Cron --> Crawl --> Same
+    Same -->|"같음"| Skip --> MasterCache
+    Same -->|"새 전단"| Vision --> MasterDB --> TipBatch --> MasterCache
+  end
+
+  subgraph OnDemand["② 사용자 요청 기반 지점 전단 처리"]
+    User["사용자<br/>마트·지점 선택"]
+    BranchCache{"이번 주 지점 캐시가 있는가?"}
+    Return["전단·구매 팁 즉시 반환"]
+    Resolve["공식 지점 전단 소스 확인<br/>점포 ID·쿠키·API 요청 해석"]
+    Diff["Sharp 페이지 차분<br/>공통 마스터와 비교"]
+    Reuse["동일 페이지는<br/>공통 상품·팁 재사용"]
+    BranchVision["변경 페이지만<br/>Gemini Vision 재파싱"]
+    Realtime["변경 상품만<br/>Groq 실시간 팁 생성"]
+    BranchDB[("지점 전단 캐시<br/>행사 기간 동안 재사용")]
+
+    User --> BranchCache
+    BranchCache -->|"있음"| Return
+    BranchCache -->|"없음"| Resolve --> Diff
+    MasterCache -. "공통 기준 전단" .-> Diff
+    Diff --> Reuse --> BranchDB
+    Diff --> BranchVision --> Realtime --> BranchDB
+    BranchDB --> Return
+  end
+
+  classDef batch fill:#e3f2fd,stroke:#1565c0,color:#0d47a1;
+  classDef ondemand fill:#fff3e0,stroke:#ef6c00,color:#e65100;
+  classDef storage fill:#e8f5e9,stroke:#2e7d32,color:#1b5e20;
+  class Cron,Crawl,Same,Skip,Vision,TipBatch batch;
+  class User,BranchCache,Return,Resolve,Diff,Reuse,BranchVision,Realtime ondemand;
+  class MasterDB,MasterCache,BranchDB storage;
+```
+
+| 처리 경로 | 호출 시점 | AI 비용 제어 방식 |
+| --- | --- | --- |
+| 공통 마스터 전단 | 매주 목요일 배치 | 전단 이미지 URL이 같으면 Vision 호출 생략 |
+| 개별 지점 전단 | 사용자가 해당 지점을 처음 요청할 때 | 공통 전단과 같은 페이지·상품·팁은 재사용 |
+| 구매 팁 | 공통은 GitHub Actions, 지점 변경 상품은 실시간 Worker | 상품별 큐·캐시·재시도로 중복 호출 방지 |
+
 ### 📱 4-Tab 핵심 기능
 * **[ 🎯 콕 ] 홈 & 최저가 비교**: 주변 마트 3사 ON/OFF 토글 및 100g/개당 단위 환산 최저가 큐레이션
 * **[ ⚡ 띵 ] 전단 핫딜**: 목요일 전단 발행 알림 및 1+1, 타임세일 기획전 피드
@@ -36,9 +91,9 @@
 
 ### Server (Backend & AI Engine)
 * **Backend Framework**: Express.js (TypeScript) - **Vercel Serverless Functions Ready**
-* **AI Vision Engine**: Google Gemini 1.5 Flash Vision API (`@google/genai`)
+* **AI Vision Engine**: Google Gemini 3.5 Flash-Lite (`@google/genai`)
 * **Image Processing**: Sharp (전단지 4~6분할 타일 크롭 파이프라인)
-* **Database (예정)**: Supabase (PostgreSQL + PostGIS + Realtime)
+* **Database & Queue**: Supabase (PostgreSQL + Realtime)
 
 ---
 
@@ -144,9 +199,9 @@ curl -X POST http://localhost:4000/api/internal/tip-worker \
   -d '{"source":"manual"}'
 ```
 
-### 3. GitHub Actions 마스터 팁 배치
+### 3. GitHub Actions 공통 마스터 전단·팁 배치
 
-[`gemini-master-tip-batch.yml`](.github/workflows/gemini-master-tip-batch.yml)은 매주 목요일 03:17(KST)에 실행되며, 수동 실행도 지원합니다. Actions가 Supabase에서 마스터 페이지를 직접 선점하고 유료 프로젝트의 Gemini 3.8 Flash + Google Search를 호출한 다음 결과를 Supabase에 바로 저장하므로 Vercel 함수는 거치지 않습니다.
+[`gemini-master-tip-batch.yml`](.github/workflows/gemini-master-tip-batch.yml)은 매주 목요일 03:17(KST)에 실행되며, 수동 실행도 지원합니다. 현재는 이마트 공식 전단 뷰어 HTML에서 이미지 URL을 수집하고, 새 전단일 때만 Gemini 3.5 Flash-Lite로 상품을 파싱해 Supabase에 저장합니다. 이어서 Gemini 3.8 Flash + Google Search가 구매 팁을 생성합니다. 두 단계 모두 GitHub Actions에서 직접 실행되므로 Vercel 함수는 거치지 않습니다.
 
 GitHub 저장소의 Actions secrets에 다음 값을 등록합니다.
 
@@ -155,7 +210,19 @@ GitHub 저장소의 Actions secrets에 다음 값을 등록합니다.
 - `GEMINI_TIP_API_KEY`: Tier 1 결제 프로젝트에서 발급한 검색 팁 전용 키
 - `GEMINI_VISION_API_KEY`: Vercel에도 등록한 무료 프로젝트의 이미지 파싱 키
 
-기본값은 요청당 최대 12개 상품, 실행당 최대 16회 호출이며 검색 모델은 `gemini-3.8-flash`, thinking level은 `low`입니다. 검색 근거가 없는 상품은 원본 페이지를 무료 `gemini-3.5-flash-lite`로 한 번 재검증합니다. 교정 후 온라인 비교가 가능한 상품만 3.8 Flash로 한 번 더 검색하고, 마트 자체 구성·즉석조리·신선식품처럼 동일 온라인 상품이 없는 경우에는 가격을 만들지 않는 비가격 팁으로 완료합니다. 로컬에서 같은 배치를 실행하려면 `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `GEMINI_TIP_API_KEY`, `GEMINI_VISION_API_KEY`를 설정한 뒤 `pnpm tips:master-batch`를 실행합니다.
+기본값은 요청당 최대 6개 상품, 실행당 최대 16회 호출이며 검색 모델은 `gemini-3.8-flash`, thinking level은 `medium`입니다. 검색 근거가 없는 상품은 원본 페이지를 무료 `gemini-3.5-flash-lite`로 한 번 재검증합니다. 교정 후 온라인 비교가 가능한 상품만 3.8 Flash로 한 번 더 검색하고, 마트 자체 구성·즉석조리·신선식품처럼 동일 온라인 상품이 없는 경우에는 가격을 만들지 않는 비가격 팁으로 완료합니다.
+
+로컬에서 이마트 공통 마스터 전단을 수집·파싱하려면 다음을 실행합니다.
+
+```bash
+pnpm flyers:master-crawl
+```
+
+수집된 마스터 전단의 팁만 다시 생성하려면 다음을 실행합니다.
+
+```bash
+pnpm tips:master-batch
+```
 
 ### 4. 클라이언트 앱 배포 (Tauri v2 Cross-Platform)
 ```bash
