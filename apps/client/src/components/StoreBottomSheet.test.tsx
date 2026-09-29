@@ -160,13 +160,13 @@ const mockStores: MartStore[] = [
   },
   {
     id: 'store-2',
-    name: 'GS더프레시 대치점',
-    displayName: '대치점',
-    brand: 'GS더프레시',
-    storeType: 'ssm',
+    name: '홈플러스 강서점',
+    displayName: '강서점',
+    brand: '홈플러스',
+    storeType: 'hypermarket',
     lat: 37.493,
     lng: 127.058,
-    address: '서울시 강남구 대치동',
+    address: '서울시 강서구',
     phone: '02-555-1234',
     businessHours: '09:00 - 22:00',
     isHolidayToday: true,
@@ -190,7 +190,7 @@ describe('StoreBottomSheet - Integration Tests', () => {
     );
 
     expect(screen.getByText('역삼점')).toBeDefined();
-    expect(screen.getByText('대치점')).toBeDefined();
+    expect(screen.getByText('강서점')).toBeDefined();
   });
 
   it('선택된 마트가 존재할 경우 하단 CTA 버튼이 렌더링되어야 한다', () => {
@@ -206,7 +206,7 @@ describe('StoreBottomSheet - Integration Tests', () => {
     expect(screen.getByText('역삼점 전단 보기')).toBeDefined();
   });
 
-  it('필터 버튼을 눌러 SSM 카테고리를 선택하면 SSM 마트만 필터링되어 노출되어야 한다', () => {
+  it('필터 버튼을 눌러 대형마트 카테고리를 선택하면 대형마트만 필터링되어 노출되어야 한다', () => {
     const { container } = render(
       <StoreBottomSheet
         stores={mockStores}
@@ -219,16 +219,15 @@ describe('StoreBottomSheet - Integration Tests', () => {
     const filterBtn = buttons[buttons.length - 1];
     fireEvent.click(filterBtn);
 
-    // SSM/슈퍼 카테고리 필터 클릭
-    const ssmChip = screen.getByText('SSM·슈퍼');
-    fireEvent.click(ssmChip);
+    // 대형마트 카테고리 필터 클릭
+    const hyperChip = screen.getByText('대형마트');
+    fireEvent.click(hyperChip);
 
-    // GS더프레시 대치점만 노출되고 이마트 역삼점은 노출되지 않아야 함
-    expect(screen.queryByText('역삼점')).toBeNull();
-    expect(screen.getByText('대치점')).toBeDefined();
+    expect(screen.getByText('역삼점')).toBeDefined();
+    expect(screen.getByText('강서점')).toBeDefined();
   });
 
-  it('영업중만 필터를 적용하면 휴무일인 마트(GS더프레시 대치점)는 목록에서 제외되어야 한다', () => {
+  it('영업중만 필터를 적용하면 휴무일인 마트(홈플러스 강서점)는 목록에서 제외되어야 한다', () => {
     const { container } = render(
       <StoreBottomSheet
         stores={mockStores}
@@ -246,6 +245,6 @@ describe('StoreBottomSheet - Integration Tests', () => {
     fireEvent.click(onlyOpenChip);
 
     expect(screen.getByText('역삼점')).toBeDefined();
-    expect(screen.queryByText('대치점')).toBeNull();
+    expect(screen.queryByText('강서점')).toBeNull();
   });
 });

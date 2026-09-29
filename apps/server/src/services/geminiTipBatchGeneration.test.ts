@@ -102,7 +102,7 @@ describe('generateGeminiTipBatch', () => {
     mockCreateInteraction.mockResolvedValueOnce({
       output_text: [
         'id\t온라인총가격\t마트단위로환산한온라인단위가격\t판매처\t검색결과상품명\t구매특성\t근거요약\t출처URL\t구매조언',
-        'product-1\t6900\t6900\t행사몰\t피자 파티세트 1세트\tSTANDARD\t현재 공개 행사가\thttps://example.com/sale\t마트가 더 저렴하니 추천해요',
+        'product-1\t6900\t6900\t행사몰\t피자 파티세트 1세트\tSTANDARD\t현재 공개 행사가\thttps://example.com/sale\t-',
       ].join('\n'),
       steps: [{ type: 'google_search_call', arguments: { queries: ['피자 파티세트 행사'] } }],
     });
@@ -155,7 +155,7 @@ describe('generateGeminiTipBatch', () => {
     mockCreateInteraction.mockResolvedValueOnce({
       output_text: [
         'id\t비교등급\t비교상품총가격\t마트기준환산단가\t판매처\t비교상품명\t상품특성\t가격조건\t비교근거\t출처URL\t구매조언',
-        'product-1\tCLOSE\t6000\t6000\t온라인몰\t동급 냉동 피자세트\tFROZEN\t공개 판매가\t같은 용도의 냉동 간편식\thttps://example.com/frozen\t냉동실에 두고 필요한 때 조리하기 편해요.',
+        'product-1\tCLOSE\t6000\t6000\t온라인몰\t동급 냉동 피자세트\tFROZEN\t공개 판매가\t같은 용도의 냉동 간편식\thttps://example.com/frozen\t-',
       ].join('\n'),
       steps: [{ type: 'google_search_call', arguments: { queries: ['냉동 피자세트'] } }],
     });

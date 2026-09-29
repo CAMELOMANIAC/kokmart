@@ -27,6 +27,7 @@ vi.mock('./StoreCtaButton.css', () => ({
 }));
 
 import { StoreCtaButton, getCtaButtonInfo } from './StoreCtaButton';
+import { useToastStore } from '../store/useToastStore';
 import type { MartStore } from '@kokmart/shared';
 
 const mockStoreA: MartStore = {
@@ -59,6 +60,21 @@ const mockStoreB: MartStore = {
   activeDealCount: 8,
 };
 
+const mockUnsupportedStore: MartStore = {
+  id: 'store-3',
+  name: 'GS더프레시 대치점',
+  displayName: 'GS더프레시 대치점',
+  brand: 'GS더프레시',
+  storeType: 'ssm',
+  lat: 37.493,
+  lng: 127.058,
+  address: '서울시 강남구 대치동',
+  phone: '02-555-1234',
+  businessHours: '09:00 - 22:00',
+  isHolidayToday: false,
+  activeDealCount: 3,
+};
+
 describe('StoreCtaButton - Helper & Component Tests', () => {
   describe('getCtaButtonInfo Helper Test', () => {
     it('선택된 마트가 없을 때 null을 반환해야 한다', () => {
@@ -88,6 +104,20 @@ describe('StoreCtaButton - Helper & Component Tests', () => {
       const info = getCtaButtonInfo([storeWithoutDisplayName]);
       expect(info?.text).toBe('이마트 역삼점 전단 보기');
     });
+
+    it('미지원 마트만 선택되었을 때 전단 준비중 문구와 isAllUnsupported: true를 반환해야 한다', () => {
+      const info = getCtaButtonInfo([mockUnsupportedStore]);
+      expect(info).not.toBeNull();
+      expect(info?.isAllUnsupported).toBe(true);
+      expect(info?.text).toBe('GS더프레시 대치점 전단 준비중');
+    });
+
+    it('미지원 마트 여러 개가 선택되었을 때 외 N곳 전단 준비중 문구를 반환해야 한다', () => {
+      const info = getCtaButtonInfo([mockUnsupportedStore, { ...mockUnsupportedStore, id: 'store-4', name: '농협하나로 서초점', brand: '농협하나로' }]);
+      expect(info).not.toBeNull();
+      expect(info?.isAllUnsupported).toBe(true);
+      expect(info?.text).toBe('GS더프레시 대치점 외 1곳 전단 준비중');
+    });
   });
 
   describe('StoreCtaButton Component Test', () => {
@@ -116,6 +146,25 @@ describe('StoreCtaButton - Helper & Component Tests', () => {
       if (button) {
         fireEvent.click(button);
         expect(handleClick).toHaveBeenCalledTimes(1);
+      }
+    });
+
+    it('미지원 마트만 선택된 상태에서 버튼을 클릭하면 onClick은 실행되지 않고 토스트 메시지가 표시되어야 한다', () => {
+      useToastStore.setState({ message: null, timerId: null });
+      const handleClick = vi.fn();
+
+      render(
+        <StoreCtaButton selectedStores={[mockUnsupportedStore]} onClick={handleClick} />
+      );
+
+      const button = screen.getByText('GS더프레시 대치점 전단 준비중').closest('button');
+      expect(button).not.toBeNull();
+      if (button) {
+        fireEvent.click(button);
+        expect(handleClick).not.toHaveBeenCalled();
+        expect(useToastStore.getState().message).toBe(
+          '선택하신 매장은 전단 서비스 준비 중입니다. 대형 3사(이마트, 홈플러스, 롯데마트)를 선택해 주세요! 🚀'
+        );
       }
     });
   });
